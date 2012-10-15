@@ -9,7 +9,8 @@
  get-object-class
  get-static-method-id
  get-method-id
- method)
+ method
+ constructor)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -125,6 +126,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
      (get-method-id (class class-name)
                     (symbol->string 'name)
                     (type-signature (args ...) return)))))
+
+(define-syntax constructor
+  (er-macro-transformer
+   (lambda (x r c)
+     `(,(r 'method) ,(cadr x) (<init> . ,(cddr x)) void))))
 
 (define-for-syntax (mangle-method-name name)
   (string->symbol
