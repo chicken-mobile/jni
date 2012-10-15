@@ -8,7 +8,8 @@
  define-method
  get-object-class
  get-static-method-id
- get-method-id)
+ get-method-id
+ method)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -117,6 +118,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
      (let ((type (cadr x)))
        (or (expand-type type (and (pair? (cddr x)) (caddr x)))
            (error "Invalid Java type signature" type))))))
+
+(define-syntax method
+  (syntax-rules ()
+    ((_ class-name (name args ...) return)
+     (get-method-id (class class-name)
+                    (symbol->string 'name)
+                    (type-signature (args ...) return)))))
 
 (define-for-syntax (mangle-method-name name)
   (string->symbol
