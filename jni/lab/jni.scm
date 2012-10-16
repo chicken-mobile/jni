@@ -10,7 +10,8 @@
  get-static-method-id
  get-method-id
  method
- constructor)
+ constructor
+ static-method)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -118,19 +119,29 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
    (lambda (x r c)
      (let ((type (cadr x)))
        (or (expand-type type (and (pair? (cddr x)) (caddr x)))
-           (error "Invalid Java type signature" type))))))
+           (error "Invalid Java type signature" x))))))
+
+(define-syntax method*
+  (syntax-rules ()
+    ((_ fn class-name return name args ...)
+     (fn (class class-name)
+         (symbol->string 'name)
+         (type-signature (args ...) return)))))
 
 (define-syntax method
   (syntax-rules ()
-    ((_ class-name (name args ...) return)
-     (get-method-id (class class-name)
-                    (symbol->string 'name)
-                    (type-signature (args ...) return)))))
+    ((_ args ...)
+     (method* get-method-id args ...))))
+
+(define-syntax static-method
+  (syntax-rules ()
+    ((_ args ...)
+     (method* get-static-method-id args ...))))
 
 (define-syntax constructor
   (er-macro-transformer
    (lambda (x r c)
-     `(,(r 'method) ,(cadr x) (<init> . ,(cddr x)) void))))
+     `(,(r 'method) ,(cadr x) void <init> . ,(cddr x)))))
 
 (define-for-syntax (mangle-method-name name)
   (string->symbol
