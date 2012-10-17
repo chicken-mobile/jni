@@ -12,7 +12,10 @@
  method
  constructor
  call-void-method
- call-object-method)
+ call-object-method
+
+ array-length
+ array-ref)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -23,6 +26,9 @@
 (define-foreign-type jclass jobject)
 (define-foreign-type jstring jobject)
 (define-foreign-type jmethod-id (c-pointer (struct "_jmethodID")))
+
+(define-foreign-type jarray jobject)
+(define-foreign-type jobject-array jarray)
 
 (define-syntax jni-init
   (syntax-rules ()
@@ -79,6 +85,14 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 (define call-object-method
   (jni-env-lambda jobject CallObjectMethod jobject jmethod-id))
 
+(define make-array
+  (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
+(define array-length
+  (jni-env-lambda jsize GetArrayLength jarray))
+(define array-ref
+  (jni-env-lambda jobject GetObjectArrayElement jobject-array jsize))
+(define array-set!
+  (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
 
 ;; (define call-static-void-method
 ;;   (jni-env-lambda void CallStaticVoidMethod jobject jmethod-id))
