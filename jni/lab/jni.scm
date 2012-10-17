@@ -10,8 +10,7 @@
  get-static-method-id
  get-method-id
  method
- constructor
- static-method)
+ constructor)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -51,9 +50,14 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (arg-syms  (map string->symbol arg-names))
             (args      (map list arg-types (i arg-syms))))
        `(let ((,name-sym (foreign-lambda* ,(i return) ((jni-env env) . ,(i args))
-                           ,(string-append "C_return((*env)->" name "(env, "
+					  ,(string-append 
+					    (if (c return 'void)
+					       "(*env)->"
+					       "C_return((*env)->") name "(env, "
                                            (string-intersperse arg-names ", ")
-                                           "));"))))
+                                           (if (c return 'void)
+					       ");"
+					       "));")))))
           (lambda ,arg-syms (,name-sym (jni-env) . ,arg-syms)))))))
 
 (define find-class
@@ -68,8 +72,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 (define get-static-method-id
   (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
 
-;; (define call-void-method
-;;   (jni-env-lambda void CallVoidMethod jobject jmethod-id))
+(define call-void-method
+  (jni-env-lambda void CallVoidMethod jobject jmethod-id))
 
 ;; (define call-static-void-method
 ;;   (jni-env-lambda void CallStaticVoidMethod jobject jmethod-id))
@@ -80,8 +84,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 ;; (define release-utf-chars ;;invalid pointer maybe the scheme string is other memmory ....
 ;;   (jni-env-lambda void ReleaseStringUTFChars jstring (const c-string)))
 
-;; (define new-object
-;;   (jni-env-lambda jobject NewObject jclass jmethod-id))
+(define new-object
+  (jni-env-lambda jobject NewObject jclass jmethod-id))
 
 (define-for-syntax (mangle-class-name name)
   (string-translate (symbol->string name) #\. #\/))
