@@ -10,7 +10,9 @@
  get-static-method-id
  get-method-id
  method
- constructor)
+ constructor
+ call-void-method
+ call-object-method)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -74,6 +76,9 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 
 (define call-void-method
   (jni-env-lambda void CallVoidMethod jobject jmethod-id))
+(define call-object-method
+  (jni-env-lambda jobject CallObjectMethod jobject jmethod-id))
+
 
 ;; (define call-static-void-method
 ;;   (jni-env-lambda void CallStaticVoidMethod jobject jmethod-id))
