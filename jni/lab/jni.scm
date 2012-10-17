@@ -14,6 +14,7 @@
  constructor
  call-void-method
  call-object-method
+ call-int-method
  call-static-object-method
 
  array-length
@@ -86,6 +87,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
   (jni-env-lambda void CallVoidMethod jobject jmethod-id))
 (define call-object-method
   (jni-env-lambda jobject CallObjectMethod jobject jmethod-id))
+(define call-int-method
+  (jni-env-lambda jint CallObjectMethod jobject jmethod-id))
 (define call-static-object-method
   (jni-env-lambda jobject CallStaticObjectMethod jobject jmethod-id))
 
