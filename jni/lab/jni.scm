@@ -14,13 +14,15 @@
  constructor
  array-length
  array-ref
+ list->array
  jstring
  jstring->string
  call
  get-method-modifiers
  get-method-return-type
  get-class-name
- from-reflected-method)
+ from-reflected-method
+ exception-describe)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -75,8 +77,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                            ,(string-append 
                              (if (c return 'void)
                                  "(*env)->"
-                                 "C_return((*env)->") name "(env, "
-                             (string-intersperse arg-names ", ")
+                                 "C_return((*env)->") name "("
+                             (string-intersperse (cons "env" arg-names) ", ")
                              (if (c return 'void)
                                  ");"
                                  "));")))))
@@ -144,6 +146,15 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 
 (define array-set!
   (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
+
+(define (list->array class lst)
+  (let ((arr (make-array (length lst) class #f)))
+    (let loop ((i 0) (lst lst))
+      (if (null? lst)
+          arr
+          (begin
+            (array-set! arr i (car lst))
+            (loop (+ i 1) (cdr lst)))))))
 
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
@@ -312,8 +323,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (nargs (length args)))
        `(let* ((obj ,obj)
                (args (list . ,args))
-               (rmethod (apply
-                         ,(call-type-method/n 'object (+ 1 nargs))
+               (rmethod (call-object-method/2
                          (get-object-class obj)
                          (method ,(i 'java.lang.Class)
                                  ,(i 'java.lang.reflect.Method)
@@ -321,7 +331,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                                  ,(i 'java.lang.String)
                                  #(,(i 'java.lang.Class)))
                          (jstring (symbol->string ',method-name))
-                         (map get-object-class args)))
+                         (list->array (class ,(i 'java.lang.Class))
+                                      (map get-object-class args))))
                (method (from-reflected-method rmethod))
                ;; (modifiers (get-method-modifiers rmethod)) ; TODO: static / instance method dispatch
                (type (string->symbol
