@@ -9,6 +9,7 @@
  get-object-class
  get-static-method-id
  get-method-id
+ resolve-method
  method
  static-method
  constructor
@@ -21,8 +22,7 @@
  get-method-modifiers
  get-method-return-type
  get-class-name
- from-reflected-method
- exception-describe)
+ from-reflected-method)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -314,6 +314,25 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 (define-for-syntax (call-type-method/n type n)
   (string->symbol (string-append "call-" (symbol->string type) "-method/" (number->string n))))
 
+(define (resolve-method object method-name args)
+  (let* ((rmethod (call-object-method/2
+                   (get-object-class object)
+                   (method java.lang.Class
+                           java.lang.reflect.Method
+                           getMethod
+                           java.lang.String
+                           #(java.lang.Class))
+                   (jstring (symbol->string method-name))
+                   (list->array (class java.lang.Class)
+                                (map get-object-class args))))
+         (method (from-reflected-method rmethod))
+         ;; (modifiers (get-method-modifiers rmethod)) ; TODO: static / instance method dispatch
+         (type (string->symbol
+                (jstring->string
+                 (get-class-name
+                  (get-method-return-type rmethod))))))
+    (values type method)))
+
 (define-syntax call
   (ir-macro-transformer
    (lambda (x i c)
@@ -321,29 +340,15 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (method-name (caddr x))
             (args (cdddr x))
             (nargs (length args)))
-       `(let* ((obj ,obj)
-               (args (list . ,args))
-               (rmethod (call-object-method/2
-                         (get-object-class obj)
-                         (method ,(i 'java.lang.Class)
-                                 ,(i 'java.lang.reflect.Method)
-                                 ,(i 'getMethod)
-                                 ,(i 'java.lang.String)
-                                 #(,(i 'java.lang.Class)))
-                         (jstring (symbol->string ',method-name))
-                         (list->array (class ,(i 'java.lang.Class))
-                                      (map get-object-class args))))
-               (method (from-reflected-method rmethod))
-               ;; (modifiers (get-method-modifiers rmethod)) ; TODO: static / instance method dispatch
-               (type (string->symbol
-                      (jstring->string
-                       (get-class-name
-                        (get-method-return-type rmethod))))))
-          (case type
-            ,@(map (lambda (type)
-                     `((,(i type))
-                       (apply ,(call-type-method/n type nargs) obj method args)))
-                   '(void boolean byte char short int long float double))
-            (else (apply ,(call-type-method/n 'object nargs) obj method args))))))))
+       `(let ((obj ,obj)
+              (args (list . ,args)))
+          (receive (type method)
+              (resolve-method obj ',(i method-name) args)
+            (case type
+              ,@(map (lambda (type)
+                       `((,(i type))
+                         (apply ,(call-type-method/n type nargs) obj method args)))
+                     '(void boolean byte char short int long float double))
+              (else (apply ,(call-type-method/n 'object nargs) obj method args)))))))))
 
 )
