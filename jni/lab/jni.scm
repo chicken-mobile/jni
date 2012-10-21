@@ -12,16 +12,19 @@
  method
  static-method
  constructor
- call-void-method
- call-object-method
- call-int-method
- call-static-object-method
-
  array-length
- array-ref)
+ array-ref
+ jstring
+ jstring->string
+ call
+ get-method-modifiers
+ get-method-return-type
+ get-class-name
+ from-reflected-method)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
+(use lolevel)
 
 (define-foreign-type jni-env (c-pointer "JNIEnv"))
 (define-foreign-type jint int)
@@ -29,9 +32,17 @@
 (define-foreign-type jclass jobject)
 (define-foreign-type jstring jobject)
 (define-foreign-type jmethod-id (c-pointer (struct "_jmethodID")))
-
+(define-foreign-type jsize jint)
 (define-foreign-type jarray jobject)
 (define-foreign-type jobject-array jarray)
+(define-foreign-type jvalue (c-pointer (union "jvalue")))
+(define-foreign-type jboolean bool)
+(define-foreign-type jbyte char)
+(define-foreign-type jchar unsigned-short char->integer integer->char)
+(define-foreign-type jshort short)
+(define-foreign-type jlong integer64)
+(define-foreign-type jfloat float)
+(define-foreign-type jdouble double)
 
 (define-syntax jni-init
   (syntax-rules ()
@@ -61,15 +72,54 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (arg-syms  (map string->symbol arg-names))
             (args      (map list arg-types (i arg-syms))))
        `(let ((,name-sym (foreign-lambda* ,(i return) ((jni-env env) . ,(i args))
-					  ,(string-append 
-					    (if (c return 'void)
-					       "(*env)->"
-					       "C_return((*env)->") name "(env, "
-                                           (string-intersperse arg-names ", ")
-                                           (if (c return 'void)
-					       ");"
-					       "));")))))
+                           ,(string-append 
+                             (if (c return 'void)
+                                 "(*env)->"
+                                 "C_return((*env)->") name "(env, "
+                             (string-intersperse arg-names ", ")
+                             (if (c return 'void)
+                                 ");"
+                                 "));")))))
           (lambda ,arg-syms (,name-sym (jni-env) . ,arg-syms)))))))
+
+(define-syntax define-method-callers
+  (ir-macro-transformer
+   (lambda (x i c)
+     (let ((count (cadr x)))
+       (cons 'begin
+             (let loop ((n 0) (args '()))
+               (if (= n count)
+                   '()
+                   (cons
+                    (cons 'begin
+                          (map (lambda (return-type type)
+                                 (let* ((n (number->string n))
+                                        (stype (string-downcase type))
+                                        (method (i (string->symbol (string-append "call-" stype "-method/" n))))
+                                        (static-method (i (string->symbol (string-append "call-static-" stype "-method/" n)))))
+                                   `(begin
+                                      (export ,method)
+                                      (define (,method . args)
+                                        (apply
+                                         (jni-env-lambda ,(i return-type)
+                                                         ,(i (string->symbol (string-append "Call" type "Method")))
+                                                         ,(i 'jobject)
+                                                         ,(i 'jmethod-id)
+                                                         . ,args)
+                                         args))
+                                      (export ,static-method)
+                                      (define ,static-method
+                                        (jni-env-lambda ,(i return-type)
+                                                        ,(i (string->symbol (string-append "CallStatic" type "Method")))
+                                                        ,(i 'jclass)
+                                                        ,(i 'jmethod-id)
+                                                        . ,args)))))
+                               '(void jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble)
+                               (map symbol->string '(Void Object Boolean Byte Char Short Int Long Float Double))))
+                    (loop (+ n 1)
+                          (cons (i 'jvalue) args))))))))))
+
+(define-method-callers 5)
 
 (define find-class
   (jni-env-lambda jclass FindClass (const c-string)))
@@ -83,32 +133,35 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 (define get-static-method-id
   (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
 
-(define call-void-method
-  (jni-env-lambda void CallVoidMethod jobject jmethod-id))
-(define call-object-method
-  (jni-env-lambda jobject CallObjectMethod jobject jmethod-id))
-(define call-int-method
-  (jni-env-lambda jint CallObjectMethod jobject jmethod-id))
-(define call-static-object-method
-  (jni-env-lambda jobject CallStaticObjectMethod jobject jmethod-id))
-
 (define make-array
   (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
+
 (define array-length
   (jni-env-lambda jsize GetArrayLength jarray))
+
 (define array-ref
   (jni-env-lambda jobject GetObjectArrayElement jobject-array jsize))
+
 (define array-set!
   (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
 
-;; (define call-static-void-method
-;;   (jni-env-lambda void CallStaticVoidMethod jobject jmethod-id))
+(define jstring
+  (jni-env-lambda jstring NewStringUTF c-string))
 
-;; (define get-utf-chars
-;;   (jni-env-lambda c-string GetStringUTFChars jstring jboolean))
+(define jstring->string
+  (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
+        (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
+        (get-length    (jni-env-lambda jsize GetStringUTFLength jstring)))
+    (lambda (jstring)
+      (let* ((chars (get-chars jstring #f))
+             (len   (get-length jstring))
+             (str   (make-string len)))
+        (move-memory! chars str len)
+        (release-chars jstring chars)
+        str))))
 
-;; (define release-utf-chars ;;invalid pointer maybe the scheme string is other memmory ....
-;;   (jni-env-lambda void ReleaseStringUTFChars jstring (const c-string)))
+(define from-reflected-method
+  (jni-env-lambda jmethod-id FromReflectedMethod jobject))
 
 (define new-object
   (jni-env-lambda jobject NewObject jclass jmethod-id))
@@ -189,7 +242,97 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
           (parameterize ((jni-env env))
             . ,(cdddr x)))))))
 
-;; (define-syntax call
-;;   (syntax-rules (())))
+(define (get-method-modifiers rmethod)
+  (call-int-method/0 rmethod (method java.lang.reflect.Method int getModifiers)))
+
+(define (get-method-return-type rmethod)
+  (call-object-method/0 rmethod (method java.lang.reflect.Method java.lang.Class getReturnType)))
+
+(define (get-class-name class)
+  (call-object-method/0 class (method java.lang.Class java.lang.String getName)))
+
+(define final-modifier 16)
+(define interface-modifier 512)
+(define native-modifier 256)
+(define private-modifier 2)
+(define protected-modifier 4)
+(define public-modifier 1)
+(define static-modifier 8)
+(define synchronized-modifier 32)
+(define transient-modifier 128)
+(define volatile-modifier 64)
+(define abstract-modifier 1024)
+(define strict-modifier 2048)
+
+(define (abstract? modifier)
+  (> (bitwise-and modifier abstract-modifier) 0))
+
+(define (final? modifier)
+  (> (bitwise-and modifier final-modifier) 0))
+
+(define (interface? modifier)
+  (> (bitwise-and modifier interface-modifier) 0))
+
+(define (native? modifier)
+  (> (bitwise-and modifier native-modifier) 0))
+
+(define (private? modifier)
+  (> (bitwise-and modifier private-modifier) 0))
+
+(define (protected? modifier)
+  (> (bitwise-and modifier protected-modifier) 0))
+
+(define (public? modifier)
+  (> (bitwise-and modifier public-modifier) 0))
+
+(define (static? modifier)
+  (> (bitwise-and modifier static-modifier) 0))
+
+(define (strict? modifier)
+  (> (bitwise-and modifier strict-modifier) 0))
+
+(define (synchronized? modifier)
+  (> (bitwise-and modifier synchronized-modifier) 0))
+
+(define (transient? modifier)
+  (> (bitwise-and modifier transient-modifier) 0))
+
+(define (volatile? modifier)
+  (> (bitwise-and modifier volatile-modifier) 0))
+
+(define-for-syntax (call-type-method/n type n)
+  (string->symbol (string-append "call-" (symbol->string type) "-method/" (number->string n))))
+
+(define-syntax call
+  (ir-macro-transformer
+   (lambda (x i c)
+     (let* ((obj (cadr x))
+            (method-name (caddr x))
+            (args (cdddr x))
+            (nargs (length args)))
+       `(let* ((obj ,obj)
+               (args (list . ,args))
+               (rmethod (apply
+                         ,(call-type-method/n 'object (+ 1 nargs))
+                         (get-object-class obj)
+                         (method ,(i 'java.lang.Class)
+                                 ,(i 'java.lang.reflect.Method)
+                                 ,(i 'getMethod)
+                                 ,(i 'java.lang.String)
+                                 #(,(i 'java.lang.Class)))
+                         (jstring (symbol->string ',method-name))
+                         (map get-object-class args)))
+               (method (from-reflected-method rmethod))
+               ;; (modifiers (get-method-modifiers rmethod)) ; TODO: static / instance method dispatch
+               (type (string->symbol
+                      (jstring->string
+                       (get-class-name
+                        (get-method-return-type rmethod))))))
+          (case type
+            ,@(map (lambda (type)
+                     `((,(i type))
+                       (apply ,(call-type-method/n type nargs) obj method args)))
+                   '(void boolean byte char short int long float double))
+            (else (apply ,(call-type-method/n 'object nargs) obj method args))))))))
 
 )
