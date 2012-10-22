@@ -321,9 +321,6 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 (define (volatile? modifier)
   (> (bitwise-and modifier volatile-modifier) 0))
 
-(define-for-syntax (call-type-method/n type n)
-  (string->symbol (string-append "call-" (symbol->string type) "-method/" (number->string n))))
-
 (define (resolve-method object method-name args)
   (let* ((rmethod (call-object-method/2
                    (get-object-class object)
@@ -336,12 +333,27 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                    (list->array (class java.lang.Class)
                                 (map get-object-class args))))
          (method (from-reflected-method rmethod))
-         ;; (modifiers (get-method-modifiers rmethod)) ; TODO: static / instance method dispatch
+         (modifiers (get-method-modifiers rmethod))
          (type (string->symbol
                 (jstring->string
                  (get-class-name
                   (get-method-return-type rmethod))))))
-    (values type method)))
+    (values type method (static? modifiers))))
+
+(define-for-syntax (call-type-method/n type n static?)
+  (string->symbol
+   (string-append "call-"
+                  (if static? "static-" "")
+                  (symbol->string type)
+                  "-method/"
+                  (number->string n))))
+
+(define-for-syntax (dispatch-method-call type nargs)
+  `(apply
+    (if static?
+        ,(call-type-method/n type nargs #t)
+        ,(call-type-method/n type nargs #f))
+    obj method args))
 
 (define-syntax call
   (ir-macro-transformer
@@ -352,13 +364,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (nargs (length args)))
        `(let ((obj ,obj)
               (args (list . ,args)))
-          (receive (type method)
+          (receive (type method static?)
               (resolve-method obj ',(i method-name) args)
             (case type
               ,@(map (lambda (type)
-                       `((,(i type))
-                         (apply ,(call-type-method/n type nargs) obj method args)))
+                       `((,(i type)) ,(dispatch-method-call type nargs)))
                      '(void boolean byte char short int long float double))
-              (else (apply ,(call-type-method/n 'object nargs) obj method args)))))))))
+              (else
+               ,(dispatch-method-call 'object nargs)))))))))
 
 )
