@@ -62,66 +62,76 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
   (make-parameter #f))
 
 (define-syntax jni-env-lambda
-  (ir-macro-transformer
-   (lambda (x i c)
+  (er-macro-transformer
+   (lambda (x r c)
      (let* ((return    (cadr x))
-            (name      (symbol->string (i (caddr x))))
+            (name      (symbol->string (caddr x)))
             (name-sym  (caddr x))
             (arg-types (cdddr x))
             (arg-names (map (lambda (i)
                               (string-append "a" (number->string i)))
                             (iota (length arg-types))))
             (arg-syms  (map string->symbol arg-names))
-            (args      (map list arg-types (i arg-syms))))
-       `(let ((,name-sym (foreign-lambda* ,(i return) ((jni-env env) . ,(i args))
-                           ,(string-append 
-                             (if (c return 'void)
-                                 "(*env)->"
-                                 "C_return((*env)->") name "("
-                             (string-intersperse (cons "env" arg-names) ", ")
-                             (if (c return 'void)
-                                 ");"
-                                 "));")))))
-          (lambda ,arg-syms (,name-sym (jni-env) . ,arg-syms)))))))
+            (args      (map list arg-types arg-syms)))
+       `(,(r 'let)
+         ((,name-sym (,(r 'foreign-lambda*) ,return ((jni-env env) . ,args)
+                      ,(string-append
+                        (if (c return 'void)
+                            "(*env)->"
+                            "C_return((*env)->") name "("
+                        (string-intersperse (cons "env" arg-names) ", ")
+                        (if (c return 'void)
+                            ");"
+                            "));")))))
+         (,(r 'lambda) ,arg-syms (,name-sym (,(r 'jni-env)) . ,arg-syms)))))))
 
-(define-syntax define-method-callers
-  (ir-macro-transformer
-   (lambda (x i c)
-     (let ((count (cadr x)))
-       (cons 'begin
+
+(define-for-syntax call-method-max-args 5)
+
+(define-syntax define-call-method-procs
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((%begin (r 'begin))
+           (%export (r 'export))
+           (%define (r 'define))
+           (%apply (r 'apply))
+           (%jni-env-lambda (r 'jni-env-lambda)))
+       (cons %begin
              (let loop ((n 0) (args '()))
-               (if (= n count)
+               (if (= n call-method-max-args)
                    '()
                    (cons
-                    (cons 'begin
+                    (cons %begin
                           (map (lambda (return-type type)
                                  (let* ((n (number->string n))
                                         (stype (string-downcase type))
-                                        (method (i (string->symbol (string-append "call-" stype "-method/" n))))
-                                        (static-method (i (string->symbol (string-append "call-static-" stype "-method/" n)))))
-                                   `(begin
-                                      (export ,method)
-                                      (define (,method . args)
-                                        (apply
-                                         (jni-env-lambda ,(i return-type)
-                                                         ,(i (string->symbol (string-append "Call" type "Method")))
-                                                         ,(i 'jobject)
-                                                         ,(i 'jmethod-id)
+                                        (method (string->symbol (string-append "call-" stype "-method/" n)))
+                                        (static-method (string->symbol (string-append "call-static-" stype "-method/" n))))
+                                   `(,%begin
+                                     (,%export ,method)
+                                     (,%define
+                                      (,method . args)
+                                      (,%apply
+                                       (,%jni-env-lambda ,return-type
+                                                         ,(string->symbol (string-append "Call" type "Method"))
+                                                         jobject
+                                                         jmethod-id
                                                          . ,args)
-                                         args))
-                                      (export ,static-method)
-                                      (define ,static-method
-                                        (jni-env-lambda ,(i return-type)
-                                                        ,(i (string->symbol (string-append "CallStatic" type "Method")))
-                                                        ,(i 'jclass)
-                                                        ,(i 'jmethod-id)
+                                       args))
+                                     (,%export ,static-method)
+                                     (,%define
+                                      ,static-method
+                                      (,%jni-env-lambda ,return-type
+                                                        ,(string->symbol (string-append "CallStatic" type "Method"))
+                                                        jclass
+                                                        jmethod-id
                                                         . ,args)))))
                                '(void jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble)
                                (map symbol->string '(Void Object Boolean Byte Char Short Int Long Float Double))))
                     (loop (+ n 1)
-                          (cons (i 'jvalue) args))))))))))
+                          (cons 'jvalue args))))))))))
 
-(define-method-callers 5)
+(define-call-method-procs)
 
 (define find-class
   (jni-env-lambda jclass FindClass (const c-string)))
