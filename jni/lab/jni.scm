@@ -34,6 +34,7 @@
 (define-foreign-type jclass jobject)
 (define-foreign-type jstring jobject)
 (define-foreign-type jmethod-id (c-pointer (struct "_jmethodID")))
+(define-foreign-type jfield-id (c-pointer (struct "_jfieldID")))
 (define-foreign-type jsize jint)
 (define-foreign-type jarray jobject)
 (define-foreign-type jobject-array jarray)
@@ -132,6 +133,28 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                           (cons 'jvalue args))))))))))
 
 (define-call-method-procs)
+(define-syntax define-get-field-procs
+  (er-macro-transformer
+    (lambda (x r c)
+      (let ((%begin (r 'begin))
+            (%export (r 'export))
+            (%define (r 'define))
+            (%apply (r 'apply))
+            (jfield-id (r 'jfield-id))
+            (jobject (r 'jobject))
+            (%jni-env-lambda (r 'jni-env-lambda)))
+        (cons %begin
+              (map (lambda (type)
+                     (let ((proc-name (string->symbol (string-append "get-" (string-downcase type) "-field")))
+                           (jni-name (string->symbol (string-append "Get" type "Field")))
+                           (jni-type (string->symbol (string-append "j" (string-downcase type)))))
+                       `(,%define ,proc-name
+                                  (,%jni-env-lambda ,jni-type
+                                                    ,jni-name
+                                                    ,jobject
+                                                    ,jfield-id))))
+                   '("Int" "Float" "Boolean")))))))
+(define-get-field-procs)
 
 (define find-class
   (jni-env-lambda jclass FindClass (const c-string)))
