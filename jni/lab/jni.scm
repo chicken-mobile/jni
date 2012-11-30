@@ -22,7 +22,8 @@
  get-method-modifiers
  get-method-return-type
  get-class-name
- from-reflected-method)
+ from-reflected-method
+ int-field/accessor)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -89,6 +90,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 
 (define-for-syntax call-method-max-args 5)
 
+(define-for-syntax jni-types '(Void Object Boolean Byte Char Short Int Long Float Double)) ;; void and object must be first. cdr of this list is used when declaring field types
+(define-for-syntax jni-jtypes '(void jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble)) ;; void and object must be first. cdr of this list is used when declaring field types
+(define-for-syntax jni-type-sigs '(Z B C S I J F D)) ;; types are corresponding jni-types
+
 (define-syntax define-call-method-procs
   (er-macro-transformer
    (lambda (x r c)
@@ -127,12 +132,19 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                                                         jclass
                                                         jmethod-id
                                                         . ,args)))))
-                               '(void jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble)
-                               (map symbol->string '(Void Object Boolean Byte Char Short Int Long Float Double))))
+                               jni-jtypes
+                               (map symbol->string jni-types)))
                     (loop (+ n 1)
                           (cons 'jvalue args))))))))))
 
 (define-call-method-procs)
+
+(define get-field
+  (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
+
+;; (define get-int-field (jni-env-lambda GetIntField jint jobject jfield-id))
+;; (define get-static-int-field (jni-env-lambda GetStaticIntField jint jobject jfield-id))
+;; (define int-field/accessor ...)
 (define-syntax define-get-field-procs
   (er-macro-transformer
     (lambda (x r c)
@@ -140,20 +152,48 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
             (%export (r 'export))
             (%define (r 'define))
             (%apply (r 'apply))
-            (jfield-id (r 'jfield-id))
-            (jobject (r 'jobject))
+            (%lambda (r 'lambda))
+            (%car (r 'car))
+            (%jvoid (r 'void))
             (%jni-env-lambda (r 'jni-env-lambda)))
         (cons %begin
-              (map (lambda (type)
-                     (let ((proc-name (string->symbol (string-append "get-" (string-downcase type) "-field")))
-                           (jni-name (string->symbol (string-append "Get" type "Field")))
-                           (jni-type (string->symbol (string-append "j" (string-downcase type)))))
-                       `(,%define ,proc-name
-                                  (,%jni-env-lambda ,jni-type
-                                                    ,jni-name
-                                                    ,jobject
-                                                    ,jfield-id))))
-                   '("Int" "Float" "Boolean")))))))
+              (map (lambda (return-type type type-sig)
+                     (let ((proc-get-name (string->symbol (string-append "get-" (string-downcase type) "-field")))
+                           (proc-set-name (string->symbol (string-append "set-" (string-downcase type) "-field")))
+                           (static-proc-get-name (string->symbol (string-append "get-static-" (string-downcase type) "-field")))
+                           (accessor-name (string->symbol (string-append (string-downcase type) "-field/accessor")))
+                           (jni-get-name (string->symbol (string-append "Get" type "Field")))
+                           (jni-set-name (string->symbol (string-append "Set" type "Field")))
+                           (static-jni-name (string->symbol (string-append "GetStatic" type "Field")))
+                           )
+                       `(,%begin
+                          (,%define ,static-proc-get-name
+                                    (,%jni-env-lambda ,return-type
+                                                      ,static-jni-name
+                                                      jobject
+                                                      jfield-id))
+                          (,%define ,proc-get-name
+                                    (,%jni-env-lambda ,return-type
+                                                      ,jni-get-name
+                                                      jobject
+                                                      jfield-id))
+                          (,%define ,proc-set-name
+                                    (,%jni-env-lambda ,%jvoid
+                                                      ,jni-set-name
+                                                      jobject
+                                                      jfield-id
+                                                      ,return-type))
+                          (,%define (,accessor-name object field-name)
+                                     (let* ((object-class (get-object-class object))
+                                            (field-id (get-field object-class field-name ,type-sig)))
+                                       (,%lambda value
+                                                 (if (null? value)
+                                                   (,proc-get-name object field-id)
+                                                   (,proc-set-name object field-id (,%car value))))))
+                          )))
+                   (cddr jni-jtypes)
+                   (map symbol->string (cddr jni-types))
+                   (map symbol->string jni-type-sigs)))))))
 (define-get-field-procs)
 
 (define find-class
