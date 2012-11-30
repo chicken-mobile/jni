@@ -23,7 +23,7 @@
  get-method-return-type
  get-class-name
  from-reflected-method
- int-field/accessor)
+ )
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
@@ -164,32 +164,45 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                            (accessor-name (string->symbol (string-append (string-downcase type) "-field/accessor")))
                            (jni-get-name (string->symbol (string-append "Get" type "Field")))
                            (jni-set-name (string->symbol (string-append "Set" type "Field")))
-                           (static-jni-name (string->symbol (string-append "GetStatic" type "Field")))
+                           (static-proc-set-name (string->symbol (string-append "set-static-" (string-downcase type) "-field")))
+                           (static-jni-get-name (string->symbol (string-append "GetStatic" type "Field")))
+                           (static-jni-set-name (string->symbol (string-append "SetStatic" type "Field")))
                            )
                        `(,%begin
+                          (,%export ,static-proc-get-name)
                           (,%define ,static-proc-get-name
                                     (,%jni-env-lambda ,return-type
-                                                      ,static-jni-name
+                                                      ,static-jni-get-name
                                                       jobject
                                                       jfield-id))
+                          (,%export ,static-proc-set-name)
+                          (,%define ,static-proc-set-name
+                                    (,%jni-env-lambda ,%jvoid
+                                                      ,static-jni-set-name
+                                                      jobject
+                                                      jfield-id
+                                                      ,return-type))
+                          (,%export ,proc-get-name)
                           (,%define ,proc-get-name
                                     (,%jni-env-lambda ,return-type
                                                       ,jni-get-name
                                                       jobject
                                                       jfield-id))
+                          (,%export ,proc-set-name)
                           (,%define ,proc-set-name
                                     (,%jni-env-lambda ,%jvoid
                                                       ,jni-set-name
                                                       jobject
                                                       jfield-id
                                                       ,return-type))
+                          (,%export ,accessor-name)
                           (,%define (,accessor-name object field-name)
-                                     (let* ((object-class (get-object-class object))
-                                            (field-id (get-field object-class field-name ,type-sig)))
-                                       (,%lambda value
-                                                 (if (null? value)
-                                                   (,proc-get-name object field-id)
-                                                   (,proc-set-name object field-id (,%car value))))))
+                                    (let* ((object-class (get-object-class object))
+                                           (field-id (get-field object-class field-name ,type-sig)))
+                                      (,%lambda value
+                                                (if (null? value)
+                                                  (,proc-get-name object field-id)
+                                                  (,proc-set-name object field-id (,%car value))))))
                           )))
                    (cddr jni-jtypes)
                    (map symbol->string (cddr jni-types))
