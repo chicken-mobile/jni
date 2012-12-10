@@ -1,0 +1,12 @@
+(if (host-extension)
+    (begin
+      (let ((java-path (string-append (alist-ref "JAVA_HOME" (get-environment-variables) equal?) "/include/")))
+	(compile -s ,(string-append "-I" java-path) jni.scm -j jni)
+	(compile -s ,(string-append "-I" java-path) jni.import.scm)))
+    (begin
+      (compile -s jni.scm -j jni)
+      (compile -s jni.import.scm)))
+
+(install-extension 'jni
+  '("jni.so" "jni.import.so")
+  '((version "0.1")))
