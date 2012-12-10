@@ -1,3 +1,7 @@
+#>
+#include <jni.h>
+<#
+
 (module jni
 
 (jni-init
