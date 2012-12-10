@@ -27,12 +27,15 @@
  get-method-return-type
  get-class-name
  from-reflected-method
- )
+ java-vm
+ with-jvm-thread
+ jprint)
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
 (use lolevel)
 
+(define-foreign-type java-vm (c-pointer "JavaVM"))
 (define-foreign-type jni-env (c-pointer "JNIEnv"))
 (define-foreign-type jint int)
 (define-foreign-type jobject (c-pointer (struct "_jobject")))
@@ -455,5 +458,44 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
                      '(void boolean byte char short int long float double))
               (else
                ,(dispatch-method-call 'object nargs)))))))))
+
+(define jvm-attach-current-thread
+  (foreign-lambda* int ((java-vm jvm)
+			((c-pointer jni-env) env))
+    "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
+(define jvm-detach-current-thread
+  (foreign-lambda* int ((java-vm jvm))
+    "C_return((*jvm)->DetachCurrentThread(jvm));"))
+
+(define java-vm
+  (make-parameter '()))
+
+(define (with-jvm-thread jvm proc)
+  (let-location ((env jni-env))
+    (jvm-attach-current-thread jvm (location env))
+    (parameterize ((jni-env env) (java-vm jvm)) (proc))
+    (jvm-detach-current-thread jvm)))
+
+
+
+;; needs rewrite :)
+(define static-field
+  (jni-env-lambda jfield-id GetStaticFieldID jclass c-string c-string))
+(define static-object-field
+  (jni-env-lambda jobject GetStaticObjectField jclass jfield-id))
+
+(define (java-out)
+  (let ((System (class java.lang.System)))
+    (static-object-field System
+     (static-field System "out" (type-signature java.io.PrintStream)))))
+
+(define (jprint object)
+  (call-void-method/1 (java-out)
+			(method java.io.PrintStream 
+				void 
+				println 
+				java.lang.Object) 
+			object))
+
 
 )
