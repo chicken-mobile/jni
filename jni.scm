@@ -13,6 +13,14 @@
 (include "jni-def-macros.scm")
 (include "jni-defs.scm")
 
+(define exception-check
+  (jni-env-lambda jboolean ExceptionCheck))
+(define exception-clear
+  (jni-env-lambda void ExceptionClear))
+(define exception-describe
+  (jni-env-lambda void ExceptionDescribe))
+(define exception-occurred
+  (jni-env-lambda jthrowable ExceptionOccurred))
 (define jni-env
   (make-parameter #f))
 
