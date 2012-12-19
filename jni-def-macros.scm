@@ -29,7 +29,7 @@
 
 (define-for-syntax jni-types '(Void Object Boolean Byte Char Short Int Long Float Double))
 (define-for-syntax jni-jtypes '(jvoid jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble))
-(define-for-syntax jni-type-sigs '(Z B C S I J F D))
+(define-for-syntax jni-type-sigs '(V Z B C S I J F D))
 
 (define-syntax define-call-method-procs
   (er-macro-transformer
@@ -135,6 +135,43 @@
                    (cdr jni-jtypes)
                    (map symbol->string (cdr jni-types))
                    (map symbol->string jni-type-sigs)))))))
+
+
+(define-for-syntax modifiers
+  '((public       .    1)
+    (private      .    2)
+    (protected    .    4) 
+    (static       .    8)
+    (final        .   16)
+    (synchronized .   32)
+    (volatile     .   64)
+    (transient    .  128)
+    (native       .  256)
+    (interface    .  512)
+    (abstract     . 1024)
+    (strict       . 2048)))
+(define-syntax define-jni-modifier-procs
+  (er-macro-transformer
+   (lambda (x i c)
+     (cons 'begin
+	   (let loop ((accessor-defs '())
+		      (test-defs     '())
+		      (exports       '())
+		      (modifiers     modifiers))
+
+	   (if (null? modifiers)
+	       (append accessor-defs test-defs exports)
+	       (let* ((modifier      (car modifiers))
+		      (accessor-name (string->symbol (format "~A-modifier" (car modifier))))
+		      (test-name     (string->symbol (format "~A?"         (car modifier)))))
+		 
+		 (loop (append accessor-defs (list `(define ,accessor-name ,(cdr modifier))))
+		       (append test-defs     (list `(define (,test-name modifier)
+						      (> (bitwise-and modifier ,(cdr modifier)) 0))))
+		       (append exports       (list `(export ,accessor-name)
+						   `(export ,test-name)))
+		       (cdr modifiers)))))))))
+
 
 (define-syntax jni-init
   (syntax-rules ()

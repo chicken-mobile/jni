@@ -1,5 +1,6 @@
 (define-call-method-procs)
 (define-get-field-procs)
+(define-jni-modifier-procs)
 
 (define get-field
   (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
