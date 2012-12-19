@@ -1,0 +1,235 @@
+#>
+#include <jni.h>
+<#
+
+(module jni-reflection
+*
+(import chicken scheme foreign)
+(import-for-syntax chicken data-structures)
+(use srfi-1 jni)
+
+
+;; need to handle exception in the jni egg ... till then...
+(define (unhandled-exception)
+  (exception-describe)
+  (error "Native Chicken[jni-reflection]" "-- ): unhandled excpetion in chicken thread :( --"))
+(define call-object-method
+  (let ((call-object-method* call-object-method))
+    (lambda (object method args)
+      (let ((result (call-object-method* object method args)))
+	(if (exception-check) (unhandled-exception) result)))))
+
+
+(define (primitive? Class/instance)
+  (let* ((Class.isPrimitive/method (method java.lang.Class boolean isPrimitive))
+	 (is-primitive             (call-boolean-method Class/instance Class.isPrimitive/method #f)))
+    is-primitive))
+
+
+
+(define (reflected-field object field-name)
+  (let* ((object-class (get-object-class object))
+	 (field-name (jstring (symbol->string field-name)))
+	 (Class.getDeclaredField/method (method java.lang.Class java.lang.reflect.Field getDeclaredField java.lang.String))
+	 (args (make-jvalue-array 1))
+	 (Field/instance (call-object-method object-class Class.getDeclaredField/method
+					     (begin
+					       (set-object-jvalue! args 0 field-name) args))))
+    (delete-local-ref field-name)
+    (delete-local-ref object-class)
+    Field/instance))
+
+(define (reflected-field-modifiers Field/instance)
+  (let* ((Field.getModifiers/method (method java.lang.reflect.Field int getModifiers))
+	 (modifiers                 (call-int-method Field/instance Field.getModifiers/method #f)))
+    modifiers))
+(define (reflected-field-type Field/instance)
+  (let* ((Field.getType/method (method java.lang.reflect.Field java.lang.Class getType))
+	 (Class/instance       (call-object-method Field/instance Field.getType/method #f)))
+    Class/instance))
+
+
+(define (field object field-name)
+  (let* ((Field/instance       (reflected-field object    field-name))
+	 (Field.type/Class     (reflected-field-type      Field/instance))
+	 (Field.modifiers/int  (reflected-field-modifiers Field/instance)))
+
+    (let ((return-value
+	   (if (primitive? Field.type/Class)
+	       (case (string->symbol (to-string Field.type/Class))
+		 ((byte)
+		  (if (static? Field.modifiers/int)
+		      (get-static-byte-field    object (Field->field-id Field/instance))
+		      (get-byte-field           object (Field->field-id Field/instance))))
+		 ((short)
+		  (if (static? Field.modifiers/int)
+		      (get-static-short-field   object (Field->field-id Field/instance))
+		      (get-short-field          object (Field->field-id Field/instance))))
+		 ((int)
+		  (if (static? Field.modifiers/int)
+		      (get-static-int-field     object (Field->field-id Field/instance))
+		      (get-int-field            object (Field->field-id Field/instance))))
+		 ((long)
+		  (if (static? Field.modifiers/int)
+		      (get-static-long-field    object (Field->field-id Field/instance))
+		      (get-long-field           object (Field->field-id Field/instance))))
+		 ((float)
+		  (if (static? Field.modifiers/int)
+		      (get-static-float-field   object (Field->field-id Field/instance))
+		      (get-float-field          object (Field->field-id Field/instance))))
+		 ((double)
+		  (if (static? Field.modifiers/int)
+		      (get-static-double-field  object (Field->field-id Field/instance))
+		      (get-double-field         object (Field->field-id Field/instance))))
+		 ((char)
+		  (if (static? Field.modifiers/int)
+		      (get-static-char-field    object (Field->field-id Field/instance))
+		      (get-char-field           object (Field->field-id Field/instance))))
+		 ((boolean)
+		  (if (static? Field.modifiers/int)
+		      (get-static-boolean-field object (Field->field-id Field/instance))
+		      (get-boolean-field        object (Field->field-id Field/instance))))
+		 (else
+		  (print (format "): -- Field has unkown primitive type ~A -- :(" (to-string Field.type/Class)))(exit -1)))
+	       (if (static? Field.modifiers/int)
+		   (get-static-object-field     object (Field->field-id Field/instance))
+		   (get-object-field            object (Field->field-id Field/instance))))))
+      (delete-local-ref Field/instance)
+      (delete-local-ref Field.type/Class)
+      return-value)))
+
+(define (set-field! object field-name value)
+  (let* ((Field/instance       (reflected-field object    field-name))
+	 (Field.type/Class     (reflected-field-type      Field/instance))
+	 (Field.modifiers/int  (reflected-field-modifiers Field/instance)))
+
+    (let ((return-value
+	   (if (primitive? Field.type/Class)
+	       (case (string->symbol (to-string Field.type/Class))
+		 ((byte)
+		  (if (static? Field.modifiers/int)
+		      (set-static-byte-field    object (Field->field-id Field/instance) value)
+		      (set-byte-field           object (Field->field-id Field/instance) value)))
+		 ((short)
+		  (if (static? Field.modifiers/int)
+		      (set-static-short-field   object (Field->field-id Field/instance) value)
+		      (set-short-field          object (Field->field-id Field/instance) value) ))
+		 ((int)
+		  (if (static? Field.modifiers/int)
+		      (set-static-int-field     object (Field->field-id Field/instance) value)
+		      (set-int-field            object (Field->field-id Field/instance) value)))
+		 ((long)
+		  (if (static? Field.modifiers/int)
+		      (set-static-long-field    object (Field->field-id Field/instance) value)
+		      (set-long-field           object (Field->field-id Field/instance) value)))
+		 ((float)
+		  (if (static? Field.modifiers/int)
+		      (set-static-float-field   object (Field->field-id Field/instance) value)
+		      (set-float-field          object (Field->field-id Field/instance) value)))
+		 ((double)
+		  (if (static? Field.modifiers/int)
+		      (set-static-double-field  object (Field->field-id Field/instance) value)
+		      (set-double-field         object (Field->field-id Field/instance) value)))
+		 ((char)
+		  (if (static? Field.modifiers/int)
+		      (set-static-char-field    object (Field->field-id Field/instance) value)
+		      (set-char-field           object (Field->field-id Field/instance) value)))
+		 ((boolean)
+		  (if (static? Field.modifiers/int)
+		      (set-static-boolean-field object (Field->field-id Field/instance) value)
+		      (set-boolean-field        object (Field->field-id Field/instance) value)))
+		 (else
+		  (print (format "): -- Field has unkown primitive type ~A -- :(" (to-string Field.type/Class)))(exit -1)))
+	       (if (static? Field.modifiers/int)
+		   (set-static-object-field     object (Field->field-id Field/instance) value)
+		   (set-object-field            object (Field->field-id Field/instance) value)))))
+      (delete-local-ref Field/instance)
+      (delete-local-ref Field.type/Class)
+      return-value)))
+
+
+
+
+
+(define (methods Class/instance)
+  (let* ((Class.getMethods/method (method java.lang.Class #(java.lang.reflect.Method) getMethods))
+	 (methods-array           (call-object-method Class/instance Class.getMethods/method #f))
+	 (methods-list            (array->list methods-array)))
+    (delete-local-ref methods-array)
+    methods-list))
+(define (declared-methods Class/instance)
+  (let* ((Class.getDeclaredMethods/method (method java.lang.Class #(java.lang.reflect.Method) getDeclaredMethods))       
+	 (methods-array                   (call-object-method Class/instance Class.getDeclaredMethods/method #f))
+	 (methods-list                    (array->list methods-array)))
+    (delete-local-ref methods-array)
+    methods-list))
+(define (method-name Method/instance)
+  (let* ((Method.getName/method (method java.lang.reflect.Method java.lang.String getName))
+	 (String/instance       (call-object-method Method/instance Method.getName/method #f)))
+    String/instance))
+(define (method-parameters Method/instance)
+  (let* ((Method.getParameterTypes/method (method java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
+	 (class-object-array (call-object-method Method/instance Method.getParameterTypes/method #f))
+	 (class-object-list  (array->list class-object-array)))
+    (delete-local-ref class-object-array)
+    class-object-list))
+
+(define (methods-by-name object name)
+  (let* ((object-class (get-object-class object))
+	 (all-methods (methods object-class))
+	 (same-name (filter (lambda (method)
+			      (if (equal? (symbol->string name) 
+					  (let* ((name* (method-name method))
+						 (name  (jstring->string name*)))
+					    (delete-local-ref name*) name))
+				  #t (begin
+				       (delete-local-ref method) #f)))
+			    all-methods)))
+    (delete-local-ref object-class)
+    same-name))
+
+(define (print-methods object)
+  (let* ((object-class (get-object-class object))
+	 (own-methods (methods object-class))
+	 (all-methods (declared-methods object-class)))
+
+    (delete-local-ref object-class)
+
+    (print "-- all")
+    (for-each jprint all-methods)
+    (for-each delete-local-ref all-methods)
+    
+
+    (print "-- declared")
+    (for-each jprint own-methods)
+    (for-each delete-local-ref own-methods)))
+
+
+(define (resolve-method object name args)
+  (let ((m (methods-by-name object name)))
+    (if (null? m)
+	(error "resolve method" (format "method not found: ~A with ~A on ~A" name args (to-string object))))
+    (if (null? args)
+	(car m)
+	(find
+	 (lambda (method)
+	   (jprint method)
+	   (let ((method-args (method-parameters method)))
+	     (for-each delete-local-ref method-args)
+	     (= (length args)
+		(length method-args)))) m))))
+
+
+
+(define (call object name . args)
+  (print-methods object)
+  (let ((Method/instance (resolve-method object name args)))
+    (print (format "found: ~A to call ~A with ~A on ~A" (to-string Method/instance) name args (to-string object)))
+    (let ((return-value (call-boolean-method object (Method->method-id Method/instance) 
+					     (let ((args* (make-jvalue-array 1)))
+					       (set-object-jvalue! args* 0 (car args))
+					       args*))))
+      (delete-local-ref Method/instance)
+      return-value)))
+
+)
