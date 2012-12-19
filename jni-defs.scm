@@ -36,3 +36,11 @@
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
+(define method-id->Method
+  (jni-env-lambda jobject ToReflectedMethod jclass jmethod-id jboolean))
+(define Method->method-id
+  (jni-env-lambda jobject FromReflectedMethod jobject))
+(define field-id->Field
+  (jni-env-lambda jobject ToReflectedField jclass jfield-id jboolean))
+(define Field->field-id
+  (jni-env-lambda jobject FromReflectedField jobject))
