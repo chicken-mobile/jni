@@ -21,6 +21,17 @@
   (jni-env-lambda void ExceptionDescribe))
 (define exception-occurred
   (jni-env-lambda jthrowable ExceptionOccurred))
+
+(define new-local-ref
+  (jni-env-lambda void NewLocalRef jobject))
+(define delete-local-ref
+  (jni-env-lambda void DeleteLocalRef jobject))
+
+(define new-global-ref
+  (jni-env-lambda jobject NewGlobalRef jobject))
+(define delete-global-ref
+  (jni-env-lambda void DeleteGlobalRef jobject))
+
 (define jni-env
   (make-parameter #f))
 
