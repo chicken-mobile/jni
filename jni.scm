@@ -305,4 +305,14 @@
 	    (set-static-object-field     object (Field->field-id Field/instance) value)
 	    (set-object-field            object (Field->field-id Field/instance) value)))))
 
+(define to-string
+  (lambda (object)
+    (let* ((Object.toString/method (method java.lang.Object java.lang.String toString))
+	   (String/instance (call-object-method object Object.toString/method null-args))
+	   (string (jstring->string String/instance)))
+      (delete-local-ref String/instance) string)))
+
+(define (jprint object)
+  (print (to-string object)))
+
 )
