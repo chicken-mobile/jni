@@ -18,3 +18,4 @@
 (define-foreign-type jlong integer64)
 (define-foreign-type jfloat float)
 (define-foreign-type jdouble double)
+(define-foreign-type jthrowable jobject)
