@@ -142,4 +142,30 @@
     (jvm-attach-current-thread jvm (location env))
     (parameterize ((jni-env env) (java-vm jvm)) (proc))
     (jvm-detach-current-thread jvm)))
+(define make-array
+  (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
+
+(define array-length
+  (jni-env-lambda jsize GetArrayLength jarray))
+
+(define array-ref
+  (jni-env-lambda jobject GetObjectArrayElement jobject-array jsize))
+
+(define array-set!
+  (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
+
+(define (list->array class lst)
+  (let ((arr (make-array (length lst) class #f)))
+    (let loop ((i 0) (lst lst))
+      (if (null? lst)
+          arr
+          (begin
+            (array-set! arr i (car lst))
+            (loop (+ i 1) (cdr lst)))))))
+
+
+(define (array->list array-object)
+  (do ((idx 0 (+ idx 1))
+       (object-list '() (cons (array-ref array-object idx) object-list)))
+      ((<= (array-length array-object) idx) object-list)))
 )
