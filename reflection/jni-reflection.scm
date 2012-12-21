@@ -98,7 +98,7 @@
       (delete-local-ref Field/instance)
       (delete-local-ref Field.type/Class)
 
-      (if (exception-check) (unhandled-exception) return-value))))
+      (if (exception-check) (unhandled-exception) (set-finalizer! return-value delete-local-ref)))))
 
 (define (set-field! object field-name value)
   (let* ((Field/instance       (reflected-field object    field-name))
@@ -322,6 +322,6 @@
       (delete-local-ref Method.returnType/Class)
       (free-jvalue-array args)
 
-      (if (exception-check) (unhandled-exception) return-value))))
+      (if (exception-check) (unhandled-exception) (set-finalizer! return-value delete-local-ref)))))
 
 )
