@@ -37,6 +37,7 @@
 					       (set-object-jvalue! args 0 field-name) args))))
     (delete-local-ref field-name)
     (delete-local-ref object-class)
+    (free-jvalue-array args)
     Field/instance))
 
 (define (reflected-field-modifiers Field/instance)
