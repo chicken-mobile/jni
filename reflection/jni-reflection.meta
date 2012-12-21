@@ -1,0 +1,5 @@
+((license "BSD License")
+ (category lang-exts)
+ (needs jni)
+ (author "bevuta IT GmbH (Patrick Brauer)")
+ (synopsis "JNI Reflection Bindings for Chicken Scheme"))

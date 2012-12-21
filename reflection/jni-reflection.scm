@@ -6,7 +6,7 @@
 *
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
-(use srfi-1 jni)
+(use srfi-1 lolevel jni matchable)
 
 
 ;; need to handle exception in the jni egg ... till then...
@@ -29,8 +29,8 @@
 
 (define (reflected-field object field-name)
   (let* ((object-class (get-object-class object))
-	 (field-name (jstring (symbol->string field-name)))
 	 (Class.getDeclaredField/method (method java.lang.Class java.lang.reflect.Field getDeclaredField java.lang.String))
+	 (field-name (jstring (symbol->string field-name)))
 	 (args (make-jvalue-array 1))
 	 (Field/instance (call-object-method object-class Class.getDeclaredField/method
 					     (begin
@@ -96,7 +96,8 @@
 		   (get-object-field            object (Field->field-id Field/instance))))))
       (delete-local-ref Field/instance)
       (delete-local-ref Field.type/Class)
-      return-value)))
+
+      (if (exception-check) (unhandled-exception) return-value))))
 
 (define (set-field! object field-name value)
   (let* ((Field/instance       (reflected-field object    field-name))
@@ -145,7 +146,8 @@
 		   (set-object-field            object (Field->field-id Field/instance) value)))))
       (delete-local-ref Field/instance)
       (delete-local-ref Field.type/Class)
-      return-value)))
+      
+      (if (exception-check) (unhandled-exception) return-value))))
 
 
 
@@ -167,12 +169,20 @@
   (let* ((Method.getName/method (method java.lang.reflect.Method java.lang.String getName))
 	 (String/instance       (call-object-method Method/instance Method.getName/method #f)))
     String/instance))
+(define (method-return-type Method/instance)
+  (let* ((Method.getReturnType/method (method java.lang.reflect.Method java.lang.String getName))
+	 (Class/instance              (call-object-method Method/instance Method.getReturnType/method #f)))
+    Class/instance))
 (define (method-parameters Method/instance)
   (let* ((Method.getParameterTypes/method (method java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
 	 (class-object-array (call-object-method Method/instance Method.getParameterTypes/method #f))
 	 (class-object-list  (array->list class-object-array)))
     (delete-local-ref class-object-array)
     class-object-list))
+(define (method-modifiers Method/instance)
+  (let* ((Method.getModifiers/method (method java.lang.reflect.Method int getModifiers))
+	 (modifiers                  (call-int-method Method/instance Method.getModifiers/method #f)))
+    modifiers))
 
 (define (methods-by-name object name)
   (let* ((object-class (get-object-class object))
@@ -199,13 +209,12 @@
     (for-each jprint all-methods)
     (for-each delete-local-ref all-methods)
     
-
     (print "-- declared")
     (for-each jprint own-methods)
     (for-each delete-local-ref own-methods)))
 
 
-(define (resolve-method object name args)
+(define (method-resolve object name args)
   (let ((m (methods-by-name object name)))
     (if (null? m)
 	(error "resolve method" (format "method not found: ~A with ~A on ~A" name args (to-string object))))
@@ -219,17 +228,99 @@
 	     (= (length args)
 		(length method-args)))) m))))
 
-
+(define (make-jvalue-args args class-objects)
+  (let ((jvalue-array (make-jvalue-array (length class-objects))))
+    (fold (lambda (arg-map i)
+	    (let ((arg   (car  arg-map))
+		  (type (cadr arg-map)))
+	      (if (pointer? arg)
+		  (set-object-jvalue! jvalue-array i arg)
+		  (case (symbol->string (to-string type))
+		    ((boolean)
+		     (set-boolean-jvalue! jvalue-array i arg))
+		    ((char)
+		     (set-char-jvalue! jvalue-array i arg))
+		    ((byte)
+		     (set-byte-jvalue! jvalue-array i arg))
+		    ((short)
+		     (set-short-jvalue! jvalue-array i arg))
+		    ((int)
+		     (set-int-jvalue! jvalue-array i arg))
+		    ((long)
+		     (set-long-jvalue! jvalue-array i arg))
+		    ((float)
+		     (set-float-jvalue! jvalue-array i arg))
+		    ((double)
+		     (set-double-jvalue! jvalue-array i arg))
+		    (else
+		     (error "fooooooo" "baaaaaaar!!!!")))))
+	    (+ i 1))
+	  0
+	  (list args class-objects))
+    jvalue-array))
 
 (define (call object name . args)
   (print-methods object)
-  (let ((Method/instance (resolve-method object name args)))
+  (let* ((Method/instance         (method-resolve object name args))
+	 (Method.modifiers/int    (method-modifiers Method/instance))
+	 (Method.returnType/Class (method-return-type Method/instance))
+	 (arg-classes             (method-parameters Method/instance))
+	 (method (Method->method-id Method/instance))
+	 (args (make-jvalue-args args)))
+    (for-each delete-local-ref arg-classes)
+
     (print (format "found: ~A to call ~A with ~A on ~A" (to-string Method/instance) name args (to-string object)))
-    (let ((return-value (call-boolean-method object (Method->method-id Method/instance) 
-					     (let ((args* (make-jvalue-array 1)))
-					       (set-object-jvalue! args* 0 (car args))
-					       args*))))
+
+    (let ((return-value
+	   (if (primitive? Method.returnType/Class)
+	       (case (string->symbol (to-string Method.returnType/Class))
+		 #;
+		 ((void)
+		  (if (static? Method.modifiers/int)
+		      (call-static-void-method object method args)
+		      (call-void-method object method args)))
+		 ((byte)
+		  (if (static? Method.modifiers/int)
+		      (call-static-byte-method object method args)
+		      (call-byte-method object method args)))
+		 ((short)
+		  (if (static? Method.modifiers/int)
+		      (call-static-short-method object method args)
+		      (call-short-method object method args)))
+		 ((int)
+		  (if (static? Method.modifiers/int)
+		      (call-static-int-method object method args)
+		      (call-int-method object method args)))
+		 ((long)
+		  (if (static? Method.modifiers/int)
+		      (call-static-long-method object method args)
+		      (call-long-method object method args)))
+		 ((float)
+		  (if (static? Method.modifiers/int)
+		      (call-static-float-method object method args)
+		      (call-float-method object method args)))
+		 ((double)
+		  (if (static? Method.modifiers/int)
+		      (call-static-double-method object method args)
+		      (call-double-method object method args)))
+		 ((char)
+		  (if (static? Method.modifiers/int)
+		      (call-static-char-method object method args)
+		      (call-char-method object method args)))
+		 ((boolean)
+		  (if (static? Method.modifiers/int)
+		      (call-static-boolean-method object method args)
+		      (call-boolean-method object method args)))
+		 (else
+		  (print (format "): -- Method has unkown primitive return type ~A -- :(" (to-string Method.returnType/Class)))(exit -1)))
+	       (if (static? Method.modifiers/int)
+		   (call-static-object-method object method args)
+		   (call-object-method object method args)))))
+
       (delete-local-ref Method/instance)
-      return-value)))
+      (delete-local-ref Method.returnType/Class)
+      (free-jvalue-array args)
+
+      (if (exception-check) (unhandled-exception) return-value))))
 
 )
