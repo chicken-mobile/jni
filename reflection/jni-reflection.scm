@@ -271,7 +271,7 @@
     (for-each delete-local-ref arg-classes)
 
     (print (format "\nfound: ~A" (to-string Method/instance)))
-    (print (format "to call ~A with ~A on ~A\n" name args (to-string object)))
+    (print (format "to call ~A with ~A on ~A\n" name args* (to-string object)))
 
     (let ((return-value
 	   (if (primitive? Method.returnType/Class)
