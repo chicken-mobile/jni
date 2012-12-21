@@ -92,13 +92,15 @@
 		      (get-boolean-field        object (Field->field-id Field/instance))))
 		 (else
 		  (print (format "): -- Field has unkown primitive type ~A -- :(" (to-string Field.type/Class)))(exit -1)))
-	       (if (static? Field.modifiers/int)
-		   (get-static-object-field     object (Field->field-id Field/instance))
-		   (get-object-field            object (Field->field-id Field/instance))))))
+	       (let ((return-value
+		      (if (static? Field.modifiers/int)
+			  (get-static-object-field     object (Field->field-id Field/instance))
+			  (get-object-field            object (Field->field-id Field/instance)))))
+		 (if return-value (set-finalizer! return-value delete-local-ref) return-value)))))
       (delete-local-ref Field/instance)
       (delete-local-ref Field.type/Class)
 
-      (if (exception-check) (unhandled-exception) (set-finalizer! return-value delete-local-ref)))))
+      (if (exception-check) (unhandled-exception) return-value))))
 
 (define (set-field! object field-name value)
   (let* ((Field/instance       (reflected-field object    field-name))
@@ -314,14 +316,16 @@
 		      (call-boolean-method object method args)))
 		 (else
 		  (print (format "): -- Method has unkown primitive return type ~A -- :(" (to-string Method.returnType/Class)))(exit -1)))
-	       (if (static? Method.modifiers/int)
-		   (call-static-object-method object method args)
-		   (call-object-method object method args)))))
+	       (let ((return-value
+		      (if (static? Method.modifiers/int)
+			  (call-static-object-method object method args)
+			  (call-object-method object method args))))
+		 (if return-value (set-finalizer! return-value delete-local-ref) return-value)))))
 
       (delete-local-ref Method/instance)
       (delete-local-ref Method.returnType/Class)
       (free-jvalue-array args)
 
-      (if (exception-check) (unhandled-exception) (set-finalizer! return-value delete-local-ref)))))
+      (if (exception-check) (unhandled-exception) return-value))))
 
 )
