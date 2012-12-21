@@ -10,7 +10,7 @@
 (define-foreign-type jarray jobject)
 (define-foreign-type jobject-array jarray)
 (define-foreign-type jvalue (c-pointer (union "jvalue")))
-(define-foreign-type jvoid int)
+(define-foreign-type jvoid void)
 (define-foreign-type jboolean bool)
 (define-foreign-type jbyte char)
 (define-foreign-type jchar unsigned-short char->integer integer->char)
