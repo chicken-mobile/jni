@@ -29,49 +29,79 @@
 
 (define-for-syntax jni-types '(Void Object Boolean Byte Char Short Int Long Float Double))
 (define-for-syntax jni-jtypes '(jvoid jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble))
-(define-for-syntax jni-type-sigs '(V Z B C S I J F D))
+(define-for-syntax jni-type-sigs '(V L Z B C S I J F D))
 
-(define-syntax define-call-method-procs
+(define-for-syntax type-sigs '(V     L         Z        B     C     S      I    J      F     D))
+(define-for-syntax types     '(Void  Object    Boolean  Byte  Char  Short  Int  Long   Float Double))
+(define-for-syntax s-types   '(jvoid jobject   jboolean jbyte jchar jshort jint jfloat jlong jdouble))
+(define-for-syntax c-types   '(void  c-pointer bool     byte  char  short  int  float  long  double))
+
+
+(define-syntax define-call-procs 
   (er-macro-transformer
-   (lambda (x i c)
-     (cons 'begin
-	   (let loop ((call-defs         '())
-		      (jvalue-defs       '())
-		      (exports           '())
-		      (jtypes            (cdr jni-types)))
-	     (if (null? jtypes)
-		 (append call-defs jvalue-defs exports)
-		 (let* ((type   (car jtypes))
-			(stype  (string->symbol (string-downcase    (symbol->string type))))
-			(jstype (string->symbol (string-append  "j" (symbol->string stype))))
-			(jtype  (string->symbol (string-append  "j" (string-downcase (symbol->string stype)))))
-			
-			(call-proc-name         (string->symbol (format "call-~A-method"        stype)))
-			(static-call-proc-name  (string->symbol (format "call-static-~A-method" stype)))			  
-			(call-func-name         (string->symbol (format "Call~AMethodA"          type)))
-			(static-call-func-name  (string->symbol (format "CallStatic~AMethodA"    type)))
-			
-			(jvalue-set-proc-name   (string->symbol (format "set-~A-jvalue!"        stype)))
-			(jvalue-get-proc-name   (string->symbol (format "get-~A-jvalue"        stype)))
-			(jvalue-set-func-name   (string->symbol (format "set_~A_jvalue"         stype)))
-			(jvalue-get-func-name   (string->symbol (format "get_~A_jvalue"         stype))))
+   (lambda (x r c)
+     (let* ((%begin  (r 'begin))
+	    (%export (r 'export))
+	    (%define (r 'define))
+	    (%env-lambda (r 'jni-env-lambda))
 
-		   (loop (append call-defs 
-				 (list `(define ,call-proc-name
-					  (jni-env-lambda ,jstype ,call-func-name jobject jmethod-id jvalue))
-				       `(define ,static-call-proc-name
-					  (jni-env-lambda ,jstype ,static-call-func-name jobject jmethod-id jvalue))))
-			 (if (eq? type 'Void)
-			     jvalue-defs
-			     (append jvalue-defs
-				     (list `(define ,jvalue-set-proc-name
-					      (foreign-lambda jvalue ,jvalue-set-func-name jvalue int ,jtype)))))
-			 (append exports
-				 (list
-				  `(export ,call-proc-name)
-				  `(export ,static-call-proc-name)
-				  `(export ,jvalue-set-proc-name)))
-			 (cdr jtypes)))))))))
+	    (type (cadr x))
+	    (s-type (caddr x))
+
+	    (proc-name            (string->symbol (format "call-~A-method" (string-downcase (symbol->string type)))))
+	    (static-proc-name     (string->symbol (format "call-static-~A-method" (string-downcase (symbol->string type)))))
+	    (jni-proc-name        (string->symbol (format "Call~AMethodA" type)))
+	    (static-jni-proc-name (string->symbol (format "CallStatic~AMethodA" type))))
+       
+       `(,%begin
+	 (,%export ,proc-name)
+	 (,%export ,static-proc-name)
+
+	 (,%define ,proc-name
+		   (,%env-lambda ,s-type ,jni-proc-name jobject jmethod-id jvalue))
+	 (,%define ,static-proc-name
+		   (,%env-lambda ,s-type ,static-jni-proc-name jobject jmethod-id jvalue)))))))
+
+(define-syntax define-jvalue-procs
+  (er-macro-transformer
+   (lambda (x r c)
+     (let* ((%begin  (r 'begin))
+	    (%export (r 'export))
+	    (%define (r 'define))
+	    (%foreign-lambda (r 'foreign-lambda))
+
+	    (type (string->symbol (string-downcase (symbol->string (cadr x)))))
+	    (s-type (caddr x))
+	    (type-string (symbol->string type))
+	    #;(get-proc-name   (string->symbol (format "get-~A-jvalue" type-string)))
+	    #;(c-get-proc-name (string->symbol (format "get_~A_jvalue"  type-string)))
+	    (set-proc-name  (string->symbol (format "set-~A-jvalue!" type-string)))
+	    (c-set-proc-name (string->symbol (format "set_~A_jvalue" type-string))))
+
+       `(,%begin
+	 #;(,%export ,get-proc-name)
+	 (,%export ,set-proc-name)
+	 
+	 #;(,%define ,get-proc-name
+		   (,%foreign-lambda jvalue ,c-get-proc-name jvalue int ,s-type))
+	 (,%define ,set-proc-name
+		   (,%foreign-lambda jvalue ,c-set-proc-name jvalue int ,s-type)))))))
+
+(define-syntax define-type-procs
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((%begin (r 'begin))
+	   (%define-call-procs (r 'define-call-procs))
+	   (%define-jvalue-procs (r 'define-jvalue-procs)))
+       (cons %begin
+	     (map (lambda (type s-type)
+		    `(,%begin
+		      (,%define-call-procs  ,type ,s-type)
+		      (,%define-jvalue-procs ,type ,s-type)))
+		  (cdr types)
+		  (cdr s-types)))))))
+
+(define-call-procs Void void)
 
 (define-syntax define-get-field-procs
   (er-macro-transformer
@@ -171,7 +201,6 @@
 		       (append exports       (list `(export ,accessor-name)
 						   `(export ,test-name)))
 		       (cdr modifiers)))))))))
-
 
 (define-syntax jni-init
   (syntax-rules ()

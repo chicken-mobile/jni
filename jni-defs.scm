@@ -1,4 +1,4 @@
-(define-call-method-procs)
+(define-type-procs)
 (define-get-field-procs)
 (define-jni-modifier-procs)
 
