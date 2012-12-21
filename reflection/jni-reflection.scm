@@ -236,7 +236,7 @@
 		(let ((type (list-ref class-objects i)))
 		  (if (pointer? arg)
 		      (set-object-jvalue! jvalue-array i arg)
-		      (case (symbol->string (to-string type))
+		      (case (string->symbol (to-string type))
 			((boolean)
 			 (set-boolean-jvalue! jvalue-array i arg))
 			((char)
