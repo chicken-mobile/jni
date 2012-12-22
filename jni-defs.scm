@@ -68,6 +68,11 @@
 (define Method->method-id
   (jni-env-lambda jobject FromReflectedMethod jobject))
 
+(define monitor-enter
+  (jni-env-lambda jint MonitorEnter jobject))
+(define monitor-exit
+  (jni-env-lambda jint MonitorExit jobject))
+
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
 (define jstring->string
