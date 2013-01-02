@@ -7,7 +7,7 @@
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
-(use lolevel)
+(use lolevel foreigners)
 
 (include "jni-types.scm")
 (include "jni-def-macros.scm")
@@ -97,6 +97,43 @@
           (parameterize ((jni-env env))
             . ,(cdddr x)))))))
 
+(define (with-jvm body #!optional (class-path "."))
+  (let ((args (make-jvm-init-args))
+	(cp-option (make-jvm-option)))
+    (let-location ((jvm java-vm)
+		   (env jni-env))
+
+      (jvm-init-args-version-set! args JNI_VERSION_1_4)
+      (jvm-get-default-init-args args)
+
+      (jvm-init-args-options-length-set! args 1)
+      (jvm-option-string-set! cp-option (string-append "-Djava.class.path=" class-path))
+      (jvm-init-args-options-set! args cp-option)
+
+      (jvm-create (location jvm) (location env) args)
+
+      (parameterize ((jni-env env)
+		     (java-vm jvm))
+	(body (java-vm) (jni-env)))
+
+      (jvm-destroy jvm))))
+
+(define (jvm-init #!optional (class-path "."))
+  (let ((args (make-jvm-init-args))
+	(cp-option (make-jvm-option)))
+    (let-location ((jvm java-vm)
+		   (env jni-env))
+
+		  (jvm-init-args-version-set! args JNI_VERSION_1_4)
+		  (jvm-get-default-init-args args)
+		  (jvm-init-args-options-length-set! args 1)
+		  (jvm-option-string-set! cp-option (string-append "-Djava.class.path=" class-path))
+		  (jvm-init-args-options-set! args cp-option)
+
+		  (jvm-create (location jvm) (location env) args)
+
+		  (java-vm jvm)
+		  (jni-env env))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
