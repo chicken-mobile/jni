@@ -20,16 +20,21 @@
   (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
   (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
 
+
+(define version
+  (jni-env-lambda jint GetVersion))
 (define jvm-get-default-init-args
-  (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args ))
+  (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args))
 (define jvm-create
-  (foreign-lambda jint JNI_CreateJavaVM 
-    (c-pointer java-vm) jni-env jvm-init-args))
+  (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
 (define jvm-destroy
   (foreign-lambda* jint ((java-vm jvm))
     "C_return((*jvm)->DestroyJavaVM(jvm));"))
+(define jvm-env
+  (foreign-lambda* jint ((java-vm jvm) ((c-pointer (c-pointer void)) env) (jint version))
+    "C_return((*jvm)->GetEnv(jvm, env, version));"))
 (define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm) ((c-pointer jni-env) env))
+  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
     "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
 (define jvm-detach-current-thread
   (foreign-lambda* int ((java-vm jvm))
@@ -38,8 +43,14 @@
 
 (define find-class
   (jni-env-lambda jclass FindClass (const c-string)))
+(define super-class
+  (jni-env-lambda jclass GetSuperclass jclass))
 (define get-object-class
   (jni-env-lambda jclass GetObjectClass jobject))
+(define instance-of?
+  (jni-env-lambda jboolean IsInstanceOf jobject jclass))
+(define same-object?
+  (jni-env-lambda jboolean IsSameObject jobject jobject))
 (define new-object
   (jni-env-lambda jobject NewObject jclass jmethod-id))
 
