@@ -2,9 +2,34 @@
 (define-get-field-procs)
 (define-jni-modifier-procs)
 
+(define-foreign-variable JNI_VERSION_1_1 int)
+(define-foreign-variable JNI_VERSION_1_2 int)
+(define-foreign-variable JNI_VERSION_1_4 int)
+(define-foreign-variable JNI_VERSION_1_6 int)
+
+(define-foreign-record-type (jvm-option "JavaVMOption")
+  (constructor: make-jvm-option)
+  (destructor: free-jvm-option)
+  (c-string  optionString jvm-option-string jvm-option-string-set!)
+  ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
+(define-foreign-record-type (jvm-init-args "JavaVMInitArgs")
+  (constructor: make-jvm-init-args)
+  (destructor: free-jvm-init-args)
+  (jint version jvm-init-args-version jvm-init-args-version-set!)
+  (jint nOptions jvm-init-args-options-length jvm-init-args-options-length-set!)
+  (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
+  (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
+
+(define jvm-get-default-init-args
+  (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args ))
+(define jvm-create
+  (foreign-lambda jint JNI_CreateJavaVM 
+    (c-pointer java-vm) jni-env jvm-init-args))
+(define jvm-destroy
+  (foreign-lambda* jint ((java-vm jvm))
+    "C_return((*jvm)->DestroyJavaVM(jvm));"))
 (define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm)
-			((c-pointer jni-env) env))
+  (foreign-lambda* int ((java-vm jvm) ((c-pointer jni-env) env))
     "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
 (define jvm-detach-current-thread
   (foreign-lambda* int ((java-vm jvm))

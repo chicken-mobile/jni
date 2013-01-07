@@ -7,7 +7,7 @@
 
 (import chicken scheme foreign)
 (import-for-syntax chicken data-structures)
-(use lolevel)
+(use lolevel foreigners)
 
 (include "jni-types.scm")
 (include "jni-def-macros.scm")
@@ -97,6 +97,23 @@
           (parameterize ((jni-env env))
             . ,(cdddr x)))))))
 
+(define (jvm-init #!optional (class-path "."))
+  (let ((args (make-jvm-init-args))
+	(class-path-option (make-jvm-option)))
+
+    (jvm-init-args-version-set! args JNI_VERSION_1_6)
+
+    (jvm-init-args-options-length-set! args 1)
+    (jvm-init-args-options-set! args class-path-option)
+    (jvm-option-string-set! class-path-option (string-append "-Djava.class.path=" class-path))
+
+    (let-location ((jvm java-vm)
+		   (env jni-env))
+
+      (jvm-create (location jvm) (location env) args)
+
+      (java-vm jvm)
+      (jni-env env))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
