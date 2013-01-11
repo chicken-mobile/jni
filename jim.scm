@@ -10,84 +10,7 @@
 
 ;;(jvm-init android-platform-jar-path)
 (jvm-init)
-
-(import-for-syntax list-utils)
 (import-for-syntax jni)
-
-
-;; (jlambda (java.lang.String (contains boolean java.lang.CharSequence)))
-
-
-#;
-(define-syntax call-method
-  (syntax-rules (void jobject boolean byte char short int long float double)
-    ((_ void object method-id jvalues)
-     (call-void-method object method-id jvalues))
-    ((_ jobject object method-id jvalues)
-     (call-object-method object method-id jvalues))
-    ((_ boolean object method-id jvalues)
-     (call-boolean-method object method-id jvalues))
-    ((_ byte object method-id jvalues)
-     (call-byte-method object method-id jvalues))
-    ((_ char object method-id jvalues)
-     (call-char-method object method-id jvalues))
-    ((_ short object method-id jvalues)
-     (call-short-method object method-id jvalues))
-    ((_ int object method-id jvalues)
-     (call-int-method object method-id jvalues))
-    ((_ long object method-id jvalues)
-     (call-long-method object method-id jvalues))
-    ((_ float object method-id jvalues)
-     (call-float-method object method-id jvalues))
-    ((_ double object method-id jvalues)
-     (call-double-method object method-id jvalues))))
-
-(define-syntax jlambda
-  (syntax-rules (void boolean byte char short int long float double)
-    ((_ class-name return-type method-name argument ...)
-     (lambda (object . args)
-       (let ((jlambda-method (method class-name return-type method-name argument ...)))
-	 (call-method jobject object jlambda-method (jvalue-zip (argument ...) args)))))))
-
-
-;;(ppexpand* '(jvalue-zip (java.lang.CharSequence boolean) "foo" #f))
-;;(ppexpand* '(jlambda java.lang.String boolean contains java.lang.CharSequence))
-
-
-(define throwable-get-message
-  (lambda (object . args)
-    (let* ((class-object   (find-class "java/lang/Exception"))
-	   (jlambda-method (get-method-id class-object "getMessage" "()Ljava/lang/String;"))
-	   (jvalues (make-jvalue-array 0)))
-
-      (if (exception-check)
-	  (error 'jstring-contains (to-string (exception-occurred)))
-	  (set-finalizer! (call-object-method object jlambda-method jvalues) delete-local-ref)))))
-
-(define throwable-print-stack-trace
-  (lambda (object . args)
-    (let* ((class-object   (find-class "java/lang/Exception"))
-	   (jlambda-method (get-method-id class-object "printStackTrace" "()V"))
-	   (jvalues (make-jvalue-array 0)))
-
-      (if (exception-check)
-	  (error 'jstring-contains (to-string (exception-occurred)))
-	  (set-finalizer! (call-void-method object jlambda-method jvalues) delete-local-ref delete-local-ref)))))
-
-
-(define jstring-contains
-  (lambda (object . args)
-    (let* ((class-object   (find-class "java/lang/String"))
-	   (jlambda-method (get-method-id class-object "contains" "(Ljava/lang/CharSequence;)Z"))
-	   (jvalues (make-jvalue-array 1)))
-      (set-object-jvalue! jvalues 0 (list-ref args 0))
-      
-      (free-jvalue-array jvalues)
-      (delete-local-ref class-object)
-
-      (if (exception-check)
-	  (error 'jstring-contains (to-string (exception-occurred)))
-	  (set-finalizer! (call-boolean-method object jlambda-method jvalues) delete-local-ref)))))
 
 
 (define-syntax jvalue-zip
@@ -121,12 +44,8 @@
 				       ((long) `(set-long-jvalue! jvalues ,index ,arg))
 				       ((float) `(set-float-jvalue! jvalues ,index ,arg))
 				       ((double) `(set-double-jvalue! jvalues ,index ,arg))
-				       ((java.lang.String)
-					`(if (string? arg)
-					     (set-object-jvalue! jvalues ,index (jstring ,arg)) ;; wont be GCed :(
-					     (set-object-jvalue! jvalues ,index ,arg)))
-				       ((java.lang.CharSequence)
-					`(if (string? arg)
+				       ((java.lang.String java.lang.CharSequence)
+					`(if (string? ,arg)
 					     (set-object-jvalue! jvalues ,index (jstring ,arg)) ;; wont be GCed :(
 					     (set-object-jvalue! jvalues ,index ,arg)))
 				       (else
@@ -140,6 +59,7 @@
   (er-macro-transformer
    (lambda (x r c)
      (let ((%call-void-method (r 'call-void-method))
+	   (%call-boolean-method (r 'call-boolean-method))
 	   (%call-object-method (r 'call-object-method))
 	   (%call-byte-method (r 'call-byte-method))
 	   (%call-char-method (r 'call-char-method))
@@ -148,29 +68,30 @@
 	   (%call-long-method (r 'call-long-method))
 	   (%call-float-method (r 'call-float-method))
 	   (%call-double-method (r 'call-double-method))
+	   (%delete-local-ref (r 'delete-local-ref))
 	   
-	   (return-type (cadr x))
-	   (object  (caddr x))
+	   (object  (cadr x))
+	   (return-type (caddr x))
 	   (jmethod (cadddr x))
-	   (jvalues (cadddr x)))
+	   (jvalues (car (cddddr x))))
        
        (case return-type
-	 ((void)   `(,%call-void-method   ,object ,jmethod ,jvalues))
-	 ((byte)   `(,%call-byte-method   ,object ,jmethod ,jvalues))
-	 ((char)   `(,%call-char-method   ,object ,jmethod ,jvalues))
-	 ((short)  `(,%call-short-method  ,object ,jmethod ,jvalues))
-	 ((int)    `(,%call-int-method    ,object ,jmethod ,jvalues))
-	 ((long)   `(,%call-long-method   ,object ,jmethod ,jvalues))
-	 ((float)  `(,%call-float-method  ,object ,jmethod ,jvalues))
-	 ((double) `(,%call-double-method ,object ,jmethod ,jvalues))
-	 (else     `(,%call-object-method ,object ,jmethod ,jvalues)))))))
+	 ((void)   `(,%call-void-method    ,object ,jmethod ,jvalues))
+	 ((boolean)`(,%call-boolean-method ,object ,jmethod ,jvalues))
+	 ((byte)   `(,%call-byte-method    ,object ,jmethod ,jvalues))
+	 ((char)   `(,%call-char-method    ,object ,jmethod ,jvalues))
+	 ((short)  `(,%call-short-method   ,object ,jmethod ,jvalues))
+	 ((int)    `(,%call-int-method     ,object ,jmethod ,jvalues))
+	 ((long)   `(,%call-long-method    ,object ,jmethod ,jvalues))
+	 ((float)  `(,%call-float-method   ,object ,jmethod ,jvalues))
+	 ((double) `(,%call-double-method  ,object ,jmethod ,jvalues))
+	 (else     `(set-finalizer! (,%call-object-method  ,object ,jmethod ,jvalues) delete-local-ref)))))))
 
-;; (jlambda java.lang.String boolean contains java.lang.CharSequence)
 (define-syntax jlambda
   (er-macro-transformer
    (lambda (x r c)
      (let ((%lambda (r 'lambda))
-	   (%let (r 'let))
+	   (%let (r 'let*))
 	   (%find-class (r 'find-class))
 	   (%get-method-id (r 'get-method-id))
 	   (%make-jvalue-array (r 'make-jvalue-array))
@@ -193,18 +114,19 @@
 		  (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
 			  (jmethod (,%get-method-id class-object ,(symbol->string method-name) (type-signature ,argument-types ,return-type)))
 			  (jvalues (jvalue-zip ,argument-types args))
-			  (return-value (call-method ,return-type jmethod jvalues)))
+			  (return-value (call-method object ,return-type jmethod jvalues)))
 			 
 			 (,%if (,%exception-check)
 			       (,%error 
 				(,%let ((rmethod (,%method-id->Method jmethod))
 					(method-name (,%format "%s.%s" (to-string class-object) (to-string rmethod))))
 				       (,%delete-local-ref rmethod)
-				       method-name)))))))))
+				       method-name))
+			       return-value)))))))
 
 (ppexpand* '(jlambda java.lang.String boolean contains java.lang.CharSequence))
 
 
-;;((jlambda java.lang.String boolean contains java.lang.CharSequence) (jstring "foobar") (jstring "bar"))
+(pp ((jlambda java.lang.String boolean contains java.lang.CharSequence) (jstring "foobar") "bar"))
 (print (jstring-contains (jstring "foobar") (jstring "bar")))
 (jvm-destroy (java-vm))
