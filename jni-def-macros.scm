@@ -31,10 +31,10 @@
 (define-for-syntax jni-jtypes '(jvoid jobject jboolean jbyte jchar jshort jint jlong jfloat jdouble))
 (define-for-syntax jni-type-sigs '(V L Z B C S I J F D))
 
-(define-for-syntax type-sigs '(V     L         Z        B     C     S      I    J      F     D))
-(define-for-syntax types     '(Void  Object    Boolean  Byte  Char  Short  Int  Long   Float Double))
-(define-for-syntax s-types   '(jvoid jobject   jboolean jbyte jchar jshort jint jfloat jlong jdouble))
-(define-for-syntax c-types   '(void  c-pointer bool     byte  char  short  int  float  long  double))
+(define-for-syntax type-sigs '(V     L         Z        B     C     S      I    J      F      D))
+(define-for-syntax types     '(Void  Object    Boolean  Byte  Char  Short  Int  Long   Float  Double))
+(define-for-syntax s-types   '(jvoid jobject   jboolean jbyte jchar jshort jint jlong  jfloat jdouble))
+(define-for-syntax c-types   '(void  c-pointer bool     byte  char  short  int  long   float  double))
 
 
 (define-syntax define-call-procs 
@@ -124,8 +124,7 @@
                            (jni-set-name (string->symbol (string-append "Set" type "Field")))
                            (static-proc-set-name (string->symbol (string-append "set-static-" (string-downcase type) "-field")))
                            (static-jni-get-name (string->symbol (string-append "GetStatic" type "Field")))
-                           (static-jni-set-name (string->symbol (string-append "SetStatic" type "Field")))
-                           )
+                           (static-jni-set-name (string->symbol (string-append "SetStatic" type "Field"))))
                        `(,%begin
                           (,%export ,static-proc-get-name)
                           (,%define ,static-proc-get-name
