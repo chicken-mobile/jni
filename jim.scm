@@ -152,23 +152,18 @@
 				   (string->symbol (format "a~A" arg-count)))
 				 (iota (length argument-types) 1 1))))
 
-       `(,%lambda (,@(append (if modifiers '() '(object)) argument-names))
-		  (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
-			  (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
-				    class-object ,(symbol->string method-name) 
-				    (type-signature ,argument-types ,return-type)))
-			  (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-			  (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
-			 (,%if (,%exception-check)
-			       (,%error 
-				'fooooo
-
-				#;
-				(,%let ((rmethod (,%method-id->Method jmethod))
-					(method-name (,%format "%s.%s" (to-string class-object) (to-string rmethod))))
-				       (,%delete-local-ref rmethod)
-				       method-name))
-			       return-value)))))))
+       `(extend-procedure
+	 (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
+		   (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
+			   (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
+				     class-object ,(symbol->string method-name) 
+				     (type-signature ,argument-types ,return-type)))
+			   (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+			   (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
+			  (,%if (,%exception-check)
+				(,%error 'fooooo)
+				return-value)))
+	 ',argument-types)))))
 
 (ppexpand* '(jlambda-method #f java.lang.String boolean contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
