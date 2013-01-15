@@ -221,12 +221,40 @@
 
 
 (define testo-foo
-  (let ((testo-methods (jlambda-methods (static) java.lang.String java.lang.String valueOf
-					((int) (long) (float) (double)))))
-    (void)))
+  (lambda args
+    (let ((testo-methods (jlambda-methods (static) java.lang.String java.lang.String valueOf
+					  ((int) (long) (float) (double) (java.lang.String)))))
+      (filter (lambda (m)
+		(let ((margs (procedure-data m)))
+		  (let loop ((remaining-args args)
+			     (remaining-margs margs))
+		    (if (null? remaining-margs)
+			#t
+			(let ((arg (car remaining-args))
+			      (marg (car remaining-margs)))
+			  (case marg
+			    ((long int short double float java.lang.BigInteger java.lang.BigDecimal)
+			     (if (number? arg)
+				 (loop (cdr remaining-args)
+				       (cdr remaining-margs))
+				 #f))
+			    ((java.lang.String)
+			     (if (string? arg)
+				 (loop (cdr remaining-args)
+				       (cdr remaining-margs))
+				 #f))
+			    (else
+			     #f))
+			  )))))
+       (filter (lambda (m)
+		 (let ((margs (procedure-data m)))
+		   (= (length margs) (length args))))
+	       testo-methods)))))
 
 
-(pp `(,(jstring-value-of 1) 1234) )
+(pp (jstring-value-of 1))
+(pp (testo-foo "foo"))
+(pp (testo-foo 111))
 
 
 
