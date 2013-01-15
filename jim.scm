@@ -195,9 +195,9 @@
        ;; inhertied type ?
        ;; error
 
-       (map (lambda (argument-types)
-	      `(',argument-types (jlambda-method ,modifiers ,class-type ,return-type ,method-name ,@argument-types)))
-	    argument-types-list)))))
+       `(list ,@(map (lambda (argument-types)
+		      `(jlambda-method ,modifiers ,class-type ,return-type ,method-name ,@argument-types))
+		    argument-types-list))))))
 
 (ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
 			     ((int) (long) (float) (double))))
