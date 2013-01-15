@@ -78,7 +78,7 @@
   (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
 
 (define new-local-ref
-  (jni-env-lambda void NewLocalRef jobject))
+  (jni-env-lambda jobject NewLocalRef jobject))
 (define delete-local-ref
   (jni-env-lambda void DeleteLocalRef jobject))
 (define new-global-ref
