@@ -129,44 +129,42 @@
 (define-syntax jlambda-method
   (er-macro-transformer
    (lambda (x r c)
-     (let* ((%lambda (r 'lambda))
-	    (%let (r 'let*))
-	    (%find-class (r 'find-class))
-	    (%get-method-id (r 'get-method-id))
-	    (%get-static-method-id (r 'get-static-method-id))
-	    (%make-jvalue-array (r 'make-jvalue-array))
-	    (%free-jvalue-array (r 'free-jvalue-array))
-	    (%delete-local-ref (r' delete-local-ref))
-	    (%delete-global-ref (r 'delete-global-ref))
-	    (%if (r 'if))
-	    (%exception-check (r 'exception-check))
-	    (%error (r 'error))
-	    (%method-id->Method (r 'method-id->Method))
-	    (%format (r 'format))
-	    
+     (let ((%lambda (r 'lambda))
+	   (%let (r 'let*))
+	   (%find-class (r 'find-class))
+	   (%get-method-id (r 'get-method-id))
+	   (%get-static-method-id (r 'get-static-method-id))
+	   (%make-jvalue-array (r 'make-jvalue-array))
+	   (%free-jvalue-array (r 'free-jvalue-array))
+	   (%delete-local-ref (r' delete-local-ref))
+	   (%delete-global-ref (r 'delete-global-ref))
+	   (%if (r 'if))
+	   (%exception-check (r 'exception-check))
+	   (%error (r 'error))
+	   (%method-id->Method (r 'method-id->Method))
+	   (%format (r 'format))
 
-	    (modifiers (cadr x))
-	    (class-type (caddr x))
-	    (return-type (cadddr x))
-	    (method-name (car (cddddr x)))
-	    (argument-types  (cdr (cddddr x)))
+	   (modifiers (cadr x))
+	   (class-type (caddr x))
+	   (return-type (cadddr x))
+	   (method-name (car (cddddr x))))
+       (let* ((argument-types  (cdr (cddddr x)))
+	      (argument-names (map (lambda (arg-count)
+				     (string->symbol (format "a~A" arg-count)))
+				   (iota (length argument-types) 1 1))))
 
-	    (argument-names (map (lambda (arg-count)
-				   (string->symbol (format "a~A" arg-count)))
-				 (iota (length argument-types) 1 1))))
-
-       `(extend-procedure
-	 (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
-		   (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
-			   (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
-				     class-object ,(symbol->string method-name) 
-				     (type-signature ,argument-types ,return-type)))
-			   (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-			   (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
-			  (,%if (,%exception-check)
-				(,%error 'fooooo)
-				return-value)))
-	 ',argument-types)))))
+	 `(extend-procedure
+	   (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
+		     (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
+			     (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
+				       class-object ,(symbol->string method-name) 
+				       (type-signature ,argument-types ,return-type)))
+			     (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+			     (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
+			    (,%if (,%exception-check)
+				  (,%error 'fooooo)
+				  return-value)))
+	   ',argument-types))))))
 
 (ppexpand* '(jlambda-method #f java.lang.String boolean contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
@@ -203,8 +201,8 @@
 		    argument-types-list))))))
 
 (ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
-					   ((boolean) (char) (#(char)) (#(char) int int)
-					    (double) (float) (int) (long) (java.lang.Object))))
+			     ((boolean) (char) (#(char)) (#(char) int int)
+			      (double) (float) (int) (long) (java.lang.Object))))
 
 
 ;; zuerst wird gefiltert welche methoden überhaupt in frage kämen 
@@ -228,45 +226,48 @@
     (let* ((testo-methods (jlambda-methods (static) java.lang.String java.lang.String valueOf
 					   ((boolean) (char) (#(char)) (#(char) int int)
 					    (double) (float) (int) (long) (java.lang.Object))))
-	   (useable-methods (filter (lambda (m)
-				      (let ((margs (procedure-data m)))
-					(let loop ((remaining-args args)
-						   (remaining-margs margs))
-					  (if (null? remaining-margs)
-					      #t
-					      (let ((arg (car remaining-args))
-						    (marg (car remaining-margs)))
-						(type-case arg
-						  (jobject
-						   (let* ((marg-class (find-class (mangle-class-name marg)))
-							  (correct-class? (instance-of? arg marg-class)))
-						     (delete-local-ref marg-class)
-						     (if correct-class?
-							 (loop (cdr (remaining-args))
-							       (cdr (remaining-margs)))
-							 #f)))
+	   (useable-methods 
+	    (filter (lambda (m)
+		      (let ((margs (procedure-data m)))
+			(let loop ((remaining-args args)
+				   (remaining-margs margs))
+			  (if (null? remaining-margs)
+			      #t
+			      (let ((arg (car remaining-args))
+				    (marg (car remaining-margs)))
+				(type-case arg
+				  (jobject
+				   (let* ((marg-class (find-class (mangle-class-name marg)))
+					  (correct-class? (instance-of? arg marg-class)))
+				     (delete-local-ref marg-class)
+				     (if correct-class?
+					 (loop (cdr (remaining-args))
+					       (cdr (remaining-margs)))
+					 #f)))
 
-						  (boolean (eq? 'boolean marg))
-						  (number (case marg
-							    ((byte short int long double float
-								   java.lang.BigDecimal java.lang.BigInteger)
-							     (loop (cdr remaining-args)
-								   (cdr remaining-margs)))
-							    (else #f)))
-						  (string
-						   (let* ((marg-class (find-class (mangle-class-name marg)))
-							  (arg-class (class java.lang.String))
-							  (assignable? (assignable-from? arg-class marg-class)))
-						     (delete-local-ref arg-class)
-						     (delete-local-ref marg-class)
-						     (if assignable?
-							 (loop (cdr remaining-args)
-							       (cdr remaining-margs))
-							 #f)))))))))
-				    (filter (lambda (m)
-					      (let ((margs (procedure-data m)))
-						(= (length margs) (length args))))
-					    testo-methods))))
+				  (boolean (eq? 'boolean marg))
+				  (number (case marg
+					    ((byte short int long double float
+						   java.lang.BigDecimal java.lang.BigInteger)
+					     (loop (cdr remaining-args)
+						   (cdr remaining-margs)))
+					    (else #f)))
+				  (string
+				   (let* ((marg-class (find-class (mangle-class-name marg)))
+					  (arg-class (class java.lang.String))
+					  (assignable? (assignable-from? arg-class marg-class)))
+				     (delete-local-ref arg-class)
+				     (delete-local-ref marg-class)
+				     (if assignable?
+					 (loop (cdr remaining-args)
+					       (cdr remaining-margs))
+					 #f)))))))))
+		    (filter (lambda (m)
+			      (let ((margs (procedure-data m)))
+				(= (length margs) (length args))))
+			    testo-methods))))
+      
+      
 
       (print "available method args:")
       (for-each (lambda (margs) (pp (procedure-data margs))) testo-methods)
@@ -275,6 +276,32 @@
       (print "-----------------")
 
       (apply (car useable-methods) args))))
+
+(define (array->list* array-object)
+  (map prepare-local-jobject (array->list array-object)))
+(define (class* class-symbol)
+  (prepare-local-jobject (find-class (mangle-class-name class-symbol))))
+(define (super-class* class-object)
+  (prepare-local-jobject (super-class class-object)))
+
+
+(define Class.isPrimitive
+  (jlambda-method #f java.lang.Class boolean isPrimitive))
+(define Class.getMethods
+  (jlambda-method #f java.lang.Class #(java.lang.reflect.Method) getMethods))
+(define Class.getDeclaredMethods
+  (jlambda-method #f java.lang.Class #(java.lang.reflect.Method) getDeclaredMethods))
+
+(define Method.getModifiers
+  (jlambda-method #f java.lang.reflect.Method int getModifiers))
+(define Method.getReturnType
+  (jlambda-method #f java.lang.reflect.Method java.lang.Class getReturnType))
+(define Method.getName
+  (jlambda-method #f java.lang.reflect.Method java.lang.String getName))
+(define Method.getParameterTypes
+  (jlambda-method #f java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
+
+
 
 
 (pp (jstring-value-of 1))
