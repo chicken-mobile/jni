@@ -51,6 +51,8 @@
   (jni-env-lambda jboolean IsInstanceOf jobject jclass))
 (define same-object?
   (jni-env-lambda jboolean IsSameObject jobject jobject))
+(define assignable-from?
+  (jni-env-lambda jboolean IsAssignableFrom jclass jclass))
 (define new-object
   (jni-env-lambda jobject NewObject jclass jmethod-id))
 

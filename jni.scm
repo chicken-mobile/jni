@@ -19,7 +19,21 @@
   (make-parameter #f))
 
 (define-for-syntax (mangle-class-name name)
-  (string-translate (symbol->string name) #\. #\/))
+  (cond
+   ((symbol? name)
+    (case name
+      ((boolean) "java/lang/Boolean")
+      ((byte)    "java/lang/Byte")
+      ((char)    "java/lang/Character")
+      ((short)   "java/lang/Short")
+      ((int)     "java/lang/Integer")
+      ((long)    "java/lang/Long")
+      ((float)   "java/lang/Float")
+      ((double)  "java/lang/Double")
+      ((void)    "java/lang/Void")
+      (else (string-translate (symbol->string name) #\. #\/))))
+   ((vector? name)
+    (expand-type name))))
 
 (define-syntax class
   (ir-macro-transformer

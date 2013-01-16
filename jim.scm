@@ -1,4 +1,4 @@
-(use jni lolevel expand-full)
+(use jni lolevel expand-full moremacros)
 
 (define android-sdk-path "/opt/google/android/sdk/")
 (define android-platform-version 14)
@@ -12,6 +12,9 @@
 (import-for-syntax jni)
 
 (define-record jobject-meta)
+(define (jobject? pointer)
+  (and (pointer? pointer)
+       (jobject-meta? (pointer-tag pointer))))
 (mutate-procedure ##sys#pointer->string
   (lambda (old)
     (lambda args
@@ -55,7 +58,7 @@
 			 ((long)    `(,%set-long-jvalue!    jvalues ,index ,arg))
 			 ((float)   `(,%set-float-jvalue!   jvalues ,index ,arg))
 			 ((double)  `(,%set-double-jvalue!  jvalues ,index ,arg))
-			 ((java.lang.String java.lang.CharSequence)
+			 ((java.lang.String java.lang.CharSequence java.lang.Object)
 			  `(,%if (,%string? ,arg)
 				 (,%set-object-jvalue! jvalues ,index (,%jstring ,arg)) ;; wont be GCed :(
 				 (,%set-object-jvalue! jvalues ,index ,arg)))
@@ -200,7 +203,8 @@
 		    argument-types-list))))))
 
 (ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
-			     ((int) (long) (float) (double))))
+					   ((boolean) (char) (#(char)) (#(char) int int)
+					    (double) (float) (int) (long) (java.lang.Object))))
 
 
 ;; zuerst wird gefiltert welche methoden überhaupt in frage kämen 
@@ -219,42 +223,66 @@
 ;; jede methode bekommt eine gewichtung entsprechend der prioritäten die mit den gewichten der anderen argumente addiert wird
 ;; die methode mit dem besten match gewinnt sollte keine gefunden werden wird eine condition signalisiert
 
-
 (define testo-foo
   (lambda args
-    (let ((testo-methods (jlambda-methods (static) java.lang.String java.lang.String valueOf
-					  ((int) (long) (float) (double) (java.lang.String)))))
-      (filter (lambda (m)
-		(let ((margs (procedure-data m)))
-		  (let loop ((remaining-args args)
-			     (remaining-margs margs))
-		    (if (null? remaining-margs)
-			#t
-			(let ((arg (car remaining-args))
-			      (marg (car remaining-margs)))
-			  (case marg
-			    ((long int short double float java.lang.BigInteger java.lang.BigDecimal)
-			     (if (number? arg)
-				 (loop (cdr remaining-args)
-				       (cdr remaining-margs))
-				 #f))
-			    ((java.lang.String)
-			     (if (string? arg)
-				 (loop (cdr remaining-args)
-				       (cdr remaining-margs))
-				 #f))
-			    (else
-			     #f))
-			  )))))
-       (filter (lambda (m)
-		 (let ((margs (procedure-data m)))
-		   (= (length margs) (length args))))
-	       testo-methods)))))
+    (let* ((testo-methods (jlambda-methods (static) java.lang.String java.lang.String valueOf
+					   ((boolean) (char) (#(char)) (#(char) int int)
+					    (double) (float) (int) (long) (java.lang.Object))))
+	   (useable-methods (filter (lambda (m)
+				      (let ((margs (procedure-data m)))
+					(let loop ((remaining-args args)
+						   (remaining-margs margs))
+					  (if (null? remaining-margs)
+					      #t
+					      (let ((arg (car remaining-args))
+						    (marg (car remaining-margs)))
+						(type-case arg
+						  (jobject
+						   (let* ((marg-class (find-class (mangle-class-name marg)))
+							  (correct-class? (instance-of? arg marg-class)))
+						     (delete-local-ref marg-class)
+						     (if correct-class?
+							 (loop (cdr (remaining-args))
+							       (cdr (remaining-margs)))
+							 #f)))
+
+						  (boolean (eq? 'boolean marg))
+						  (number (case marg
+							    ((byte short int long double float
+								   java.lang.BigDecimal java.lang.BigInteger)
+							     (loop (cdr remaining-args)
+								   (cdr remaining-margs)))
+							    (else #f)))
+						  (string
+						   (let* ((marg-class (find-class (mangle-class-name marg)))
+							  (arg-class (class java.lang.String))
+							  (assignable? (assignable-from? arg-class marg-class)))
+						     (delete-local-ref arg-class)
+						     (delete-local-ref marg-class)
+						     (if assignable?
+							 (loop (cdr remaining-args)
+							       (cdr remaining-margs))
+							 #f)))))))))
+				    (filter (lambda (m)
+					      (let ((margs (procedure-data m)))
+						(= (length margs) (length args))))
+					    testo-methods))))
+
+      (print "available method args:")
+      (for-each (lambda (margs) (pp (procedure-data margs))) testo-methods)
+      (print "useable method args:")
+      (for-each (lambda (margs) (pp (procedure-data margs))) useable-methods)
+      (print "-----------------")
+
+      (apply (car useable-methods) args))))
 
 
 (pp (jstring-value-of 1))
-(pp (testo-foo "foo"))
+(print "-----------------\n\n")
+(pp (testo-foo "muuuuuuuh"))
+(print "-----------------\n\n")
 (pp (testo-foo 111))
+(print "-----------------\n\n")
 
 
 
