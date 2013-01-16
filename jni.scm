@@ -143,6 +143,6 @@
 	 (map (lambda (value)
 		(if (pointer? value)
 		    (to-string value) value))
-	      (append values '("\n")))))
+	      (cons values "\n"))))
 
 )
