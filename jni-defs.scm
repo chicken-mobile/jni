@@ -12,7 +12,6 @@
   (destructor: free-jvm-option)
   (c-string  optionString jvm-option-string jvm-option-string-set!)
   ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
-
 (define-foreign-record-type (jvm-init-args "JavaVMInitArgs")
   (constructor: make-jvm-init-args)
   (destructor: free-jvm-init-args)
@@ -21,21 +20,21 @@
   (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
   (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
 
+
 (define version
   (jni-env-lambda jint GetVersion))
 (define jvm-get-default-init-args
   (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args))
 (define jvm-create
-  (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer jni-env) jvm-init-args))
+  (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
 (define jvm-destroy
   (foreign-lambda* jint ((java-vm jvm))
     "C_return((*jvm)->DestroyJavaVM(jvm));"))
 (define jvm-env
-  (foreign-lambda* jint ((java-vm jvm) ((c-pointer jni-env) env) (jint version))
+  (foreign-lambda* jint ((java-vm jvm) ((c-pointer (c-pointer void)) env) (jint version))
     "C_return((*jvm)->GetEnv(jvm, env, version));"))
 (define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm)
-			((c-pointer jni-env) env))
+  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
     "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
 (define jvm-detach-current-thread
   (foreign-lambda* int ((java-vm jvm))
@@ -79,7 +78,7 @@
   (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
 
 (define new-local-ref
-  (jni-env-lambda void NewLocalRef jobject))
+  (jni-env-lambda jobject NewLocalRef jobject))
 (define delete-local-ref
   (jni-env-lambda void DeleteLocalRef jobject))
 (define new-global-ref

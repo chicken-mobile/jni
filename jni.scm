@@ -97,43 +97,24 @@
           (parameterize ((jni-env env))
             . ,(cdddr x)))))))
 
-(define (with-jvm body #!optional (class-path "."))
+(define (jvm-init #!optional (class-path "."))
   (let ((args (make-jvm-init-args))
-	(cp-option (make-jvm-option)))
+	(class-path-option (make-jvm-option)))
+
+    (jvm-init-args-version-set! args JNI_VERSION_1_6)
+
+    (jvm-init-args-options-length-set! args 1)
+    (jvm-init-args-options-set! args class-path-option)
+    (jvm-option-string-set! class-path-option (string-append "-Djava.class.path=" class-path))
+
     (let-location ((jvm java-vm)
 		   (env jni-env))
-
-      (jvm-init-args-version-set! args JNI_VERSION_1_4)
-      (jvm-get-default-init-args args)
-
-      (jvm-init-args-options-length-set! args 1)
-      (jvm-option-string-set! cp-option (string-append "-Djava.class.path=" class-path))
-      (jvm-init-args-options-set! args cp-option)
 
       (jvm-create (location jvm) (location env) args)
 
-      (parameterize ((jni-env env)
-		     (java-vm jvm))
-	(body (java-vm) (jni-env)))
+      (java-vm jvm)
+      (jni-env env))))
 
-      (jvm-destroy jvm))))
-
-(define (jvm-init #!optional (class-path "."))
-  (let ((args (make-jvm-init-args))
-	(cp-option (make-jvm-option)))
-    (let-location ((jvm java-vm)
-		   (env jni-env))
-
-		  (jvm-init-args-version-set! args JNI_VERSION_1_4)
-		  (jvm-get-default-init-args args)
-		  (jvm-init-args-options-length-set! args 1)
-		  (jvm-option-string-set! cp-option (string-append "-Djava.class.path=" class-path))
-		  (jvm-init-args-options-set! args cp-option)
-
-		  (jvm-create (location jvm) (location env) args)
-
-		  (java-vm jvm)
-		  (jni-env env))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
@@ -162,6 +143,6 @@
 	 (map (lambda (value)
 		(if (pointer? value)
 		    (to-string value) value))
-	      (append values '("\n")))))
+	      (cons values "\n"))))
 
 )
