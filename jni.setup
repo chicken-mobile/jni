@@ -1,11 +1,35 @@
-(if (host-extension)
-    (begin
-      (let ((java-path (string-append (alist-ref "JAVA_HOME" (get-environment-variables) equal?) "/include/")))
-	(compile -s ,(string-append "-I" java-path) jni.scm -J)
-	(compile -s ,(string-append "-I" java-path) jni.import.scm)))
-    (begin
-      (compile -s jni.scm -J)
-      (compile -s jni.import.scm)))
+(let* ((java-path (get-environment-variable "JAVA_HOME"))
+       (java-include-path (string-append java-path "/include/"))
+       (libjvm-path
+	(cond-expand
+	 (x86-64
+	  (let* ((server-jvm-path (string-append java-path "/jre/lib/amd64/server/"))
+		 (server-jvm-path (if (file-exists? server-jvm-path) server-jvm-path
+				      (string-append java-path "/jre/lib/x64/server/")))
+		 (client-jvm-path (string-append java-path "/jre/lib/amd64/client/"))
+		 (client-jvm-path (if (file-exists? client-jvm-path) client-jvm-path
+				      (string-append java-path "/jre/lib/x64/client/"))))
+	    (if (file-exists? server-jvm-path)
+		server-jvm-path
+		(if (file-exists? client-jvm-path)
+		    client-jvm-path
+		    (error 'jni "could not find libjvm :(")))))
+	 (x86    
+	  (let* ((server-jvm-path (string-append java-path "/jre/lib/i386/client/"))
+		 (client-jvm-path (string-append java-path "/jre/lib/i386/client/")))
+	    (if (file-exists? server-jvm-path)
+		server-jvm-path
+		(if (file-exists? client-jvm-path)
+		    client-jvm-path
+		    (error 'jni "could not find libjvm :("))))))))
+
+  (cond-expand
+   (android
+    (compile -s jni.scm -J)
+    (compile -s jni.import.scm))
+   (else 
+    (compile ,(string-append "-L" libjvm-path) -ljvm -s ,(string-append "-I" java-include-path) jni.scm -J)
+    (compile ,(string-append "-L" libjvm-path) -ljvm -s ,(string-append "-I" java-include-path) jni.import.scm))))
 
 (install-extension 'jni
   '("jni.so" "jni.import.so")
