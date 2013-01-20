@@ -1,6 +1,6 @@
 (use jni lolevel expand-full moremacros)
 
-(define android-sdk-path "/opt/google/android/sdk/")
+(define android-sdk-path "/home/paul/opt/adt-bundle-linux-x86/sdk")
 (define android-platform-version 14)
 (define android-platform-path 
   (string-append android-sdk-path "platforms/android-" (number->string android-platform-version) "/"))
@@ -136,7 +136,7 @@
 	   (%get-static-method-id (r 'get-static-method-id))
 	   (%make-jvalue-array (r 'make-jvalue-array))
 	   (%free-jvalue-array (r 'free-jvalue-array))
-	   (%delete-local-ref (r' delete-local-ref))
+	   (%delete-local-ref (r 'delete-local-ref))
 	   (%delete-global-ref (r 'delete-global-ref))
 	   (%if (r 'if))
 	   (%exception-check (r 'exception-check))
