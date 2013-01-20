@@ -64,6 +64,11 @@
   (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
 (define get-static-method-id
   (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+(define (get-method/static-id class/object method-name method-type)
+  (let ((method-id (get-method-id class/object method-name method-type)))
+    (if method-id 
+      method-id
+      (get-static-method-id class/object method-name method-type))))
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
