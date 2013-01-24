@@ -126,45 +126,6 @@
 	     ((double) `(,%call-double-method  ,object ,jmethod ,jvalues))
 	     (else     `(,%prepare-local-jobject (,%call-object-method  ,object ,jmethod ,jvalues)))))))))
 
-(define-syntax jlambda-method-jim
-  (er-macro-transformer
-    (lambda (x r c)
-      (let ((%lambda (r 'lambda))
-            (%let (r 'let*))
-            (%find-class (r 'find-class))
-            (%get-method-id (r 'get-method-id))
-            (%get-static-method-id (r 'get-static-method-id))
-            (%make-jvalue-array (r 'make-jvalue-array))
-            (%free-jvalue-array (r 'free-jvalue-array))
-            (%delete-local-ref (r' delete-local-ref))
-            (%delete-global-ref (r 'delete-global-ref))
-            (%if (r 'if))
-            (%exception-check (r 'exception-check))
-            (%error (r 'error))
-            (%method-id->Method (r 'method-id->Method))
-            (%format (r 'format))
-
-            (modifiers (cadr x))
-            (class-type (caddr x))
-            (return-type (cadddr x))
-            (method-name (car (cddddr x))))
-        (let* ((argument-types  (cdr (cddddr x)))
-               (argument-names (map (lambda (arg-count)
-                                      (string->symbol (format "a~A" arg-count)))
-                                    (iota (length argument-types) 1 1))))
-
-          `(extend-procedure
-             (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
-                       (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
-                               (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
-                                          class-object ,(symbol->string method-name) 
-                                          (type-signature ,argument-types ,return-type)))
-                               (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-                               (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
-                              (,%if (,%exception-check)
-                                    (,%error 'fooooo)
-                                    return-value)))
-             ',argument-types))))))
 (define-syntax jlambda-method
   (er-macro-transformer
     (lambda (x r c)
@@ -197,18 +158,23 @@
                      (static-method-id (,%get-static-method-id class-object ,(symbol->string method-name) (type-signature ,argument-types ,return-type)))
                      (is-static? (and static-method-id #t))
                      (jmethod (,%if is-static? static-method-id method-id)))
-                    (,%lambda (,@(append (if 'is-static? '() '(object)) argument-names))
-                              (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-                                      (return-value (call-method is-static? ,(if 'is-static? 'class-object 'object) ,return-type jmethod jvalues)))
+                    (,%if is-static?
+                          (,%lambda (,@argument-names)
+                                               (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+                                                       (return-value (call-method #t class-object ,return-type jmethod jvalues)))
+                                                      (,%if (,%exception-check)
+                                                            (,%error ',method-name)
+                                                            return-value)))
+                          (,%lambda (,@(append '(object) argument-names))
+                                    (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+                                      (return-value (call-method #f object ,return-type jmethod jvalues)))
                                      (,%if (,%exception-check)
-                                           (,%error 'fooooo)
-                                           return-value))))
+                                           (,%error ',method-name)
+                                           return-value)))))
              ',argument-types))))))
 
 (ppexpand* '(jlambda-method java.lang.String boolean contains java.lang.CharSequence))
-(ppexpand* '(jlambda-method-jim #f java.lang.String boolean contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method java.lang.String java.lang.String valueOf int))
-(ppexpand* '(jlambda-method-jim (static) java.lang.String java.lang.String valueOf int))
 
 (define jstring-contains
   (jlambda-method java.lang.String boolean contains java.lang.CharSequence))
@@ -241,9 +207,9 @@
 		      `(jlambda-method ,class-type ,return-type ,method-name ,@argument-types))
 		    argument-types-list))))))
 
-(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
-			     ((boolean) (char) (#(char)) (#(char) int int)
-			      (double) (float) (int) (long) (java.lang.Object))))
+;(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
+;			     ((boolean) (char) (#(char)) (#(char) int int)
+;			      (double) (float) (int) (long) (java.lang.Object))))
 
 
 ;; zuerst wird gefiltert welche methoden überhaupt in frage kämen 
