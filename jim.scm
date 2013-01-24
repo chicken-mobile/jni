@@ -140,7 +140,9 @@
             (%delete-global-ref (r 'delete-global-ref))
             (%if (r 'if))
             (%exception-check (r 'exception-check))
+            (%exception-describe (r 'exception-describe))
             (%error (r 'error))
+            (%begin (r 'begin))
             (%method-id->Method (r 'method-id->Method))
             (%format (r 'format))
 
@@ -160,28 +162,32 @@
                      (jmethod (,%if is-static? static-method-id method-id)))
                     (,%if is-static?
                           (,%lambda (,@argument-names)
-                                               (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-                                                       (return-value (call-method #t class-object ,return-type jmethod jvalues)))
-                                                      (,%if (,%exception-check)
-                                                            (,%error ',method-name)
-                                                            return-value)))
+                                    (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+                                            (return-value (call-method #t class-object ,return-type jmethod jvalues)))
+                                           (,%if (,%exception-check)
+                                                 (,%begin 
+                                                   (,%exception-describe)
+                                                   (,%error (append '(static ,class-type ,method-name) (list return-value jmethod ,@argument-names))))
+                                                 return-value)))
                           (,%lambda (,@(append '(object) argument-names))
                                     (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-                                      (return-value (call-method #f object ,return-type jmethod jvalues)))
-                                     (,%if (,%exception-check)
-                                           (,%error ',method-name)
-                                           return-value)))))
+                                            (return-value (call-method #f object ,return-type jmethod jvalues)))
+                                           (,%if (,%exception-check)
+                                                 (,%begin 
+                                                   (,%exception-describe)
+                                                   (,%error (append '(,class-type ,method-name) ,@argument-names)))
+                                                 return-value)))))
              ',argument-types))))))
 
 (ppexpand* '(jlambda-method java.lang.String boolean contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method java.lang.String java.lang.String valueOf int))
-
 (define jstring-contains
   (jlambda-method java.lang.String boolean contains java.lang.CharSequence))
 (define jstring-value-of
   (jlambda-method java.lang.String java.lang.String valueOf int))
 
-
+(if (exception-check)
+  (exception-describe))
 (import-for-syntax srfi-1)
 
 (define-syntax jlambda-methods
@@ -306,7 +312,8 @@
 (define Method.getName
   (jlambda-method java.lang.reflect.Method java.lang.String getName))
 (define Method.getParameterTypes
-  (jlambda-method java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
+  (jlambda-method java.lang.reflect.Method java.lang.Class getParameterTypes))
+
 
 
 
@@ -317,10 +324,3 @@
 (print "-----------------\n\n")
 (pp (testo-foo 111))
 (print "-----------------\n\n")
-
-
-
-
-
-
-
