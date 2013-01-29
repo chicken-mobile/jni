@@ -1,4 +1,4 @@
-(use jni lolevel expand-full moremacros)
+(use jni lolevel expand-full moremacros srfi-13)
 
 (define android-sdk-path "/home/paul/opt/adt-bundle-linux-x86/sdk")
 (define android-platform-version 14)
@@ -15,7 +15,7 @@
 (define (jobject? pointer)
   (and (pointer? pointer)
        (jobject-meta? (pointer-tag pointer))))
-(mutate-procedure ##sys#pointer->string
+(mutate-procedure! ##sys#pointer->string
   (lambda (old)
     (lambda args
       (let ((arg (car args)))
@@ -301,6 +301,47 @@
 (define Method.getParameterTypes
   (jlambda-method #f java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
 
+
+(define-syntax jimport
+  (er-macro-transformer
+   (lambda (x r c)
+     (pp x)
+     (let ((object-class (class* (cadr x))))
+       (pp object-class)
+       `(list ,@(map (lambda (method)
+		     (let ((class-name (string->symbol (string-drop (to-string object-class) 6)))
+			   (modifier (Method.getModifiers method))
+			   (name (Method.getName method))
+			   (return-type (Method.getReturnType method))
+			   (params (array->list* (Method.getParameterTypes method))))
+
+		       (let ((modifier-symbols
+			      (let ((modifier-symbols '()))
+				(if (not (public? modifier))
+				    (set! modifier-symbols (cons 'private modifier-symbols)))
+				(if (static? modifier)
+				    (set! modifier-symbols (cons 'static modifier-symbols)))			     			      
+				modifier-symbols)))
+			 
+			 (let ((jlambda-def 
+				`(,class-name
+				  ,(string->symbol (let ((foo (to-string return-type)))
+						     (if (string-prefix? "class " foo)
+							 (string-drop foo 6)
+							 foo)) ) 
+				  ,(string->symbol (jstring->string name)) 
+				  ,@(map (lambda (param)
+					   (string->symbol (let ((foo (to-string param)))
+							     (if (string-prefix? "class " foo)
+								 (string-drop foo 6)
+								 foo))))
+					 params))))
+			   (cons 'jlambda-method
+				 (if (null? modifier-symbols)
+				     (cons #f jlambda-def)
+				     (cons modifier-symbols jlambda-def))))
+			 )))
+		     (array->list* (Class.getDeclaredMethods object-class))))))))
 
 
 
