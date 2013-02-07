@@ -1,3 +1,5 @@
+;; -*- scheme -*-
+
 ((license "BSD License")
  (category lang-exts)
  (needs lolevel)

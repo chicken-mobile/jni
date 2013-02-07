@@ -1,3 +1,5 @@
+;; -*- scheme -*-
+
 (define (require-envvar var)
   (let ((val (get-environment-variable var)))
     (or val
