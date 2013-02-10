@@ -140,7 +140,29 @@
                              (jtype->matchers jtype))))
                types)))
 (define class-name "java/lang/String")
-;(define methods (get-methods class-name))
+(define class (find-class "java/lang/Object"))
+(define get-class/m (get-method-id class "getClass" "()Ljava/lang/Class;"))
+(define (get-class object) (call-object-method object get-class/m #f))
+(define is-java/lang/object?
+  (let ((j/l/o (find-class "java/lang/Object")))
+    (lambda (class)
+      (call j/l/o 'equals class))))
+
+(define (get-class-hierarcy class)
+  (let* ((clazz (get-object-class class))
+         (interfaces-m (get-method-id clazz "getInterfaces" "()[Ljava/lang/Class;"))
+         (interfaces (array->list (call-object-method clazz interfaces-m #f)))
+         (class-m (get-method-id clazz "getSuperclass" "()Ljava/lang/Class;"))
+         (super-class (call-object-method clazz class-m #f)))
+    interfaces))
+
+(define (get-super-classes class)
+  (let loop ((super-classes '())
+             (class class))
+    (if (is-java/lang/object? class)
+      super-classes
+      (let ((super-class (call class 'getSuperclass)))
+        (loop (cons super-class super-classes) super-class)))))
 
 ;  (define-syntax jlambdas
 ;    (er-macro-transformer
