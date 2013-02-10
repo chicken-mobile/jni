@@ -47,11 +47,9 @@
     ("long" ((,exact? ,number?)
              ,to-jlong))
     ("float" ((,inexact? ,number?)
-              ,to-jfloat
-              ))
+              ,to-jfloat))
     ("double" ((,inexact? ,number?)
-               ,to-jdouble)
-               )
+               ,to-jdouble))
     ("class java.lang.String" ((,string?) ,to-jstring))
     ("boolean" ((,boolean?) ,to-jboolean))
     ("char" ((,char? ,string?) ,to-jchar))))
@@ -117,6 +115,7 @@
         (let ((arg (car args))
               )
           arg)))))
+
 (define (get-methods class-name)
   (let* ((class (find-class (if (symbol? class-name) (mangle-class-name class-name) class-name)))
          (getMethods (get-method-id (get-object-class class) "getMethods" "()[Ljava/lang/reflect/Method;")))
@@ -148,41 +147,70 @@
     (lambda (class)
       (call j/l/o 'equals class))))
 
-(define (get-class-hierarcy class)
-  (let* ((clazz (get-object-class class))
-         (interfaces-m (get-method-id clazz "getInterfaces" "()[Ljava/lang/Class;"))
-         (interfaces (array->list (call-object-method clazz interfaces-m #f)))
-         (class-m (get-method-id clazz "getSuperclass" "()Ljava/lang/Class;"))
-         (super-class (call-object-method clazz class-m #f)))
-    interfaces))
+(define (is-top-hier class)
+  (or (not class)
+       (is-java/lang/object? class)))
 
 (define (get-super-classes class)
+  ;(printf "Get superclass of ~s~n" (to-string class))
   (let loop ((super-classes '())
              (class class))
-    (if (is-java/lang/object? class)
-      super-classes
+    (if (is-top-hier class)
+      (begin
+   ;     (printf "SC: ~s~n" super-classes)
+        super-classes)
       (let ((super-class (call class 'getSuperclass)))
-        (loop (cons super-class super-classes) super-class)))))
+        (if super-class
+          (loop (cons super-class super-classes) super-class)
+          super-classes)))))
 
-;  (define-syntax jlambdas
-;    (er-macro-transformer
-;      (lambda (x r c)
-;        (let ((class-name (cadr x))
-;              (method-name (caddr x))
-;              (types (cdddr x))
-;              (%map (r 'map))
-;              (%define (r 'define))
-;              (
-;              )
-;          (%map (type)
+(define (get-class-hierarchy class)
+  (let* ((clazz (get-object-class class))
+         (interfaces-m (get-method-id clazz "getInterfaces" "()[Ljava/lang/Class;"))
+         (interfaces (array->list (call-object-method class interfaces-m #f)))
+         (super-classes (get-super-classes class)))
+    ;(printf "Interfaces: ~s~n" interfaces)
+    (let loop ((hier super-classes)
+               (interfaces interfaces))
+      (if (null? interfaces)
+        hier
+        (let* ((interface (car interfaces))
+               (super-interfaces (get-super-classes interface))
+               )
+          (printf "SI: ~s~n" super-interfaces)
+          (loop (append hier (if super-interfaces
+                               (append (list interface) super-interfaces)
+                               (list interface)))
+                (cdr interfaces)))))))
+
 
 (define-for-syntax (get-ver)
                    (version))
-;(define-syntax j
-;  (er-macro-transformer
-;    (lambda (x r c)
-;      (let ((%begin (r 'begin))
-;            (%let (r 'let))
-;            (%def-x (r 'def-x))
-;            (ver (version)))
-;        (def
+
+(define o-class (find-class "o"))
+(define o2-class (find-class "o$o2"))
+(define mtests (methods-by-name o-class 'mtest))
+(define (methods-by-name/arn object method-name arn)
+  (let ((methods (methods-by-name object method-name)))
+    (filter (% method (let ((method-arn (length (method-parameters method))))
+                        (= method-arn arn)))
+            methods)))
+
+(define mtests (methods-by-name/arn o-class 'mtest 2))
+
+(define (match-class arg-class-name value-class)
+ (string=? arg-class-name (to-string value-class)))
+
+(define (match-classes arg-class value-class)
+  (let ((arg-class-name (to-string arg-class))
+        (value-class-name (to-string value-class)))
+    (if (string=? arg-class-name value-class-name)
+      #t
+      (let loop ((value-hierarchy (get-super-classes value-class)))
+        (if (null? value-hierarchy)
+          #f
+          (let ((super-class (car value-hierarchy)))
+            (if (match-class arg-class-name super-class)
+              #t
+              (loop (cdr value-hierarchy)))))))))
+
