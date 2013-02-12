@@ -34,21 +34,24 @@
 (define to-jlong id)
 (define to-jfloat id)
 (define to-jdouble id)
-(define to-jstring id)
+(define to-jstring (% value (jstring value)))
 (define to-jboolean id)
 (define to-jchar id)
 
+(define (is-num? guard)
+  (lambda (v)
+    (and (number? v) (guard v))))
 ;(define valueOf (jlambdas "java/lang/String" "valueOf"))
 (define jtypes
-  `(("byte" ((,(% v (and (exact? v) (> v 0) (< v 256))))
+  `(("byte" ((,(% v (and ((is-num? exact?) v) (> v 0) (< v 256))))
              ,to-jbyte))
-    ("int" ((,exact? ,number?)
+    ("int" ((,(is-num? exact?)  ,number?)
             ,to-jint))
-    ("long" ((,exact? ,number?)
+    ("long" ((,(is-num? exact?) ,number?)
              ,to-jlong))
-    ("float" ((,inexact? ,number?)
+    ("float" ((,(is-num? inexact?) ,number?)
               ,to-jfloat))
-    ("double" ((,inexact? ,number?)
+    ("double" ((,(is-num? inexact?) ,number?)
                ,to-jdouble))
     ("class java.lang.String" ((,string?) ,to-jstring))
     ("boolean" ((,boolean?) ,to-jboolean))
@@ -60,7 +63,7 @@
 (define (jtype->matchers jtype)
   (caadr jtype))
 (define (jtype->conv jtype)
-  (cdadr jtype))
+  (cadadr jtype))
 (define (jtype->scheme-type jtype)
   (jtype->matchers (assoc jtype jtypes)))
 (define (get-matchers type-lambdas)
@@ -72,10 +75,10 @@
           (cdr type-lambda))))
     type-lambdas))
 
-(define (match-type types value)
+(define (match-types types value)
   (map (lambda (type) (type value)) types))
 (define (match-args arg-types args)
-  (map match-type
+  (map match-types
        arg-types
        args))
 
@@ -131,12 +134,18 @@
 ;              (string=? method-name (method->name method)))
 ;            methods)))
 
+(define (match-1 value jtype)
+  (let ((matchers (jtype->matchers jtype)))
+    (filter id (map (% matcher (matcher value)) matchers))))
 (define (match-value value types)
-  (filter (% v (cadr v))
+  (filter (% v (not (null? (cadr v))))
           (map (% jtype
-                  (cons (jtype->java-type jtype)
-                        (map (% matcher (matcher value))
-                             (jtype->matchers jtype))))
+                  (let ((matched (match-1 value jtype)))
+                    (list (jtype->java-type jtype)
+                          matched
+                          (if (not (null? matched)) 
+                            ((jtype->conv jtype) value)
+                            #f))))
                types)))
 (define class-name "java/lang/String")
 (define class (find-class "java/lang/Object"))
@@ -187,17 +196,6 @@
 (define-for-syntax (get-ver)
                    (version))
 
-(define o-class (find-class "o"))
-(define o2-class (find-class "o$o2"))
-(define mtests (methods-by-name o-class 'mtest))
-(define (methods-by-name/arn object method-name arn)
-  (let ((methods (methods-by-name object method-name)))
-    (filter (% method (let ((method-arn (length (method-parameters method))))
-                        (= method-arn arn)))
-            methods)))
-
-(define mtests (methods-by-name/arn o-class 'mtest 2))
-
 (define (match-class arg-class-name value-class)
  (string=? arg-class-name (to-string value-class)))
 
@@ -213,4 +211,69 @@
             (if (match-class arg-class-name super-class)
               #t
               (loop (cdr value-hierarchy)))))))))
+
+(define (value->type value)
+  (if (pointer? value)
+    (let ((object-class (get-object-class value)))
+      (list value
+            (to-string object-class)
+            (lambda (type) (match-classes type object-class))))
+    (match-value value jtypes)))
+
+;; arg-type is list of (pointer-value to-string-of-class (lambda to match classes))
+;; or list of ( ("byte" #t) ("int" #t #t))
+;;
+(define (match-type declared-type arg-type)
+  (printf "match-type ~s ~s~n" declared-type arg-type)
+  (or 
+    ;; value is pointer and is instance of declared type
+    (and 
+        (pointer? (car arg-type))
+        (call declared-type 'isInstance (car arg-type)))
+    ;; or value is not pointer, so declared type must be primitive
+    (and 
+      (call declared-type 'isPrimitive)
+      (assoc (to-string (call declared-type 'getSimpleName) arg-type)))))
+
+(define (match-method method-types arg-types)
+  (printf "match-method ~s ~s~n" method-types arg-types)
+  (map (lambda (method-type arg-type)
+         (match-type method-type arg-type))
+       method-types
+       arg-types))
+
+(define (match-arguments method-types args)
+  (let ((arg-types (map value->type args)))
+    (match-arguments* method-types arg-types)))
+
+(define (match-arguments* methods-types arg-types)
+  (let loop ((methods-types methods-types)
+             (matched-method #f))
+    (let* ((method-types (car methods-types)))
+      (if (match-method method-types arg-types)
+        (or (not matched-method)
+            (compare-matches matched-method))
+        1))))
+
+(define (get-declared-types method)
+  (method-parameters method))
+(define (get-method-types methods)
+  (map get-declared-types methods))
+
+(define (methods-by-name/arn object method-name arn)
+  (let ((methods (methods-by-name object method-name)))
+    (filter (% method (let ((method-arn (length (method-parameters method))))
+                        (= method-arn arn)))
+            methods)))
+
+(define o-class (find-class "o"))
+(define o2-class (find-class "o$o2"))
+(define mtests (methods-by-name/arn o-class 'mtest 2))
+(define m1 (car mtests))
+(define m1t (method-parameters m1))
+(define m-types (get-method-types mtests))
+(define m-type (car m-types))
+(define o-obj (call o-class 'newInstance))
+(define args (list "abc" o-obj))
+(define arg-types (map value->type args))
 
