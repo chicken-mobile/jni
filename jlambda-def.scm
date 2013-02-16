@@ -41,6 +41,124 @@
 (define (is-num? guard)
   (lambda (v)
     (and (number? v) (guard v))))
+
+(define (make-decl-type class)
+  (list (to-string class) class (get-object-class class)))
+
+(define (decl-type-class decl-type)
+  (caddr decl-type))
+
+(define (decl-type-type decl-type)
+  (cadr decl-type))
+
+(define (prim-type-matcher names)
+  (lambda (decl-type)
+  (let ((decl-class (decl-type-class decl-type)))
+    (if (call decl-class 'isPrimitive)
+      (let ((simple-name (call decl-class 'getSimpleName)))
+        (assoc names simple-name))))))
+
+(define (make-type type-name value-matcher conv matcher)
+  (list type-name value-matcher conv matcher))
+
+(define (make-prim-type* type-name value-matcher conv . prim-type-names)
+  (make-type type-name value-matcher conv (prim-type-matcher prim-type-names)))
+(define (type->matcher type)
+  (cadr type))
+(define (type->type-matcher type)
+  (cadddr type))
+(define primitive-types
+  (list
+    (make-prim-type* "numeric" number? id "byte" "int" "long" "short" "float" "double")
+;    (make-prim-type* "byte" (% v (and ((is-num? exact?) v) (> v 0) (< v 256))) to-jbyte "byte" "int" "long" "short" "float" "double")
+;    (make-prim-type* "int" (is-num? exact?) to-jint "int" "long" "short" "float" "double")
+    (make-type "string" string? jstring 
+                    (let ((jlstring (find-class "java/lang/String")))
+                      (lambda (decl-type)
+                        (call (decl-type-type decl-type) 'equals jlstring))))
+    ))
+
+(define (prim-value->type value)
+  (if (not (pointer? value))
+    (find (% type ((type->matcher type) value))
+            primitive-types)))
+(define (pointer-value->type value)
+  (if (pointer? value)
+    (make-type (to-string value)
+               #f
+               id
+               (lambda (decl-type)
+                 (call (decl-type-type decl-type) 'isInstance value)))))
+(define (match-type-to-decl-type type decl-type)
+  (printf "Matching type ~s to ~s ~n" type decl-type)
+  (let ((matcher (type->type-matcher type)))
+    (matcher decl-type)))
+
+;; match single method declaration with arg-types
+(define (match-method-types arg-types method-types)
+  (let ((matched (map (lambda (arg-type decl-type)
+                 (if (match-type-to-decl-type arg-type decl-type)
+                   decl-type
+                   #f
+                   ))
+               arg-types method-types)))
+    (if (member #f matched)
+      #f
+      matched)))
+
+;; match all method declarations with arg-types
+(define (match-methods-types arg-types methods-types)
+  (filter id (map (% method-types (match-method-types arg-types method-types)) methods-types)))
+
+(define (is-superclass? class-super class-child)
+  (let loop ((super-classes (get-class-hierarchy class-child)))
+    (if (null? super-classes)
+      #f
+      (let ((super-class (car super-classes)))
+        (if (call super-class 'equals class-super)
+          #t
+          (loop (cdr super-classes)))))))
+
+;; determines if decl-type1 is better then decl-type2
+;; the type1 is better of type2 if type2 is super-class of type1, so it is more precise
+(define (compare-decl-type decl-type1 decl-type2)
+  (let ((decl-type1-class (decl-type-type decl-type1))
+        (decl-type2-class (decl-type-type decl-type2)))
+    (is-superclass? decl-type2-class decl-type1-class)))
+
+;; match1 is better match2 when at least one type in match1 is subclass of match2
+(define (compare-matches match1 match2)
+  (if (null? match2) 
+    #t
+    (let loop ((match1 match1)
+               (match2 match2))
+      (if (or (null? match1) (not match1))
+        #f
+        (let ((decl-type1 (car match1))
+              (decl-type2 (car match2)))
+          (if (compare-decl-type decl-type1 decl-type2)
+            #t
+            (loop (cdr match1) (cdr match2))))))))
+
+
+(define (match-method arg-types methods)
+  (let loop ((methods (get-decl-method-types (get-method-types methods)))
+             (best-match '()))
+    (if (null? methods)
+      best-match
+      (let* ((method-desc (car methods))
+             (foo (printf "method-desc: ~s~n" method-desc))
+             (decl-types (cadr method-desc))
+             (foo (printf "decl ~s~n" decl-types))
+             (matched (match-method-types arg-types decl-types))
+             )
+        (printf "match-method: ~s~n" method-desc)
+        (if (or (null? best-match)
+                (compare-matches matched (cdr best-match)))
+          (loop (cdr methods) (cons (car method-desc) matched))
+          (loop (cdr methods) best-match))))))
+
+
 ;(define valueOf (jlambdas "java/lang/String" "valueOf"))
 (define jtypes
   `(("byte" ((,(% v (and ((is-num? exact?) v) (> v 0) (< v 256))))
@@ -214,31 +332,44 @@
 
 (define (value->type value)
   (if (pointer? value)
-    (let ((object-class (get-object-class value)))
-      (list value
-            (to-string object-class)
-            (lambda (type) (match-classes type object-class))))
-    (match-value value jtypes)))
+    (pointer-value->type value)
+    (prim-value->type value)))
+
+;    (let ((object-class (get-object-class value)))
+;      (list value
+;            (to-string object-class)
+;            (lambda (type) (match-classes type object-class))))
+;    (match-value value jtypes)))
+
 
 ;; arg-type is list of (pointer-value to-string-of-class (lambda to match classes))
 ;; or list of ( ("byte" #t) ("int" #t #t))
-;;
+
 (define (match-type declared-type arg-type)
   (printf "match-type ~s ~s~n" declared-type arg-type)
-  (or 
-    ;; value is pointer and is instance of declared type
-    (and 
-        (pointer? (car arg-type))
-        (call declared-type 'isInstance (car arg-type)))
-    ;; or value is not pointer, so declared type must be primitive
-    (and 
-      (call declared-type 'isPrimitive)
-      (assoc (to-string (call declared-type 'getSimpleName) arg-type)))))
+  (let ((matched-type 
+          (or 
+            ;; value is pointer and is instance of declared type
+            (and 
+              (pointer? (car arg-type))
+              (call declared-type 'isInstance (car arg-type)))
+            ;; or value is not pointer, so declared type must be primitive
+            (and 
+              (not (pointer? (car arg-type)))
+              (call declared-type 'isPrimitive)
+              (let ((simple-name (call declared-type 'getSimpleName)))
+                (printf "Simple-name: ~s in ~s~n" simple-name arg-type)
+                (assoc (to-string simple-name) arg-type))))))
+    (if matched-type arg-type (format "~s not matched ~s" declared-type arg-type ))))
 
-(define (match-method method-types arg-types)
+
+(define (match-method2 method-types arg-types)
   (printf "match-method ~s ~s~n" method-types arg-types)
   (map (lambda (method-type arg-type)
-         (match-type method-type arg-type))
+         (if (match-type method-type arg-type)
+           method-type
+           #f
+           ))
        method-types
        arg-types))
 
@@ -258,8 +389,9 @@
 (define (get-declared-types method)
   (method-parameters method))
 (define (get-method-types methods)
-  (map get-declared-types methods))
-
+  (map (% method (list method (get-declared-types method))) methods))
+(define (get-decl-method-types methods-desc)
+  (map (% method-desc (list (car method-desc) (map make-decl-type (cadr method-desc)))) methods-desc))
 (define (methods-by-name/arn object method-name arn)
   (let ((methods (methods-by-name object method-name)))
     (filter (% method (let ((method-arn (length (method-parameters method))))
@@ -272,8 +404,12 @@
 (define m1 (car mtests))
 (define m1t (method-parameters m1))
 (define m-types (get-method-types mtests))
-(define m-type (car m-types))
+;(define m-type (car m-types))
 (define o-obj (call o-class 'newInstance))
 (define args (list "abc" o-obj))
 (define arg-types (map value->type args))
-
+;(define m-type1 (make-decl-type (car m-type)))
+;(define decl-types  (map make-decl-type m-type))
+(define a1 (jstring "abc"))
+(define a-type1 (pointer-value->type a1))
+;(define method-decl-types (map (% v (map make-decl-type v)) m-types))
