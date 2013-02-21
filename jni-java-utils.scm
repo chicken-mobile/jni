@@ -12,49 +12,6 @@
         (release-chars jstring chars)
         str))))
 
-(define-syntax class
-  (ir-macro-transformer
-   (lambda (x i c)
-     (let ((name (mangle-class-name (strip-syntax (cadr x)))))
-       `(find-class ,name)))))
-
-(define-syntax method*
-  (syntax-rules ()
-    ((_ fn class-name return name args ...)
-     (let* ((class-object (class class-name))
-	    (return-value (fn class-object
-			      (symbol->string 'name)
-			      (type-signature (args ...) return))))
-       (delete-local-ref class-object)
-       return-value))))
-
-(define-syntax method
-  (syntax-rules ()
-    ((_ args ...)
-     (method* get-method-id args ...))))
-
-(define-syntax static-method
-  (syntax-rules ()
-    ((_ args ...)
-     (method* get-static-method-id args ...))))
-
-(define-syntax constructor
-  (er-macro-transformer
-   (lambda (x r c)
-     `(,(r 'method) ,(cadr x) void <init> . ,(cddr x)))))
-
-(define-syntax define-method
-  (ir-macro-transformer
-   (lambda (x i c)
-     (let* ((name (mangle-method-name (strip-syntax (caadr x)))))
-       `(define-external (,(i name)
-                          (,(i '(c-pointer "JNIEnv")) env)
-                          (,(i '(c-pointer "jobject")) ,(cadadr x))
-                          . ,(cddadr x))
-          ,(i (caddr x))
-          (parameterize ((jni-env env))
-            . ,(cdddr x)))))))
-
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
        (object-list '() (cons (array-ref array-object idx) object-list)))
@@ -84,3 +41,18 @@
                      value))
                  (cons values "\n"))))
 
+(define Class.isPrimitive
+  (jlambda-method #f java.lang.Class boolean isPrimitive))
+(define Class.getMethods
+  (jlambda-method #f java.lang.Class #(java.lang.reflect.Method) getMethods))
+(define Class.getDeclaredMethods
+  (jlambda-method #f java.lang.Class #(java.lang.reflect.Method) getDeclaredMethods))
+
+(define Method.getModifiers
+  (jlambda-method #f java.lang.reflect.Method int getModifiers))
+(define Method.getReturnType
+  (jlambda-method #f java.lang.reflect.Method java.lang.Class getReturnType))
+(define Method.getName
+  (jlambda-method #f java.lang.reflect.Method java.lang.String getName))
+(define Method.getParameterTypes
+  (jlambda-method #f java.lang.reflect.Method #(java.lang.Class) getParameterTypes))
