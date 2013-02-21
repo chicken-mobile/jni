@@ -73,6 +73,8 @@
 (define-foreign-type jdouble double)
 (define-foreign-type jthrowable jobject)
 
+;;mangling
+
 (define-for-syntax (mangle-class-name name)
   (cond
    ((symbol? name)
@@ -89,4 +91,8 @@
       (else (string-translate (symbol->string name) #\. #\/))))
    ((vector? name)
     (expand-type name))))
+
+(define-for-syntax (mangle-method-name name)
+  (string->symbol
+   (string-append "Java_" (string-translate (symbol->string name) #\. #\_))))
 

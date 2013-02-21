@@ -116,26 +116,33 @@
 
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
-(define jstring->string
-  (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
-        (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
-        (get-length    (jni-env-lambda jsize GetStringUTFLength jstring)))
-    (lambda (jstring)
-      (let* ((chars (get-chars jstring #f))
-             (len   (get-length jstring))
-             (str   (make-string len)))
-        (move-memory! chars str len)
-        (release-chars jstring chars)
-        str))))
 
-(define-syntax jni-init
-  (syntax-rules ()
-    ((_)
-     (foreign-declare "
-#include <jni.h>
+(define-for-syntax (expand-type type #!optional return)
+  (cond ((symbol? type)
+         (case type
+           ((boolean) "Z")
+           ((byte)    "B")
+           ((char)    "C")
+           ((short)   "S")
+           ((int)     "I")
+           ((long)    "J")
+           ((float)   "F")
+           ((double)  "D")
+           ((void)    "V")
+           (else (string-append "L" (mangle-class-name type) ";"))))
+        ((vector? type)
+         (string-append "[" (expand-type (vector-ref type 0))))
+        ((list? type)
+         (and-let* ((return (expand-type return)))
+           (string-append
+            "(" (string-intersperse (map expand-type type) "") ")"
+            return)))
+        (else #f)))
 
-JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
-{
- CHICKEN_run(C_toplevel);
- return JNI_VERSION_1_6;
-}"))))
+(define-syntax type-signature
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((type (cadr x)))
+       (or (expand-type type (and (pair? (cddr x)) (caddr x)))
+           (error "Invalid Java type signature" x))))))
+
