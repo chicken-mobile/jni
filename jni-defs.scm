@@ -1,45 +1,13 @@
+;; generate type variant procedures
+(include "jni-def-macros.scm")
+(define-call-procs Void void)
 (define-type-procs)
 (define-get-field-procs)
 (define-jni-modifier-procs)
-
-(define-foreign-variable JNI_VERSION_1_1 int)
-(define-foreign-variable JNI_VERSION_1_2 int)
-(define-foreign-variable JNI_VERSION_1_4 int)
-(define-foreign-variable JNI_VERSION_1_6 int)
-
-(define-foreign-record-type (jvm-option "JavaVMOption")
-  (constructor: make-jvm-option)
-  (destructor: free-jvm-option)
-  (c-string  optionString jvm-option-string jvm-option-string-set!)
-  ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
-(define-foreign-record-type (jvm-init-args "JavaVMInitArgs")
-  (constructor: make-jvm-init-args)
-  (destructor: free-jvm-init-args)
-  (jint version jvm-init-args-version jvm-init-args-version-set!)
-  (jint nOptions jvm-init-args-options-length jvm-init-args-options-length-set!)
-  (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
-  (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
-
+;;
 
 (define version
   (jni-env-lambda jint GetVersion))
-(define jvm-get-default-init-args
-  (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args))
-(define jvm-create
-  (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
-(define jvm-destroy
-  (foreign-lambda* jint ((java-vm jvm))
-    "C_return((*jvm)->DestroyJavaVM(jvm));"))
-(define jvm-env
-  (foreign-lambda* jint ((java-vm jvm) ((c-pointer (c-pointer void)) env) (jint version))
-    "C_return((*jvm)->GetEnv(jvm, env, version));"))
-(define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
-    "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
-(define jvm-detach-current-thread
-  (foreign-lambda* int ((java-vm jvm))
-    "C_return((*jvm)->DetachCurrentThread(jvm));"))
-
 
 (define find-class
   (jni-env-lambda jclass FindClass (const c-string)))
@@ -113,14 +81,33 @@
 
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
-(define jstring->string
-  (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
-        (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
-        (get-length    (jni-env-lambda jsize GetStringUTFLength jstring)))
-    (lambda (jstring)
-      (let* ((chars (get-chars jstring #f))
-             (len   (get-length jstring))
-             (str   (make-string len)))
-        (move-memory! chars str len)
-        (release-chars jstring chars)
-        str))))
+
+(define-for-syntax (expand-type type #!optional return)
+  (cond ((symbol? type)
+         (case type
+           ((boolean) "Z")
+           ((byte)    "B")
+           ((char)    "C")
+           ((short)   "S")
+           ((int)     "I")
+           ((long)    "J")
+           ((float)   "F")
+           ((double)  "D")
+           ((void)    "V")
+           (else (string-append "L" (mangle-class-name type) ";"))))
+        ((vector? type)
+         (string-append "[" (expand-type (vector-ref type 0))))
+        ((list? type)
+         (and-let* ((return (expand-type return)))
+           (string-append
+            "(" (string-intersperse (map expand-type type) "") ")"
+            return)))
+        (else #f)))
+
+(define-syntax type-signature
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((type (cadr x)))
+       (or (expand-type type (and (pair? (cddr x)) (caddr x)))
+           (error "Invalid Java type signature" x))))))
+
