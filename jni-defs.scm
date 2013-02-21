@@ -1,6 +1,10 @@
+;; generate type variant procedures
+(include "jni-def-macros.scm")
+(define-call-procs Void void)
 (define-type-procs)
 (define-get-field-procs)
 (define-jni-modifier-procs)
+;;
 
 (define-foreign-variable JNI_VERSION_1_1 int)
 (define-foreign-variable JNI_VERSION_1_2 int)
@@ -19,7 +23,6 @@
   (jint nOptions jvm-init-args-options-length jvm-init-args-options-length-set!)
   (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
   (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
-
 
 (define version
   (jni-env-lambda jint GetVersion))
@@ -124,3 +127,15 @@
         (move-memory! chars str len)
         (release-chars jstring chars)
         str))))
+
+(define-syntax jni-init
+  (syntax-rules ()
+    ((_)
+     (foreign-declare "
+#include <jni.h>
+
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
+{
+ CHICKEN_run(C_toplevel);
+ return JNI_VERSION_1_6;
+}"))))

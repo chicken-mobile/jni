@@ -9,31 +9,13 @@
 (import-for-syntax chicken data-structures)
 (use lolevel foreigners)
 
-(include "jni-types.scm")
-(include "jni-def-macros.scm")
+(include "jni-primitives.scm")
 (include "jni-defs.scm")
 
 (define jni-env
   (make-parameter #f))
 (define java-vm
   (make-parameter #f))
-
-(define-for-syntax (mangle-class-name name)
-  (cond
-   ((symbol? name)
-    (case name
-      ((boolean) "java/lang/Boolean")
-      ((byte)    "java/lang/Byte")
-      ((char)    "java/lang/Character")
-      ((short)   "java/lang/Short")
-      ((int)     "java/lang/Integer")
-      ((long)    "java/lang/Long")
-      ((float)   "java/lang/Float")
-      ((double)  "java/lang/Double")
-      ((void)    "java/lang/Void")
-      (else (string-translate (symbol->string name) #\. #\/))))
-   ((vector? name)
-    (expand-type name))))
 
 (define-syntax class
   (ir-macro-transformer
@@ -143,7 +125,6 @@
           (begin
             (array-set! arr i (car lst))
             (loop (+ i 1) (cdr lst)))))))
-
 
 (define to-string
   (lambda (object)
