@@ -23,9 +23,9 @@ Pointer to JNIEnv structure
 ### Procedures and macros
 
 #### jvm-init
-    [procedure] (jvm-init [CLASS-PATH])
+    [procedure] (jvm-init [CLASS-PATH "."])
 
-Initialize jni when chicken is expected to launch the jvm, by default CLASS-PATH points to the current directory.
+Initialize jni when chicken is expected to launch the jvm.
 
 #### jni-init
     [macro] (jni-init)
@@ -68,17 +68,25 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 #### jlambda-method
     [macro] (jlambda-method MODIFIERS CLASS RETURN-TYPE METHOD-NAME ARGS...) -> lambda
 
-Returns a lambda associated to the java method.
+Returns a lambda associated to the java method. Modifiers could by a list of modifiers or #f
+Example:
+
+    (jlambda-method #f java.lang.String boolean contains java.lang.CharSequence)
 
 #### get-method-id
     [procedure] (get-method-id JCLASS name signature) -> jmethod-id
+
+Example:
 
     (get-method-id jclass "<init>" "()V")
 
 #### method
     [macro] (method CLASS-SYMBOL RETURN-TYPE-SYMBOL ARGS-PROTOTYPE)
 
+Convenient macro to handle get-method-id
+
 Example:
+
     (method java.lang.String void <init>)
 
 #### get-field
@@ -94,6 +102,7 @@ Example:
     [macro] (class CLASS-SYMBOL) -> jclass
 
 Returns the associated jclass.
+Example:
 
     (class java.lang.String)
 
@@ -127,9 +136,9 @@ Check if a class is assignable from another.
 
 Returns a new allocated object, eg:
     
-    (let* ((jclass        (class java.lang.String))
-           (constructor   (get-method-id jclass "<init>" "()V")))
-        (new-object jclass constructor))
+    (let* ((string-class (class java.lang.String))
+           (constructor   (get-method-id string-class "<init>" "()V")))
+        (new-object string-class constructor))
 
 #### constructor
     [macro] (constructor CLASS-SYMBOL [ARGS..])
@@ -142,45 +151,51 @@ Convenient wrap for new-object.
     [procedure] (new-global-ref JOBJECT)
     [procedure] (delete-global-ref JOBJECT)
     
-#### make-array
+#### Arrays
+
+##### make-array
     [procedure] (make-array size JCLASS JOBJECT) -> jarray
 
-#### array-length
+##### array-length
     [procedure] (array-length J-ARRAY)
 
-#### array-ref
+##### array-ref
     [procedure] (array-ref J-ARRAY size) -> jobject
 
-#### array-set!
+##### array-set!
     [procedure] (array-set! J-ARRAY index JOBJECT)
 
-#### exception-check
+#### Exceptions 
+
+##### exception-check
     [procedure] (exception-check)
 
 Check for pending exceptions.
 
-#### exception-clear
+##### exception-clear
     [procedure] (exception-clear)
 
 Clear pending exceptions.
 
-#### exception-describe
+##### exception-describe
     [procedure] (exception-describe)
 
 Prints an exception and a backtrace of the stack to a system error-reporting channel, such as stderr. This is a convenience routine provided for debugging.
 
-#### exception-occurred
+##### exception-occurred
     [procedure] (exception-occurred) -> jthrowable
 
 Determines if an exception is being thrown. The exception stays being thrown
 until either the native code calls ExceptionClear().
 
-#### monitor-enter
+#### Other
+
+##### monitor-enter
     [procedure] (monitor-enter jobject)
 
 Enters the monitor associated with the underlying Java object referred to by obj argument.
 
-#### monitor-exit
+##### monitor-exit
     [procedure] (monitor-exit jobject)
 
 Exit the monitor associated with the underlying Java object referred to by obj argument.
