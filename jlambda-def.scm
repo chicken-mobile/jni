@@ -29,15 +29,6 @@
                    body))))
 (define id (% v v))
 
-(define to-jbyte id)
-(define to-jint id)
-(define to-jlong id)
-(define to-jfloat id)
-(define to-jdouble id)
-(define to-jstring (% value (jstring value)))
-(define to-jboolean id)
-(define to-jchar id)
-
 (define primitive-types-score '(("byte" 0) ("short" 10) ("int" 20) ("long" 30) ("float" 40) ("double" 50)))
 
 (define (is-num? guard)
@@ -45,10 +36,7 @@
     (and (number? v) (guard v))))
 
 (define (make-decl-type class)
-  (list (to-string class) class (get-object-class class)))
-
-(define (decl-type-class decl-type)
-  (caddr decl-type))
+  (list (to-string class) class))
 
 (define (decl-type-type decl-type)
   (cadr decl-type))
@@ -79,8 +67,6 @@
 (define primitive-types
   (list
     (make-prim-type* "numeric" number? id primitive-types-score)
-;    (make-prim-type* "byte" (% v (and ((is-num? exact?) v) (> v 0) (< v 256))) to-jbyte "byte" "int" "long" "short" "float" "double")
-;    (make-prim-type* "int" (is-num? exact?) to-jint "int" "long" "short" "float" "double")
     (make-type "string" string? jstring 
                     (let ((jlstring (find-class "java/lang/String")))
                       (lambda (decl-type)
@@ -181,52 +167,52 @@
           (loop (cdr methods) (cons (car method-desc) matched))
           (loop (cdr methods) best-match))))))
 
+;; hlist: ((key value1 value2 ...) (key value3 value4 ...) ...)
+(define (hlist-put key value hlist cmp)
+  (let ((current (assoc key hlist cmp))
+        )
+    (if current
+      ;; there is (key value ...)
+      (let* ((hlist* (alist-delete key hlist cmp)) ;; remove old list from hlist
+             )
+        (append hlist* (list (cons key (append (cdr current) (list value)))))) ;; build new list (key value @current)
+      ; there is no (key value), simply append new list to hlist
+      (append hlist (list (cons key (list value)))))))
 
-(define (get-matchers type-lambdas)
-  (map
-    (lambda (type-lambda)
-      (let ((types (car type-lambda)))
-        (cons
-          (map jtype->scheme-type types)
-          (cdr type-lambda))))
-    type-lambdas))
+;; (list-build car eq? '((a 1) (a 2) (b 1) (c 2) (c 4))) 
+;; ->
+;; ((a ((a 1) (a 2))) (b ((b 1))) (c ((c 2) (c 4))))
+(define (list-build pred cmp lizt)
+  (let loop ((lizt lizt)
+             (res '()))
+    (if (null? lizt)
+      res
+      (let* ((elt (car lizt))
+             (elt-name (pred elt))
+             (elt-res (assoc elt-name res cmp))
+             )
+        (loop (cdr lizt)
+              (hlist-put elt-name elt res cmp))))))
 
-(define (match-types types value)
-  (map (lambda (type) (type value)) types))
-(define (match-args arg-types args)
-  (map match-types
-       arg-types
-       args))
+(define-for-syntax (class-methods class)
+                    (methods class))
+(define-for-syntax (class-by-name class-name)
+                   (find-class class-name))
 
-(define (type-matcher type-lambdas)
-  (let ((matchers
-          (map
-            (lambda (type-lambda)
-              (let ((types (car type-lambda)))
-                (cons
-                  (map jtype->scheme-type types)
-                  (cdr (type-lambda)))))
-            type-lambdas)))
-    (lambda args
-      (let loop ((args args))
-        (let ((arg (car args))
-              )
-          arg)))))
+(define-for-syntax (get-method-list methods)
+    (let ((by-names (list-build (lambda (m) (to-string (method-name m)))
+                             string=?
+                             methods)))
+    (map (lambda (ms)
+           (let ((name (car ms))
+                 (overloaded (cdr ms)))
+             (cons name
+                    (list-build (lambda (method) (length (method-parameters method)))
+                                =
+                                overloaded))))
+      by-names)))
 
-(define (get-methods class-name)
-  (let* ((class (find-class (if (symbol? class-name) (mangle-class-name class-name) class-name)))
-         (getMethods (get-method-id (get-object-class class) "getMethods" "()[Ljava/lang/reflect/Method;")))
-    (array->list (call-object-method class getMethods #f))))
 
-(define (method->name method-class)
-  (let* ((getName (get-method-id (get-object-class method-class) "getName" "()Ljava/lang/String;")))
-    (jstring->string (call-object-method method-class getName #f))))
-
-;(define (methods-by-name class-name method-name)
-;  (let* ((methods (get-methods class-name)))
-;    (filter (lambda (method)
-;              (string=? method-name (method->name method)))
-;            methods)))
 
 (define class-name "java/lang/String")
 (define class (find-class "java/lang/Object"))
@@ -277,22 +263,6 @@
 (define-for-syntax (get-ver)
                    (version))
 
-(define (match-class arg-class-name value-class)
- (string=? arg-class-name (to-string value-class)))
-
-(define (match-classes arg-class value-class)
-  (let ((arg-class-name (to-string arg-class))
-        (value-class-name (to-string value-class)))
-    (if (string=? arg-class-name value-class-name)
-      #t
-      (let loop ((value-hierarchy (get-super-classes value-class)))
-        (if (null? value-hierarchy)
-          #f
-          (let ((super-class (car value-hierarchy)))
-            (if (match-class arg-class-name super-class)
-              #t
-              (loop (cdr value-hierarchy)))))))))
-
 (define (get-declared-types method)
   (method-parameters method))
 (define (get-method-types methods)
@@ -304,6 +274,44 @@
     (filter (% method (let ((method-arn (length (method-parameters method))))
                         (= method-arn arn)))
             methods)))
+(define (make-overloaded-method-caller name method-list)
+  (lambda args
+    (let* ((arn (length args))
+           (a-methods (assoc arn method-list))
+           )
+      (if (null? a-methods)
+        (error "Can't find method ~s with arn ~s~n" name arn)
+        (let ((methods (cdr a-methods)))
+          (match-method args methods))))))
+
+;; (jlambda java.lang.String String) declares
+;; (String-valueOf object arg)
+;; (String-length) and so on
+(define-syntax  jlambda
+  (er-macro-transformer
+    (lambda (x r c)
+      (printf "~s~n" (cadr x))
+      (let* ((%lambda (r 'lambda))
+             (%define (r 'define))
+             (%begin (r 'begin))
+             (%make-overloaded-method-caller (r 'make-overloaded-method-caller))
+
+             (class-name (mangle-class-name(cadr x)))
+             (local-name (symbol->string (caddr x)))
+             (define-name local-name)
+             (methods (class-methods (class-by-name class-name)))
+             (method-list (get-method-list methods))
+             )
+        (printf "method-list: ~s~n" method-list)
+        (cons
+          %begin
+          (map (lambda (method-desc)
+                 (let* ((method-name (car method-desc))
+                        (define-name (string->symbol (string-append local-name "-" method-name)))
+                        )
+                   (printf "defining ~s, ~s~n" define-name (cdr method-desc))
+                   `(,%define ,define-name (%make-overloaded-method-caller ,method-name ,(cdr method-desc)))))
+               method-list))))))
 
 (define o-class (find-class "o"))
 (define o2-class (find-class "o$o2"))
