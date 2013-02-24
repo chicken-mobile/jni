@@ -274,15 +274,21 @@
     (filter (% method (let ((method-arn (length (method-parameters method))))
                         (= method-arn arn)))
             methods)))
-(define (make-overloaded-method-caller name method-list)
-  (lambda args
+
+(define (make-overloaded-method-caller name)
+  (lambda (object/class . args)
     (let* ((arn (length args))
+           (methodz (methods object/class))
+           (method-list (get-method-list methods))
            (a-methods (assoc arn method-list))
            )
       (if (null? a-methods)
         (error "Can't find method ~s with arn ~s~n" name arn)
-        (let ((methods (cdr a-methods)))
-          (match-method args methods))))))
+        (let* ((o-methods (cdr a-methods))
+               (method (match-method args o-methods)))
+          (if method
+            (call-object-method object/class method (make-jvalue-array args))
+            (error "Can't match ~s with method ~s~n" args name)))))))
 
 ;; (jlambda java.lang.String String) declares
 ;; (String-valueOf object arg)
@@ -310,7 +316,7 @@
                         (define-name (string->symbol (string-append local-name "-" method-name)))
                         )
                    (printf "defining ~s, ~s~n" define-name (cdr method-desc))
-                   `(,%define ,define-name (%make-overloaded-method-caller ,method-name ,(cdr method-desc)))))
+                   `(,%define ,define-name (make-overloaded-method-caller ,method-name))))
                method-list))))))
 
 (define o-class (find-class "o"))
