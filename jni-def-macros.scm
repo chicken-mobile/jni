@@ -7,11 +7,7 @@
 ;;                set-double-field
 ;;                double-field/accessor
 ;;                get-static-double-field 
-;;                set-static-double-field
-;;                GetDoubleField 
-;;                SetDoubleField
-;;                GetStaticDoubleField 
-;;                SetStaticDoubleField)
+;;                set-static-double-field)
 ;; - define-jni-modifier-procs: generate test and accesor procedures for modifiers (ie: public? / public-modifier)
 
 (define-syntax define-call-procs 

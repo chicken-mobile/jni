@@ -5,6 +5,72 @@
      (let ((name (mangle-class-name (strip-syntax (cadr x)))))
        `(find-class ,name)))))
 
+;(field-getter-for MODIFIER TYPE)
+(define-syntax field-getter-for 
+  (er-macro-transformer
+    (lambda (x r c)
+      (let* ((%let*     (r 'let*))
+             (modifier  (cadr x))
+             (type      (caddr x))
+             (getter    (r (string->symbol 
+                             (string-append "get-" (if (null? modifier) 
+                                                     "" 
+                                                     (string-append modifier "-")) type "-field")))))
+        getter))))
+
+;; (field* field-id-getter field-getter jclass object name type)
+(define-syntax field*
+  (er-macro-transformer
+    (lambda (x r c)
+      (let* ((%let*             (r 'let*))
+             (%type-signature   (r 'type-signature))
+             (%get-field-id     (r (cadr x)))
+             (%get-field        (r (caddr x)))
+             (jclass            (cadddr x))
+             (object            (car (cddddr x)))
+             (field-name        (symbol->string (cadr (cddddr x))))
+             (type              (caddr (cddddr x))))
+        `(,%let* ((signature (,%type-signature ,type))
+                  (field-id  (,%get-field-id ,jclass ,field-name signature)))
+                 (,%get-field ,object field-id))))))
+
+(define-syntax static-field
+  (er-macro-transformer
+    (lambda (x r c)
+      (let* ((%let*             (r 'let*))
+             (%class            (r 'class))
+             (%delete-local-ref (r 'delete-local-ref))
+             (%get-static-field (r 'get-static-field))
+             (%field-getter-for (r 'field-getter-for))
+             (%symbol->string   (r 'symbol->string))
+             (class-name        (cadr x))
+             (field-name        (caddr x))
+             (s-type            (cadddr x))
+             (type              (symbol->string s-type)))
+
+        `(,%let* ((c (,%class ,class-name))
+                  (field-value (field* ,%get-static-field (,%field-getter-for "static" ,type) c c ,field-name ,s-type)))
+                 (,%delete-local-ref c)
+                 field-value)))))
+
+(define-syntax field
+  (er-macro-transformer
+    (lambda (x r c)
+      (let* ((%let*             (r 'let*))
+             (%class            (r 'class))
+             (%get-field        (r 'get-field))
+             (%field-getter-for (r 'field-getter-for))
+             (%symbol->string   (r 'symbol->string))
+             (%get-object-class (r 'get-object-class))
+             (object            (cadr x))
+             (field-name        (caddr x))
+             (s-type            (cadddr x))
+             (type              (symbol->string s-type)))
+        `(,%let* ((c (,%get-object-class ,object))
+                  (field-value (field* ,%get-field (,%field-getter-for () ,type) c ,object ,field-name ,s-type)))
+                  (delete-local-ref c)
+                  field-value)))))
+
 (define-syntax method*
   (syntax-rules ()
     ((_ fn class-name return name args ...)
