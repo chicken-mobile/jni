@@ -6,10 +6,17 @@
   (string-append android-sdk-path "platforms/android-" (number->string android-platform-version) "/"))
 (define android-platform-jar-path
   (string-append android-platform-path "android.jar"))
+(load "jlambda-def.scm")
 
 ;;(jvm-init android-platform-jar-path)
-(jvm-init)
+;(jvm-init)
 (import-for-syntax jni)
+(define (exc wut)
+  (if (exception-check)
+    (begin
+      (printf "~s~n" wut)
+      (exception-describe)
+      (exception-clear))))
 
 (define-record jobject-meta)
 (define (jobject? pointer)
@@ -160,6 +167,7 @@
                      (static-method-id (,%get-static-method-id class-object ,(symbol->string method-name) (type-signature ,argument-types ,return-type)))
                      (is-static? (and static-method-id #t))
                      (jmethod (,%if is-static? static-method-id method-id)))
+                    (exception-clear) ;; clear NoSuchMethodFound
                     (,%if is-static?
                           (,%lambda (,@argument-names)
                                     (,%let ((jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
@@ -179,15 +187,16 @@
                                                  return-value)))))
              ',argument-types))))))
 
+(exc "contains1")
 (ppexpand* '(jlambda-method java.lang.String boolean contains java.lang.CharSequence))
-(ppexpand* '(jlambda-method java.lang.String java.lang.String valueOf int))
-(define jstring-contains
-  (jlambda-method java.lang.String boolean contains java.lang.CharSequence))
+;(ppexpand* '(jlambda-method java.lang.String java.lang.String valueOf int))
+(exc "contains")
+;(define jstring-contains
+;  (jlambda-method java.lang.String boolean contains java.lang.CharSequence))
+(exc "after CharSeq")
 (define jstring-value-of
   (jlambda-method java.lang.String java.lang.String valueOf int))
 
-(if (exception-check)
-  (exception-describe))
 (import-for-syntax srfi-1)
 
 (define-syntax jlambda-methods
@@ -308,19 +317,16 @@
 (define Method.getModifiers
   (jlambda-method java.lang.reflect.Method int getModifiers))
 (define Method.getReturnType
-  (jlambda-method java.lang.reflect.Method java.lang.Class getReturnType))
+  (jlambda-method java.lang.reflect.Method java.lang.Method getReturnType))
 (define Method.getName
-  (jlambda-method java.lang.reflect.Method java.lang.String getName))
+  (jlambda-method java.lang.reflect.Method java.lang.Method getName))
 (define Method.getParameterTypes
   (jlambda-method java.lang.reflect.Method java.lang.Class getParameterTypes))
 
 
-
-
-
-(pp (jstring-value-of 1))
-(print "-----------------\n\n")
-(pp (testo-foo "muuuuuuuh"))
-(print "-----------------\n\n")
-(pp (testo-foo 111))
-(print "-----------------\n\n")
+;(pp (jstring-value-of 1))
+;(print "-----------------\n\n")
+;(pp (testo-foo "muuuuuuuh"))
+;(print "-----------------\n\n")
+;(pp (testo-foo 111))
+;(print "-----------------\n\n")
