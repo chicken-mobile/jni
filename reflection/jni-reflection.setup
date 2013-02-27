@@ -1,11 +1,6 @@
-(if (host-extension)
-    (begin
-      (let ((java-path (string-append (alist-ref "JAVA_HOME" (get-environment-variables) equal?) "/include/")))
-	(compile -s ,(string-append "-I" java-path) jni-reflection.scm -J)
-	(compile -s ,(string-append "-I" java-path) jni-reflection.import.scm)))
-    (begin
-      (compile -s jni-reflection.scm -J)
-      (compile -s jni-reflection.import.scm)))
+(let ((java-path (string-append (alist-ref "JAVA_HOME" (get-environment-variables) equal?) "/include/")))
+ (compile -s ,(string-append "-I" java-path) jni-reflection.scm -J)
+ (compile -s ,(string-append "-I" java-path) jni-reflection.import.scm))
 
 (install-extension 'jni-reflection
   '("jni-reflection.so" "jni-reflection.import.so")
