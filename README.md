@@ -1,4 +1,4 @@
-# Chicken JNI bindings
+# Egg documentation
 
 ## Documentation
 
@@ -73,30 +73,13 @@ Example:
 
     (jlambda-method #f java.lang.String boolean contains java.lang.CharSequence)
 
-#### get-method-id
-    [procedure] (get-method-id JCLASS name signature) -> jmethod-id
+#### jlambda-field
+    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
 
 Example:
-
-    (get-method-id jclass "<init>" "()V")
-
-#### method
-    [macro] (method CLASS-SYMBOL RETURN-TYPE-SYMBOL ARGS-PROTOTYPE)
-
-Convenient macro to handle get-method-id
-
-Example:
-
-    (method java.lang.String void <init>)
-
-#### get-field
-    [procedure] (get-field JCLASS name signature)
-
-#### get-static-field
-    [procedure] (get-static-field JCLASS name signature)
-
-#### get-static-method-id
-    [procedure] (get-static-method-id JCLASS name signature)
+  (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
+    (print (user-lastname user))
+    (set! (user-lastname user) "Perez"))
 
 #### class
     [macro] (class CLASS-SYMBOL) -> jclass
@@ -159,20 +142,6 @@ Example:
     [procedure] (new-global-ref JOBJECT)
     [procedure] (delete-global-ref JOBJECT)
     
-#### Arrays
-
-##### make-array
-    [procedure] (make-array size JCLASS JOBJECT) -> jarray
-
-##### array-length
-    [procedure] (array-length J-ARRAY)
-
-##### array-ref
-    [procedure] (array-ref J-ARRAY size) -> jobject
-
-##### array-set!
-    [procedure] (array-set! J-ARRAY index JOBJECT)
-
 #### Exceptions 
 
 ##### exception-check

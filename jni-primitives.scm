@@ -114,7 +114,6 @@
 (define (prepare-local-jobject jobject)
   (set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-local-ref))
 
-
 ;; jni jvm bindings
 (define-foreign-variable JNI_VERSION_1_1 int)
 (define-foreign-variable JNI_VERSION_1_2 int)
@@ -190,3 +189,15 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 									(java-vm jvm)
 									(jni-env env))))
 
+(define-syntax primitive?
+  (syntax-rules (void boolean byte char short int long float double)
+            ((_ void) #t)
+            ((_ boolean) #t)
+            ((_ byte) #t)
+            ((_ char) #t)
+            ((_ short) #t)
+            ((_ int) #t)
+            ((_ long) #t)
+            ((_ float) #t)
+            ((_ double) #t)
+            ((_ type) #f)))
