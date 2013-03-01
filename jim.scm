@@ -11,53 +11,11 @@
 (jvm-init)
 (import-for-syntax jni)
 
-(define-syntax jvalue-zip
-  (er-macro-transformer
-   (lambda (x r c)
-     (let ((%let (r 'let))
-	   (%make-jvalue-array (r 'make-jvalue-array))
-	   (%set-boolean-jvalue! (r 'set-boolean-jvalue!))
-	   (%set-byte-jvalue! (r 'set-byte-jvalue!))
-	   (%set-char-jvalue! (r 'set-char-jvalue!))
-	   (%set-int-jvalue! (r 'set-int-jvalue!))
-	   (%set-long-jvalue! (r 'set-long-jvalue!))
-	   (%set-float-jvalue! (r 'set-float-jvalue!))
-	   (%set-double-jvalue! (r 'set-double-jvalue!))
-	   (%set-object-jvalue! (r 'set-object-jvalue!))
-	   (%if (r 'if))
-	   (%car (r 'car))
-	   (%string? (r 'string?))
-	   (%jstring (r 'jstring))
-	   
-	   (argument-types (cadr x))
-	   (argument-names (cddr x)))
-
-       `(,%let ((jvalues (,%make-jvalue-array ,(length argument-types))))
-	       ,@(map (lambda (argument-type arg index)
-		       (case argument-type
-			 ((boolean) `(,%set-boolean-jvalue! jvalues ,index ,arg))
-			 ((byte)    `(,%set-byte-jvalue!    jvalues ,index ,arg))
-			 ((char)    `(,%set-char-jvalue!    jvalues ,index ,arg))
-			 ((short)   `(,%set-short-jvalue!   jvalues ,index ,arg))
-			 ((int)     `(,%set-int-jvalue!     jvalues ,index ,arg))
-			 ((long)    `(,%set-long-jvalue!    jvalues ,index ,arg))
-			 ((float)   `(,%set-float-jvalue!   jvalues ,index ,arg))
-			 ((double)  `(,%set-double-jvalue!  jvalues ,index ,arg))
-			 ((java.lang.String java.lang.CharSequence java.lang.Object)
-			  `(,%if (,%string? ,arg)
-				 (,%set-object-jvalue! jvalues ,index (,%jstring ,arg)) ;; wont be GCed :(
-				 (,%set-object-jvalue! jvalues ,index ,arg)))
-			 (else
-			  `(,%set-object-jvalue! jvalues ,index ,arg))))
-		     argument-types
-		     argument-names
-		     (iota (length argument-types))))))))
-
-(ppexpand* '(jlambda-method #f java.lang.String boolean contains java.lang.CharSequence))
+(ppexpand* '(jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
 
 (define jstring-contains
-  (jlambda-method #f java.lang.String boolean contains java.lang.CharSequence))
+  (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
 (define jstring-value-of
   (jlambda-method (static) java.lang.String java.lang.String valueOf int))
 
@@ -83,7 +41,7 @@
        ;; error
 
        `(list ,@(map (lambda (argument-types)
-		      `(jlambda-method ,modifiers ,class-type ,return-type ,method-name ,@argument-types))
+		      `(jlambda-method ,modifiers ,return-type ,class-type ,method-name ,@argument-types))
 		    argument-types-list))))))
 
 (ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf

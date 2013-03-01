@@ -66,12 +66,12 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 ### Java to Scheme
 
 #### jlambda-method
-    [macro] (jlambda-method MODIFIERS CLASS RETURN-TYPE METHOD-NAME ARGS...) -> lambda
+    [macro] (jlambda-method MODIFIERS RETURN-TYPE CLASS METHOD-NAME ARGS...) -> lambda
 
 Returns a lambda associated to the java method. Modifiers could by a list of modifiers or #f
 Example:
 
-    (jlambda-method #f java.lang.String boolean contains java.lang.CharSequence)
+    (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence)
 
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
