@@ -7,7 +7,7 @@
 
 (define-syntax method*
   (syntax-rules ()
-    ((_ fn class-name return name args ...)
+    ((_ fn return class-name name args ...)
      (let* ((class-object (class class-name))
             (return-value (fn class-object
                               (symbol->string 'name)
@@ -28,7 +28,7 @@
 (define-syntax constructor
   (er-macro-transformer
    (lambda (x r c)
-     `(,(r 'method) ,(cadr x) void <init> . ,(cddr x)))))
+     `(,(r 'method) void ,(cadr x) <init> . ,(cddr x)))))
 
 (define-syntax define-method
   (ir-macro-transformer
@@ -100,127 +100,117 @@
 
 (define-syntax jvalue-zip
   (er-macro-transformer
-   (lambda (x r c)
-     (let ((%let (r 'let))
-	   (%make-jvalue-array (r 'make-jvalue-array))
-	   (%set-boolean-jvalue! (r 'set-boolean-jvalue!))
-	   (%set-byte-jvalue! (r 'set-byte-jvalue!))
-	   (%set-char-jvalue! (r 'set-char-jvalue!))
-	   (%set-int-jvalue! (r 'set-int-jvalue!))
-	   (%set-long-jvalue! (r 'set-long-jvalue!))
-	   (%set-float-jvalue! (r 'set-float-jvalue!))
-	   (%set-double-jvalue! (r 'set-double-jvalue!))
-	   (%set-object-jvalue! (r 'set-object-jvalue!))
-	   (%if (r 'if))
-	   (%car (r 'car))
-	   (%string? (r 'string?))
-	   (%jstring (r 'jstring))
-	   
-	   (argument-types (cadr x))
-	   (argument-names (cddr x)))
+    (lambda (x r c)
+      (let ((%let                 (r 'let))
+            (%make-jvalue-array   (r 'make-jvalue-array))
+            (%set-boolean-jvalue! (r 'set-boolean-jvalue!))
+            (%set-byte-jvalue!    (r 'set-byte-jvalue!))
+            (%set-char-jvalue!    (r 'set-char-jvalue!))
+            (%set-int-jvalue!     (r 'set-int-jvalue!))
+            (%set-long-jvalue!    (r 'set-long-jvalue!))
+            (%set-float-jvalue!   (r 'set-float-jvalue!))
+            (%set-double-jvalue!  (r 'set-double-jvalue!))
+            (%set-object-jvalue!  (r 'set-object-jvalue!))
+            (%if                  (r 'if))
+            (%car                 (r 'car))
+            (%string?             (r 'string?))
+            (%jstring             (r 'jstring))
+            (argument-types       (cadr x))
+            (argument-names       (cddr x)))
 
-       `(,%let ((jvalues (,%make-jvalue-array ,(length argument-types))))
-	       ,@(map (lambda (argument-type arg index)
-		       (case argument-type
-			 ((boolean) `(,%set-boolean-jvalue! jvalues ,index ,arg))
-			 ((byte)    `(,%set-byte-jvalue!    jvalues ,index ,arg))
-			 ((char)    `(,%set-char-jvalue!    jvalues ,index ,arg))
-			 ((short)   `(,%set-short-jvalue!   jvalues ,index ,arg))
-			 ((int)     `(,%set-int-jvalue!     jvalues ,index ,arg))
-			 ((long)    `(,%set-long-jvalue!    jvalues ,index ,arg))
-			 ((float)   `(,%set-float-jvalue!   jvalues ,index ,arg))
-			 ((double)  `(,%set-double-jvalue!  jvalues ,index ,arg))
-			 ((java.lang.String java.lang.CharSequence java.lang.Object)
-			  `(,%if (,%string? ,arg)
-				 (,%set-object-jvalue! jvalues ,index (,%jstring ,arg)) ;; wont be GCed :(
-				 (,%set-object-jvalue! jvalues ,index ,arg)))
-			 (else
-			  `(,%set-object-jvalue! jvalues ,index ,arg))))
-		     argument-types
-		     argument-names
-		     (iota (length argument-types))))))))
+        `(,%let ((jvalues (,%make-jvalue-array ,(length argument-types))))
+                ,@(map (lambda (argument-type arg index)
+                         (case argument-type
+                           ((boolean) `(,%set-boolean-jvalue! jvalues ,index ,arg))
+                           ((byte)    `(,%set-byte-jvalue!    jvalues ,index ,arg))
+                           ((char)    `(,%set-char-jvalue!    jvalues ,index ,arg))
+                           ((short)   `(,%set-short-jvalue!   jvalues ,index ,arg))
+                           ((int)     `(,%set-int-jvalue!     jvalues ,index ,arg))
+                           ((long)    `(,%set-long-jvalue!    jvalues ,index ,arg))
+                           ((float)   `(,%set-float-jvalue!   jvalues ,index ,arg))
+                           ((double)  `(,%set-double-jvalue!  jvalues ,index ,arg))
+                           ((java.lang.String java.lang.CharSequence java.lang.Object)
+                            `(,%if (,%string? ,arg)
+                                   (,%set-object-jvalue! jvalues ,index (,%jstring ,arg)) ;; wont be GCed :(
+                                   (,%set-object-jvalue! jvalues ,index ,arg)))
+                           (else
+                             `(,%set-object-jvalue! jvalues ,index ,arg))))
+                       argument-types
+                       argument-names
+                       (iota (length argument-types))))))))
 
 ;; (jlambda-method [modifiers] CLASS RETURN-TYPE METHOD-NAME ARGS...) => lambda
 (define-syntax jlambda-method
   (er-macro-transformer
     (lambda (x r c)
-      (let ((%lambda (r 'lambda))
+      (let ((%lambda               (r 'lambda))
             (%let                  (r 'let*))
-            (%find-class           (r 'find-class))
-            (%get-method-id        (r 'get-method-id))
-            (%get-static-method-id (r 'get-static-method-id))
+            (%class                (r 'class))
+            (%method               (r 'method))
+            (%static-method        (r 'static-method))
             (%make-jvalue-array    (r 'make-jvalue-array))
             (%free-jvalue-array    (r 'free-jvalue-array))
-            (%delete-local-ref     (r 'delete-local-ref))
-            (%delete-global-ref    (r 'delete-global-ref))
             (%if                   (r 'if))
             (%exception-check      (r 'exception-check))
             (%error                (r 'error))
-            (%method-id->Method    (r 'method-id->Method))
             (%format               (r 'format))
-
             (modifiers             (cadr x))
             (return-type           (caddr x))
             (class-type            (cadddr x))
-            (method-name           (car (cddddr x))))
-        (let* ((argument-types  (cdr (cddddr x)))
-               (argument-names (map (lambda (arg-count)
-                                      (string->symbol (format "a~A" arg-count)))
-                                    (iota (length argument-types) 1 1))))
-
+            (method-name           (car (cddddr x)))
+            (argument-types        (cdr (cddddr x))))
+        (let* ((argument-names  (map (lambda (arg-count)
+                                       (string->symbol (format "a~A" arg-count)))
+                                     (iota (length argument-types) 1 1))))
           `(extend-procedure
              (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
-                       (,%let ((class-object (,%find-class ,(mangle-class-name class-type)))
-                               (jmethod (,(if modifiers %get-static-method-id %get-method-id ) 
-                                          class-object ,(symbol->string method-name) 
-                                          (type-signature ,argument-types ,return-type)))
-                               (jvalues ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
-                               (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) ,return-type jmethod jvalues)))
+                       (,%let ((class-object (,%class ,class-type))
+                               (jmethod      (,(if modifiers %static-method %method) 
+                                               ,return-type ,class-type ,method-name ,@argument-types))
+                               (jvalues      ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+                               (return-value (,%if jmethod 
+                                                   (call-method ,modifiers ,(if modifiers 'class-object 'object) 
+                                                                ,return-type jmethod jvalues)
+                                                   (,%error 'jlambda-method "method not found"))))
+                              (,%free-jvalue-array jvalues)
+
                               (,%if (,%exception-check)
                                     (,%error 'fooooo)
                                     return-value)))
              ',argument-types))))))
 
-(define-syntax jimport
-	(er-macro-transformer
-		(lambda (x r c)
-			(pp x)
-			(let ((object-class (class* (cadr x))))
-				(pp object-class)
-				`(list ,@(map (lambda (method)
-												(let ((class-name (string->symbol (string-drop (to-string object-class) 6)))
-															(modifier (Method.getModifiers method))
-															(name (Method.getName method))
-															(return-type (Method.getReturnType method))
-															(params (array->list* (Method.getParameterTypes method))))
-
-													(let ((modifier-symbols
-																	(let ((modifier-symbols '()))
-																		(if (not (public? modifier))
-																			(set! modifier-symbols (cons 'private modifier-symbols)))
-																		(if (static? modifier)
-																			(set! modifier-symbols (cons 'static modifier-symbols)))			     			      
-																		modifier-symbols)))
-
-														(let ((jlambda-def 
-																		`(,class-name
-																			 ,(string->symbol (let ((foo (to-string return-type)))
-																													(if (string-prefix? "class " foo)
-																														(string-drop foo 6)
-																														foo)) ) 
-																			 ,(string->symbol (jstring->string name)) 
-																			 ,@(map (lambda (param)
-																								(string->symbol (let ((foo (to-string param)))
-																																	(if (string-prefix? "class " foo)
-																																		(string-drop foo 6)
-																																		foo))))
-																							params))))
-															(cons 'jlambda-method
-																		(if (null? modifier-symbols)
-																			(cons #f jlambda-def)
-																			(cons modifier-symbols jlambda-def))))
-														)))
-											(array->list* (Class.getDeclaredMethods object-class))))))))
+(define-syntax jlambda-constructor
+  (er-macro-transformer
+    (lambda (x r c)
+      (let ((%lambda                (r 'lambda))
+            (%let                   (r 'let*))
+            (%class                 (r 'class))
+            (%method                (r 'method))
+            (%make-jvalue-array     (r 'make-jvalue-array))
+            (%free-jvalue-array     (r 'free-jvalue-array))
+            (%if                    (r 'if))
+            (%exception-check       (r 'exception-check))
+            (%error                 (r 'error))
+            (%format                (r 'format))
+            (%new-object            (r 'new-object))
+            (%prepare-local-jobject (r 'prepare-local-jobject))
+            (class-type             (cadr x))
+            (argument-types         (cddr x)))
+        (let* ((argument-names  (map (lambda (arg-count)
+                                       (string->symbol (format "a~A" arg-count)))
+                                     (iota (length argument-types) 1 1))))
+          `(extend-procedure
+             (,%lambda (,@argument-names)
+                       (,%let ((jmethod      (,%method void ,class-type <init> ,@argument-types))
+                               (jvalues      ,(if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names)))
+                               (return-value (,%if jmethod 
+                                                   (,%prepare-local-jobject (,%new-object (,%class ,class-type) jmethod jvalues))
+                                                   (,%error 'jlambda-constructor "method not found"))))
+                              (,%free-jvalue-array jvalues)
+                              (,%if (,%exception-check)
+                                    (,%error 'fooooo)
+                                    return-value)))
+             ',argument-types))))))
 
 (define-syntax field-accessor-for 
   (er-macro-transformer

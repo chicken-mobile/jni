@@ -22,7 +22,7 @@
 (define assignable-from?
   (jni-env-lambda jboolean IsAssignableFrom jclass jclass))
 (define new-object
-  (jni-env-lambda jobject NewObject jclass jmethod-id))
+  (jni-env-lambda jobject NewObjectA jclass jmethod-id jvalue))
 
 (define get-field
   (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
