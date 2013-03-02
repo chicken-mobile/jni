@@ -55,19 +55,30 @@
           #f
           )))))
 
-(define (make-type type-name value-matcher conv matcher)
-  (list type-name value-matcher conv matcher))
+(define (make-type type-name value-matcher jvalue-type matcher)
+  (list type-name value-matcher jvalue-type matcher))
 
-(define (make-prim-type* type-name value-matcher conv prim-type-names)
-  (make-type type-name value-matcher conv (prim-type-matcher prim-type-names)))
+(define (make-prim-type* type-name value-matcher jvalue-type prim-type-names)
+  (make-type type-name value-matcher jvalue-type (prim-type-matcher prim-type-names)))
 (define (type->matcher type)
   (cadr type))
 (define (type->type-matcher type)
   (cadddr type))
+(define (type->jvalue type value)
+  ((caddr type) value))
+
 (define primitive-types
   (list
-    (make-prim-type* "numeric" number? id primitive-types-score)
-    (make-type "string" string? jstring 
+    (make-prim-type* "numeric" number? (% v (cond 
+                                              ((and (<= v 127) (>= v -128)) 'byte)
+                                              ((and (<= v 32767) (>= v -32768)) 'short)
+                                              ((and (<= v 2147483647) (>= v -2147483648)) 'int) ;; whut?
+                                              ((not (fixnum? v)) 'float)))
+                                                    
+                                                    
+                                                    primitive-types-score)
+    (make-type "string" string?
+               (% v 'java.lang.String)
                     (let ((jlstring (find-class "java/lang/String")))
                       (lambda (decl-type)
                         (call (decl-type-type decl-type) 'equals jlstring))))
@@ -81,7 +92,7 @@
   (if (pointer? value)
     (make-type (to-string value)
                #f
-               id
+               (% v 'java.lang.Object)
                (lambda (decl-type)
                  (call (decl-type-type decl-type) 'isInstance value)))))
 
@@ -89,6 +100,47 @@
   (if (pointer? value)
     (pointer-value->type value)
     (prim-value->type value)))
+(define (values->types . valuez)
+  (map value->type valuez))
+(define (values->jvalues . valuez)
+  (map type->jvalue
+       (map value->type valuez)
+       valuez))
+
+(define (values->jvalues-array . valuez)
+  (printf "values->jvalues-array: ~s~n" valuez)
+  (if (null? valuez)
+    #f
+    (let ((types (apply values->jvalues valuez))
+          (jvalue-array (make-jvalue-array (length valuez))))
+      (fold (lambda (arg i)
+              (let ((type (list-ref types i)))
+                (printf "Setting ~s to ~s~n" i arg)
+                (if (pointer? arg)
+                  (set-object-jvalue! jvalue-array i arg)
+                  (case type
+                    ((boolean)
+                     (set-boolean-jvalue! jvalue-array i arg))
+                    ((char)
+                     (set-char-jvalue! jvalue-array i (integer->char arg)))
+                    ((byte)
+                     (set-byte-jvalue! jvalue-array i (integer->char arg)))
+                    ((short)
+                     (set-short-jvalue! jvalue-array i arg))
+                    ((int)
+                     (set-int-jvalue! jvalue-array i arg))
+                    ((long)
+                     (set-long-jvalue! jvalue-array i arg))
+                    ((float)
+                     (set-float-jvalue! jvalue-array i arg))
+                    ((double)
+                     (set-double-jvalue! jvalue-array i arg))
+                    (else
+                      (error (format "Can't match jvalue argument ~s" type) "baaaaaaar!!!!")))))
+              (+ i 1))
+            0
+            valuez)
+      jvalue-array)))
 
 (define (match-type-to-decl-type type decl-type)
   (printf "Matching type ~s to ~s ~n" type decl-type)
@@ -284,9 +336,9 @@
     (printf "o/c: ~s, args: ~s~n" object args)
     (let* ((arn (length args))
            (methodz (methods (get-class object)))
-           (foo (printf "methods: ~s~n" methodz))
            (method-list (get-method-list methodz))
            (named-methods (assoc name method-list))
+           (foo1 (printf "named: ~s~n" named-methods))
            )
 
       (if (not named-methods)
@@ -296,8 +348,11 @@
             (error (format "Can' find method ~s with arn ~s~n" name arn))
             (let* ((o-methods (cdr a-methods))
                    (method (match-method args o-methods)))
+              (printf "Method: ~s~n" method)
               (if method
-                (call-object-method object method (make-jvalue-array args))
+                (begin
+                  (printf "found method: ~s.~s(~s)~n" (to-string object) (to-string method) (apply values->jvalues-array args))
+                (call-boolean-method object method (apply values->jvalues-array args)))
                 (error (format "Can't match ~s with method ~s~n" args name))))))))))
 
 ;; (jlambda java.lang.String String) declares
@@ -328,6 +383,7 @@
                    (printf "defining ~s, ~s~n" define-name (cdr method-desc))
                    `(,%define ,define-name (make-overloaded-method-caller ,method-name))))
                method-list))))))
+
 (define-syntax jlambda-method
   (er-macro-transformer
     (lambda (x r c)
@@ -381,7 +437,7 @@
                                                    (,%error (append '(,class-type ,method-name) ,@argument-names)))
                                                  return-value)))))
              ',argument-types))))))
-
+(jlambda java.lang.String String)
 (define o-class (find-class "o"))
 (define o2-class (find-class "o$o2"))
 (define mtests (methods-by-name/arn o-class 'mtest 2))
