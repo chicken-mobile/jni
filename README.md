@@ -122,28 +122,6 @@ Check if two objects are the same one.
 
 Check if a class is assignable from another.
 
-#### new-object
-    [procedure] (new-object JCLASS JMETHOD-ID) -> jobject
-
-Returns a new allocated object, eg:
-    
-Example:
-
-    (let* ((string-class (class java.lang.String))
-           (constructor   (get-method-id string-class "<init>" "()V")))
-        (new-object string-class constructor))
-
-#### constructor
-    [macro] (constructor CLASS-SYMBOL [ARGS..])
-
-Convenient wrap for get-method-id for constructor methods.
-
-Example:
-
-    (let ((string-class (class java.lang.String))
-          (c (constructor java.lang.String)))
-        (new-object string-class c))
-
 #### References
     [procedure] (new-local-ref JOBJECT)
     [procedure] (delete-local-ref JOBJECT)
