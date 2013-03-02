@@ -73,6 +73,14 @@ Example:
 
     (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence)
 
+#### jlambda-constructor
+    [macro] (jlambda-constructor CLASS ARGS...) -> lambda
+
+Returns a lambda associated to the class constructor.
+
+Example:
+    (jlambda-constructor java.lang.Integer int))
+
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
 
