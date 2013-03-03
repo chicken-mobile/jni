@@ -352,7 +352,7 @@
               (if method
                 (begin
                   (printf "found method: ~s.~s(~s)~n" (to-string object) (to-string method) (apply values->jvalues-array args))
-                (call-boolean-method object method (apply values->jvalues-array args)))
+                (call-boolean-method object (Method->method-id method) (apply values->jvalues-array args)))
                 (error (format "Can't match ~s with method ~s~n" args name))))))))))
 
 ;; (jlambda java.lang.String String) declares
