@@ -122,6 +122,15 @@ Check if two objects are the same one.
 
 Check if a class is assignable from another.
 
+#### define-method
+    [macro] (define-method (METHOD_NAME THIS) RETURN-TYPE BODY..)
+
+Implements a native declared method.
+
+Example:
+    (define-method (com.bevuta.androidChickenTest.Backend.main backend) void
+       ...)
+
 #### References
     [procedure] (new-local-ref JOBJECT)
     [procedure] (delete-local-ref JOBJECT)

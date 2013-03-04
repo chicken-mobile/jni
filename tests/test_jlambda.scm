@@ -70,6 +70,10 @@
 							(test-jstring "11" eleven)
 							(test #t (jstring-contains eleven (jstring-value-of 1))))
 
+            (begin
+              (test-error ((jlambda-method (static) boolean java.lang.String contains2)))
+              (exception-clear))
+
 						); end jlambda-method test group
 
 (test-group "jlambda-constructor"
