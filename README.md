@@ -89,6 +89,23 @@ Example:
     (print (user-lastname user))
     (set! (user-lastname user) "Perez"))
 
+#### import-java-ns
+    [macro] (import-java-ns ((PACKAGE-FROM IMPORT) ...) BODY...)
+
+IMPORT could be: 
+
+- a class
+- a list of classes
+- * (all)
+
+Example:
+						(import-java-ns ((java.lang *)
+						                 (java.lang (System String))
+														 (com.bevuta.testapp Foo))
+														(class String))
+														(class System))
+														(class Foo))
+
 #### class
     [macro] (class CLASS-SYMBOL) -> jclass
 

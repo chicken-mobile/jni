@@ -9,8 +9,13 @@
 (define version
   (jni-env-lambda jint GetVersion))
 
-(define find-class
-  (jni-env-lambda jclass FindClass (const c-string)))
+(define (find-class c)
+  (let* ((finder (jni-env-lambda jclass FindClass (const c-string)))
+         (r      (finder c)))
+     (if (exception-check) 
+       (exception-clear))
+    r))
+
 (define super-class
   (jni-env-lambda jclass GetSuperclass jclass))
 (define get-object-class
@@ -82,7 +87,7 @@
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
 
-(define-for-syntax (expand-type type #!optional return)
+(define (expand-type type #!optional return)
   (cond ((symbol? type)
          (case type
            ((boolean) "Z")
@@ -99,17 +104,18 @@
          (string-append "[" (expand-type (vector-ref type 0))))
         ((list? type)
          (and-let* ((return (expand-type return)))
-           (string-append
-            "(" (string-intersperse (map expand-type type) "") ")"
-            return)))
-        (else #f)))
+           (string-append "(" (string-intersperse (map expand-type type) "") ")" return)))
+        (else 
+          #f)))
 
 (define-syntax type-signature
   (er-macro-transformer
-   (lambda (x r c)
-     (let ((type (cadr x)))
-       (or (expand-type type (and (pair? (cddr x)) (caddr x)))
-           (error "Invalid Java type signature" x))))))
+    (lambda (x r c)
+      (let ((%expand-type   (r 'expand-type))
+            (type           (cadr x))
+            (return         (and (pair? (cddr x)) (caddr x))))
+        `(or (,%expand-type ,type ,return)
+             (error "Invalid Java type signature" ,type ,return))))))
 
 (define jstring->string
   (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))

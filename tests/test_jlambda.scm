@@ -21,9 +21,16 @@
 
 (jvm-init "tests/test.jar")
 
-(define (test-jstring str jstring)
-	(test str (jstring->string jstring)))
+(define-syntax test-jstring
+	(syntax-rules ()
+		((_ str jstring)
+		 (test str (jstring->string jstring)))))
 
+(define-syntax test-class
+  (syntax-rules ()
+    ((_ class expr)
+     (test (string-append "class " (symbol->string 'class)) (to-string expr)))))
+    
 (test-group "jlambda-field"
 
 						(define new-Foo (jlambda-constructor com.bevuta.testapp.Foo))
@@ -70,9 +77,9 @@
 							(test-jstring "11" eleven)
 							(test #t (jstring-contains eleven (jstring-value-of 1))))
 
-            (begin
-              (test-error ((jlambda-method (static) boolean java.lang.String contains2)))
-              (exception-clear))
+						(begin
+							(test-error ((jlambda-method (static) boolean java.lang.String contains2)))
+							(exception-clear))
 
 						); end jlambda-method test group
 
@@ -85,5 +92,38 @@
 						(let ((n (new-Integer-int 30)))
 							(test-jstring "30" (Integer-toString n)))
 						); end jlambda-constructor test group
+
+(test-group "import-java-ns"
+						(import-java-ns ((java.lang String))
+														(test-class java.lang.String (class java.lang.String))
+														(test-class java.lang.String (class String))
+														(test #f (class OtherString)))
+
+						(import-java-ns ((java.lang *)
+														 (com.bevuta.testapp *))
+														(test-class java.lang.String (class java.lang.String))
+														(test-class java.lang.String (class String))
+														(test-class java.lang.System (class System))
+														(test-class java.lang.Short (class Short))
+														(test #f (class OtherString)))
+
+						(import-java-ns ((java.lang (String System)))
+														(test-class java.lang.String (class java.lang.String))
+														(test-class java.lang.String (class String))
+														(test-class java.lang.System (class System))
+														(test #f (class Short)))
+
+						(import-java-ns ((java.lang *)
+														 (com.bevuta.testapp *))
+
+														(let ((jstring-value-of 
+																		(jlambda-method (static) java.lang.String java.lang.String valueOf int)))
+															(test-jstring "11" (jstring-value-of 11)))
+
+														(let ((jstring-value-of 
+																		(jlambda-method (static) String String valueOf int)))
+															(test-jstring "11" (jstring-value-of 11))))
+
+						); end import-java-ns test group
 
 (test-exit)

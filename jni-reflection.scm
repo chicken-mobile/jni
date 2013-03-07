@@ -1,4 +1,4 @@
-;; jni-jni-reflection level java procedures
+;; jni-reflection: high level java procedures
 
 (define-syntax jimport
 	(er-macro-transformer
@@ -40,13 +40,6 @@
 																			(cons modifier-symbols jlambda-def))))
 														)))
 											(array->list* (Class.getDeclaredMethods object-class))))))))
-
-(define to-string
-  (lambda (object)
-    (let* ((Object.toString/method (method java.lang.String java.lang.Object toString))
-           (String/instance (call-object-method object Object.toString/method #f))
-           (string (jstring->string String/instance)))
-      (delete-local-ref String/instance) string)))
 
 (define (jprint . values)
   (for-each display
