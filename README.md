@@ -99,12 +99,13 @@ IMPORT could be:
 - * (all)
 
 Example:
-						(import-java-ns ((java.lang *)
-						                 (java.lang (System String))
-														 (com.bevuta.testapp Foo))
-														(class String))
-														(class System))
-														(class Foo))
+
+    (import-java-ns ((java.lang *)
+                     (java.lang (System String))
+                     (com.bevuta.testapp Foo))
+		(class String)
+		(class System)
+		(class Foo))
 
 #### class
     [macro] (class CLASS-SYMBOL) -> jclass
