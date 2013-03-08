@@ -1,4 +1,4 @@
-;; jni-jni-reflection level java procedures
+;; jni-reflection: high level java procedures
 
 (define-syntax jimport
 	(er-macro-transformer
@@ -41,13 +41,6 @@
 														)))
 											(array->list* (Class.getDeclaredMethods object-class))))))))
 
-(define to-string
-  (lambda (object)
-    (let* ((Object.toString/method (method java.lang.String java.lang.Object toString))
-           (String/instance (call-object-method object Object.toString/method #f))
-           (string (jstring->string String/instance)))
-      (delete-local-ref String/instance) string)))
-
 (define (jprint . values)
   (for-each display
             (map (lambda (value)
@@ -57,17 +50,17 @@
                  (cons values "\n"))))
 
 (define Class.isPrimitive
-  (jlambda-method #f boolean java.lang.Class isPrimitive))
+  (jlambda-method* #f boolean java.lang.Class isPrimitive))
 (define Class.getMethods
-  (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods))
+  (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getMethods))
 (define Class.getDeclaredMethods
-  (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getDeclaredMethods))
+  (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getDeclaredMethods))
 
 (define Method.getModifiers
-  (jlambda-method #f int java.lang.reflect.Method getModifiers))
+  (jlambda-method* #f int java.lang.reflect.Method getModifiers))
 (define Method.getReturnType
-  (jlambda-method #f java.lang.Class java.lang.reflect.Method getReturnType))
+  (jlambda-method* #f java.lang.Class java.lang.reflect.Method getReturnType))
 (define Method.getName
-  (jlambda-method #f java.lang.String java.lang.reflect.Method getName))
+  (jlambda-method* #f java.lang.String java.lang.reflect.Method getName))
 (define Method.getParameterTypes
-  (jlambda-method #f #(java.lang.Class) java.lang.reflect.Method getParameterTypes))
+  (jlambda-method* #f #(java.lang.Class) java.lang.reflect.Method getParameterTypes))

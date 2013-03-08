@@ -5,8 +5,8 @@
 (module jni
 *
 
-(import chicken scheme foreign)
-(import-for-syntax chicken data-structures)
+(import chicken scheme foreign srfi-1 data-structures)
+(import-for-syntax chicken)
 (use lolevel foreigners)
 
 (include "jni-primitives.scm")
