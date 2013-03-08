@@ -6,11 +6,21 @@
 (define-jni-modifier-procs)
 ;;
 
+(define (invoke-jni/safe thunk)
+	(let* ((r      (thunk)))
+		(if (exception-check) 
+			(exception-clear))
+		r))
+
 (define version
   (jni-env-lambda jint GetVersion))
 
-(define find-class
+(define find-class/jni
   (jni-env-lambda jclass FindClass (const c-string)))
+
+(define (find-class c)
+	(invoke-jni/safe (lambda () (find-class/jni c))))
+
 (define super-class
   (jni-env-lambda jclass GetSuperclass jclass))
 (define get-object-class
@@ -24,14 +34,23 @@
 (define new-object
   (jni-env-lambda jobject NewObjectA jclass jmethod-id jvalue))
 
-(define get-field
+(define get-field/jni
   (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
-(define get-static-field
+(define get-static-field/jni
   (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string)))
-(define get-method-id
-  (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
-(define get-static-method-id
-  (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+(define get-method-id/jni
+	(jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
+(define get-static-method-id/jni
+	(jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+
+(define (get-field jclass name type)
+	(invoke-jni/safe (lambda () (get-field/jni jclass name type))))
+(define (get-static-field jclass name type)
+	(invoke-jni/safe (lambda () (get-static-field/jni jclass name type))))
+(define (get-method-id jclass name signature)
+	(invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
+(define (get-static-method-id jclass name signature)
+	(invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
@@ -82,7 +101,7 @@
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
 
-(define-for-syntax (expand-type type #!optional return)
+(define (expand-type type #!optional return)
   (cond ((symbol? type)
          (case type
            ((boolean) "Z")
@@ -99,17 +118,18 @@
          (string-append "[" (expand-type (vector-ref type 0))))
         ((list? type)
          (and-let* ((return (expand-type return)))
-           (string-append
-            "(" (string-intersperse (map expand-type type) "") ")"
-            return)))
-        (else #f)))
+           (string-append "(" (string-intersperse (map expand-type type) "") ")" return)))
+        (else 
+          #f)))
 
 (define-syntax type-signature
   (er-macro-transformer
-   (lambda (x r c)
-     (let ((type (cadr x)))
-       (or (expand-type type (and (pair? (cddr x)) (caddr x)))
-           (error "Invalid Java type signature" x))))))
+    (lambda (x r c)
+      (let ((%expand-type   (r 'expand-type))
+            (type           (cadr x))
+            (return         (and (pair? (cddr x)) (caddr x))))
+        `(or (,%expand-type ,type ,return)
+             (error "Invalid Java type signature" ,type ,return))))))
 
 (define jstring->string
   (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))

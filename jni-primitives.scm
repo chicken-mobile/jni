@@ -74,7 +74,7 @@
     (strict       . 2048)))
 
 ;;mangling
-(define-for-syntax (mangle-class-name name)
+(define (mangle-class-name name)
   (cond
    ((symbol? name)
     (case name
