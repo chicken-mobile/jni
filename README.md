@@ -89,6 +89,12 @@ Example:
     (print (user-lastname user))
     (set! (user-lastname user) "Perez"))
 
+#### jlambda-field*
+    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
+
+Same as jlambda-field macro, but avoid class and field checking until the
+invocation, this way the jvm is not invoked in expansion time.
+
 #### import-java-ns
     [macro] (import-java-ns ((PACKAGE-FROM IMPORT) ...) BODY...)
 
@@ -113,6 +119,11 @@ Returns the associated jclass.
 Example:
 
     (class java.lang.String)
+
+#### class/or-error
+    [macro] (class CLASS-SYMBOL) -> jclass
+
+Same as class macro, but raises an error if the class doesn't exists.
 
 #### super-class
     [procedure] (super-class JCLASS) -> jclass

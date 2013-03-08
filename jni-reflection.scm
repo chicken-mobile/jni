@@ -50,17 +50,17 @@
                  (cons values "\n"))))
 
 (define Class.isPrimitive
-  (jlambda-method #f boolean java.lang.Class isPrimitive))
+  (jlambda-method* #f boolean java.lang.Class isPrimitive))
 (define Class.getMethods
-  (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods))
+  (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getMethods))
 (define Class.getDeclaredMethods
-  (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getDeclaredMethods))
+  (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getDeclaredMethods))
 
 (define Method.getModifiers
-  (jlambda-method #f int java.lang.reflect.Method getModifiers))
+  (jlambda-method* #f int java.lang.reflect.Method getModifiers))
 (define Method.getReturnType
-  (jlambda-method #f java.lang.Class java.lang.reflect.Method getReturnType))
+  (jlambda-method* #f java.lang.Class java.lang.reflect.Method getReturnType))
 (define Method.getName
-  (jlambda-method #f java.lang.String java.lang.reflect.Method getName))
+  (jlambda-method* #f java.lang.String java.lang.reflect.Method getName))
 (define Method.getParameterTypes
-  (jlambda-method #f #(java.lang.Class) java.lang.reflect.Method getParameterTypes))
+  (jlambda-method* #f #(java.lang.Class) java.lang.reflect.Method getParameterTypes))

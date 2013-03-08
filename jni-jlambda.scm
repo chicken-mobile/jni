@@ -13,6 +13,16 @@
       (let ((name (strip-syntax (cadr x))))
         `(find-class (mangle-class-name ',name))))))
 
+(define-syntax class/or-error
+  (er-macro-transformer
+    (lambda (x r c)
+      (let ((%let    (r 'let))
+            (%class  (r 'class))
+            (%error  (r 'error))
+            (args    (cdr x)))
+        `(,%let ((c (,%class ,@args)))
+                (if c c (,%error 'class "class not found")))))))
+
 (define to-string
   (lambda (object)
     (let* ((Object.toString/method (get-method-id (class java.lang.Object) "toString" "()Ljava/lang/String;"))
@@ -27,7 +37,7 @@
 (define-syntax method* 
   (er-macro-transformer
     (lambda (x r c)
-     (let* ((%class            (r 'class))
+     (let* ((%class            (r 'class/or-error))
             (%let*             (r 'let*))
             (%get-class-name   (r 'get-class-name))
             (fn                (cadr x))
@@ -45,12 +55,14 @@
 (define-syntax method
   (syntax-rules ()
     ((_ args ...)
-     (method* get-method-id args ...))))
+     (let ((r (method* get-method-id args ...)))
+       (if r r (error 'method "Method not found"))))))
 
 (define-syntax static-method
   (syntax-rules ()
     ((_ args ...)
-     (method* get-static-method-id args ...))))
+     (let ((r (method* get-static-method-id args ...)))
+       (if r r (error 'method "Method not found"))))))
 
 (define-syntax constructor
   (er-macro-transformer
@@ -186,7 +198,7 @@
       (if (null? argument-types) #f `(jvalue-zip ,argument-types ,@argument-names))))))
 
 ;; (jlambda-method [modifiers] CLASS RETURN-TYPE METHOD-NAME ARGS...) => lambda
-(define-syntax jlambda-method
+(define-syntax jlambda-method*
   (er-macro-transformer
     (lambda (x r c)
       (let ((%lambda               (r 'lambda))
@@ -196,8 +208,6 @@
             (%static-method        (r 'static-method))
             (%make-jvalue-array    (r 'make-jvalue-array))
             (%free-jvalue-array    (r 'free-jvalue-array))
-            (%if                   (r 'if))
-            (%exception-check      (r 'exception-check))
             (%error                (r 'error))
             (modifiers             (cadr x))
             (return-type           (caddr x))
@@ -217,12 +227,42 @@
                               (check-jexception (,%error 'fooooo) return-value)))
              ',argument-types))))))
 
+(define-syntax jlambda-method
+  (er-macro-transformer
+    (lambda (x r c)
+      (let ((%lambda               (r 'lambda))
+            (%let                  (r 'let*))
+            (%class                (r 'class))
+            (%method               (r 'method))
+            (%static-method        (r 'static-method))
+            (%make-jvalue-array    (r 'make-jvalue-array))
+            (%free-jvalue-array    (r 'free-jvalue-array))
+            (%error                (r 'error))
+            (modifiers             (cadr x))
+            (return-type           (caddr x))
+            (class-type            (cadddr x))
+            (method-name           (car (cddddr x)))
+            (argument-types        (cdr (cddddr x))))
+        (let* ((argument-names  (build-argument-names argument-types)))
+          `(,%let ((class-object (,%class ,class-type))
+                   (jmethod      (,(if modifiers %static-method %method) 
+                                   ,return-type ,class-type ,method-name ,@argument-types)))
+                  (extend-procedure
+                    (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
+                              (,%let (
+                                      (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
+                                      (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) 
+                                                                 ,return-type jmethod jvalues)))
+                                     (,%free-jvalue-array jvalues)
+                                     (check-jexception (,%error 'fooooo) return-value)))
+                    ',argument-types)))))))
+
 (define-syntax jlambda-constructor
   (er-macro-transformer
     (lambda (x r c)
       (let ((%lambda                (r 'lambda))
             (%let                   (r 'let*))
-            (%class                 (r 'class))
+            (%class                 (r 'class/or-error))
             (%method                (r 'method))
             (%make-jvalue-array     (r 'make-jvalue-array))
             (%free-jvalue-array     (r 'free-jvalue-array))
@@ -232,15 +272,16 @@
             (class-type             (cadr x))
             (argument-types         (cddr x)))
         (let* ((argument-names  (build-argument-names argument-types)))
-          `(extend-procedure
-             (,%lambda (,@argument-names)
-                       (,%let ((jmethod      (,%method void ,class-type <init> ,@argument-types))
-                               (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                               (class-object (,%class ,class-type))
-                               (return-value (,%call-new class-object jmethod jvalues)))
-                                (,%free-jvalue-array jvalues)
-                                (check-jexception (,%error 'fooooo) return-value)))
-             ',argument-types))))))
+          `(,%let ((class-object (,%class ,class-type))
+                   (jmethod      (,%method void ,class-type <init> ,@argument-types)))
+              (extend-procedure
+                (,%lambda (,@argument-names)
+                          (,%let ((jmethod      (,%method void ,class-type <init> ,@argument-types))
+                                  (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
+                                  (return-value (,%call-new class-object jmethod jvalues)))
+                                 (,%free-jvalue-array jvalues)
+                                 (check-jexception (,%error 'fooooo) return-value)))
+                ',argument-types)))))))
 
 (define-for-syntax (field-accessor-for static? accessor-type type)
   (let* ((accessor-type (symbol->string accessor-type))
@@ -253,7 +294,7 @@
   (er-macro-transformer
     (lambda (x r c)
       (let* ((%let*               (r 'let*))
-             (%class              (r 'class))
+             (%class              (r 'class/or-error))
              (%if                 (r 'if))
              (%error              (r 'error))
              (%lambda             (r 'lambda))

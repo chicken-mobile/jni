@@ -31,99 +31,116 @@
     ((_ class expr)
      (test (string-append "class " (symbol->string 'class)) (to-string expr)))))
     
+(test-group "class"
+            (test-class java.lang.System (class java.lang.System))
+            (test #f (class System))
+            (test-error (class/or-error Short)))
+
 (test-group "jlambda-field"
 
-						(define new-Foo (jlambda-constructor com.bevuta.testapp.Foo))
+            (define new-Foo (jlambda-constructor com.bevuta.testapp.Foo))
 
-						(let ((test-lie (jlambda-field (static) boolean com.bevuta.testapp.Foo lie)))
-							(test #t (test-lie))
-							(set! (test-lie) #f)
-							(test #f (test-lie)))
+            (let ((test-lie (jlambda-field (static) boolean com.bevuta.testapp.Foo lie)))
+              (test #t (test-lie))
+              (set! (test-lie) #f)
+              (test #f (test-lie)))
 
-						(let ((test-noSense (jlambda-field (static) java.lang.String com.bevuta.testapp.Foo noSense))
-									(test-sense (jlambda-field (static) java.lang.String com.bevuta.testapp.Foo sense)))
-							(test-jstring "lil oiuy pppq" (test-noSense))
-							(test-jstring "cogito ergo sum" (test-sense))
-							(set! (test-noSense) (test-sense))
-							(test-jstring "cogito ergo sum" (test-noSense)))
+            (let ((test-noSense (jlambda-field (static) java.lang.String com.bevuta.testapp.Foo noSense))
+                  (test-sense (jlambda-field (static) java.lang.String com.bevuta.testapp.Foo sense)))
+              (test-jstring "lil oiuy pppq" (test-noSense))
+              (test-jstring "cogito ergo sum" (test-sense))
+              (set! (test-noSense) (test-sense))
+              (test-jstring "cogito ergo sum" (test-noSense)))
 
-						(let ((test-number (jlambda-field () int com.bevuta.testapp.Foo number))
-									(o (new-Foo)))
-							(test 12 (test-number o))
-							(set! (test-number o) 300)
-							(test 300 (test-number o)))
+            (let ((test-number (jlambda-field () int com.bevuta.testapp.Foo number))
+                  (o (new-Foo)))
+              (test 12 (test-number o))
+              (set! (test-number o) 300)
+              (test 300 (test-number o)))
 
-						(let ((o (new-Foo)))
-							(let ((test-secret_number (jlambda-field (private) int com.bevuta.testapp.Foo secret_number)))
-								(test 8 (test-secret_number o))
-								(set! (test-secret_number o) 33)
-								(test 33 (test-secret_number o)))
+            (let ((o (new-Foo)))
+              (let ((test-secret_number (jlambda-field (private) int com.bevuta.testapp.Foo secret_number)))
+                (test 8 (test-secret_number o))
+                (set! (test-secret_number o) 33)
+                (test 33 (test-secret_number o)))
 
-							;!!!!! Notice that the modifier can be omitted: (all but static)
-							(let ((test-secret_number (jlambda-field () int com.bevuta.testapp.Foo secret_number))) 
-								(test 33 (test-secret_number o))
-								(set! (test-secret_number o) 55)
-								(test 55 (test-secret_number o))))
-						); end jlambda-field test group
+              ;!!!!! Notice that the modifier can be omitted: (all but static)
+              (let ((test-secret_number (jlambda-field () int com.bevuta.testapp.Foo secret_number))) 
+                (test 33 (test-secret_number o))
+                (set! (test-secret_number o) 55)
+                (test 55 (test-secret_number o))))
+            (test-error "class not found" (jlambda-field () int com.bevuta.testapp.AFoo secret_number))
+            (test #f (exception-check))
+            (test-error "field not found" (jlambda-field () int java.lang.String size))
+            (test #f (exception-check))
+
+            ); end jlambda-field test group
 
 (test-group "jlambda-method"
-						(define jstring-value-of
-							(jlambda-method (static) java.lang.String java.lang.String valueOf int))
+            (define jstring-value-of
+              (jlambda-method (static) java.lang.String java.lang.String valueOf int))
 
-						(define jstring-contains
-							(jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
+            (define jstring-contains
+              (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
 
-						(let ((eleven (jstring-value-of 11)))
-							(test-jstring "11" eleven)
-							(test #t (jstring-contains eleven (jstring-value-of 1))))
+            (let ((eleven (jstring-value-of 11)))
+              (test-jstring "11" eleven)
+              (test #t (jstring-contains eleven (jstring-value-of 1))))
 
-						(begin
-							(test-error ((jlambda-method (static) boolean java.lang.String contains2)))
-							(exception-clear))
+            (test-error "class not found" (jlambda-method (static) boolean AFoo hi))
+            (test #f (exception-check))
+            (test-error "method not found" (jlambda-method (static) boolean java.lang.String hi))
+            (test #f (exception-check))
 
-						); end jlambda-method test group
+            ); end jlambda-method test group
 
 (test-group "jlambda-constructor"
-						(define new-Integer-int (jlambda-constructor java.lang.Integer int))
+            (define new-Integer-int (jlambda-constructor java.lang.Integer int))
 
-						(define Integer-toString
-							(jlambda-method #f java.lang.String java.lang.Integer toString))
+            (define Integer-toString
+              (jlambda-method #f java.lang.String java.lang.Integer toString))
 
-						(let ((n (new-Integer-int 30)))
-							(test-jstring "30" (Integer-toString n)))
-						); end jlambda-constructor test group
+            (let ((n (new-Integer-int 30)))
+              (test-jstring "30" (Integer-toString n)))
+
+            (test-error "class not found" (jlambda-constructor java.lang.AInteger int))
+            (test #f (exception-check))
+            (test-error "method not found" (jlambda-constructor java.lang.Integer int int))
+            (test #f (exception-check))
+
+            ); end jlambda-constructor test group
 
 (test-group "import-java-ns"
-						(import-java-ns ((java.lang String))
-														(test-class java.lang.String (class java.lang.String))
-														(test-class java.lang.String (class String))
-														(test #f (class OtherString)))
+            (import-java-ns ((java.lang String))
+                            (test-class java.lang.String (class java.lang.String))
+                            (test-class java.lang.String (class String))
+                            (test #f (class OtherString)))
 
-						(import-java-ns ((java.lang *)
-														 (com.bevuta.testapp *))
-														(test-class java.lang.String (class java.lang.String))
-														(test-class java.lang.String (class String))
-														(test-class java.lang.System (class System))
-														(test-class java.lang.Short (class Short))
-														(test #f (class OtherString)))
+            (import-java-ns ((java.lang *)
+                             (com.bevuta.testapp *))
+                            (test-class java.lang.String (class java.lang.String))
+                            (test-class java.lang.String (class String))
+                            (test-class java.lang.System (class System))
+                            (test-class java.lang.Short (class Short))
+                            (test #f (class OtherString)))
 
-						(import-java-ns ((java.lang (String System)))
-														(test-class java.lang.String (class java.lang.String))
-														(test-class java.lang.String (class String))
-														(test-class java.lang.System (class System))
-														(test #f (class Short)))
+            (import-java-ns ((java.lang (String System)))
+                            (test-class java.lang.String (class java.lang.String))
+                            (test-class java.lang.String (class String))
+                            (test-class java.lang.System (class System))
+                            (test #f (class Short)))
 
-						(import-java-ns ((java.lang *)
-														 (com.bevuta.testapp *))
+            (import-java-ns ((java.lang *)
+                             (com.bevuta.testapp *))
 
-														(let ((jstring-value-of 
-																		(jlambda-method (static) java.lang.String java.lang.String valueOf int)))
-															(test-jstring "11" (jstring-value-of 11)))
+                            (let ((jstring-value-of 
+                                    (jlambda-method (static) java.lang.String java.lang.String valueOf int)))
+                              (test-jstring "11" (jstring-value-of 11)))
 
-														(let ((jstring-value-of 
-																		(jlambda-method (static) String String valueOf int)))
-															(test-jstring "11" (jstring-value-of 11))))
+                            (let ((jstring-value-of 
+                                    (jlambda-method (static) String String valueOf int)))
+                              (test-jstring "11" (jstring-value-of 11))))
 
-						); end import-java-ns test group
+            ); end import-java-ns test group
 
 (test-exit)
