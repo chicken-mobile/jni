@@ -69,19 +69,21 @@
 
 (define primitive-types
   (list
-    (make-prim-type* "numeric" number? (% v (cond 
-                                              ((and (<= v 127) (>= v -128)) 'byte)
-                                              ((and (<= v 32767) (>= v -32768)) 'short)
-                                              ((and (<= v 2147483647) (>= v -2147483648)) 'int) ;; whut?
-                                              ((not (fixnum? v)) 'float)))
-                                                    
-                                                    
-                                                    primitive-types-score)
-    (make-type "string" string?
+    (make-prim-type* "numeric"
+                     number?
+                     (% v (cond
+                            ((and (<= v 127) (>= v -128)) 'byte)
+                            ((and (<= v 32767) (>= v -32768)) 'short)
+                            ((and (<= v 2147483647) (>= v -2147483648)) 'int) ;; whut?
+                            ((not (fixnum? v)) 'float)))
+                     primitive-types-score)
+
+    (make-type "string"
+               string?
                (% v 'java.lang.String)
-                    (let ((jlstring (find-class "java/lang/String")))
-                      (lambda (decl-type)
-                        (call (decl-type-type decl-type) 'equals jlstring))))
+               (let ((jlstring (find-class "java/lang/String")))
+                 (lambda (decl-type)
+                   (call (decl-type-type decl-type) 'equals jlstring))))
     ))
 
 (define (prim-value->type value)
@@ -201,7 +203,10 @@
             #t
             (loop (cdr match1) (cdr match2))))))))
 
-
+(define (match-method/debug arg-types methods)
+  (let ((method (match-method arg-types methods)))
+    (printf "Match-method: ~s ~s -> ~s~n" arg-types methods method)
+    method))
 (define (match-method arg-types methods)
   (if (and (null? arg-types)
            (not (null? methods))
@@ -210,7 +215,7 @@
     (let loop ((methods (get-decl-method-types (get-method-types methods)))
                (best-match '()))
       (if (null? methods)
-        best-match
+        (car best-match)
         (let* ((method-desc (car methods))
                (foo (printf "method-desc: ~s~n" method-desc))
                (decl-types (cadr method-desc))
@@ -331,7 +336,53 @@
                         (= method-arn arn)))
             methods)))
 
-(define (make-overloaded-method-caller name)
+(define-for-syntax (get-call-proc-by-return return-type prim? static?)
+                   (if prim?
+                     (case return-type
+                       ((void)
+                        (if static?
+                          call-static-void-method
+                          call-void-method))
+                       ((byte)
+                        (if static?
+                          call-static-byte-method
+                          call-byte-method))
+                       ((short)
+                        (if static?
+                          call-static-short-method
+                          call-short-method))
+                       ((int)
+                        (if static?
+                          call-static-int-method
+                          call-int-method))
+                       ((long)
+                        (if static?
+                          call-static-long-method
+                          call-long-method))
+                       ((float)
+                        (if static?
+                          call-static-float-method
+                          call-float-method))
+                       ((double)
+                        (if static?
+                          call-static-double-method
+                          call-double-method))
+                       ((char)
+                        (if static?
+                          call-static-char-method
+                          call-char-method))
+                       ((boolean)
+                        (if static?
+                          call-static-boolean-method
+                          call-boolean-method))
+                       (else
+                         (print (format "): -- Method has unkown primitive return type ~A -- :(" (to-string Method.returnType/Class)))(exit -1)))
+                     (if static?
+                       call-static-object-method
+                       call-object-method)))
+
+(define (make-overloaded-method-caller name return-type prim? stat?)
+  (printf "Overload for: ~s ~s ~s ~s~n" return-type name prim? stat?)
   (lambda (object . args)
     (printf "o/c: ~s, args: ~s~n" object args)
     (let* ((arn (length args))
@@ -339,6 +390,7 @@
            (method-list (get-method-list methodz))
            (named-methods (assoc name method-list))
            (foo1 (printf "named: ~s~n" named-methods))
+           (call-proc (get-call-proc-by-return (string->symbol return-type) prim? stat?))
            )
 
       (if (not named-methods)
@@ -347,13 +399,14 @@
           (if (not a-methods)
             (error (format "Can' find method ~s with arn ~s~n" name arn))
             (let* ((o-methods (cdr a-methods))
-                   (method (match-method args o-methods)))
-              (printf "Method: ~s~n" method)
+                   (method (match-method/debug (apply values->types args) o-methods)))
+              (printf "Found Method: ~s~n" method)
               (if method
                 (begin
                   (printf "found method: ~s.~s(~s)~n" (to-string object) (to-string method) (apply values->jvalues-array args))
-                (call-boolean-method object (Method->method-id method) (apply values->jvalues-array args)))
+                (call-proc object (Method->method-id method) (apply values->jvalues-array args)))
                 (error (format "Can't match ~s with method ~s~n" args name))))))))))
+
 
 ;; (jlambda java.lang.String String) declares
 ;; (String-valueOf object arg)
@@ -373,15 +426,22 @@
              (methods (class-methods (class-by-name class-name)))
              (method-list (get-method-list methods))
              )
-        (printf "method-list: ~s~n" method-list)
         (cons
           %begin
           (map (lambda (method-desc)
                  (let* ((method-name (car method-desc))
                         (define-name (string->symbol (string-append local-name "-" method-name)))
+                        (first-method (cadr (cadr method-desc)))
+                        (return-type (method-return-type first-method))
+                        (prim? (primitive? return-type))
+                        (stat? (static? (method-modifiers first-method)))
                         )
                    (printf "defining ~s, ~s~n" define-name (cdr method-desc))
-                   `(,%define ,define-name (make-overloaded-method-caller ,method-name))))
+                   `(,%define ,define-name (make-overloaded-method-caller ,method-name 
+                                                                          ,(to-string return-type)
+                                                                          ,prim?
+                                                                          ,stat?
+                                                                          ))))
                method-list))))))
 
 (define-syntax jlambda-method

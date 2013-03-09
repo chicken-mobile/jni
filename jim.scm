@@ -1,4 +1,4 @@
-(use jni lolevel expand-full moremacros)
+(use jni lolevel expand-full moremacros srfi-13)
 
 (define android-sdk-path "/home/paul/opt/adt-bundle-linux-x86/sdk")
 (define android-platform-version 14)
@@ -18,6 +18,7 @@
       (exception-describe)
       (exception-clear))))
 
+<<<<<<< HEAD
 (define-record jobject-meta)
 (define (jobject? pointer)
   (and (pointer? pointer)
@@ -196,6 +197,15 @@
 (exc "after CharSeq")
 (define jstring-value-of
   (jlambda-method java.lang.String java.lang.String valueOf int))
+=======
+(ppexpand* '(jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
+(ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
+
+(define jstring-contains
+  (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
+(define jstring-value-of
+  (jlambda-method (static) java.lang.String java.lang.String valueOf int))
+>>>>>>> 2f1973961ecf3bf17efeba3e65979cb568fc9a1a
 
 (import-for-syntax srfi-1)
 
@@ -219,12 +229,21 @@
        ;; error
 
        `(list ,@(map (lambda (argument-types)
+<<<<<<< HEAD
 		      `(jlambda-method ,class-type ,return-type ,method-name ,@argument-types))
 		    argument-types-list))))))
 
 ;(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
 ;			     ((boolean) (char) (#(char)) (#(char) int int)
 ;			      (double) (float) (int) (long) (java.lang.Object))))
+=======
+		      `(jlambda-method ,modifiers ,return-type ,class-type ,method-name ,@argument-types))
+		    argument-types-list))))))
+
+(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
+														 ((boolean) (char) (#(char)) (#(char) int int)
+																				(double) (float) (int) (long) (java.lang.Object))))
+>>>>>>> 2f1973961ecf3bf17efeba3e65979cb568fc9a1a
 
 
 ;; zuerst wird gefiltert welche methoden überhaupt in frage kämen 
@@ -289,8 +308,6 @@
 				(= (length margs) (length args))))
 			    testo-methods))))
       
-      
-
       (print "available method args:")
       (for-each (lambda (margs) (pp (procedure-data margs))) testo-methods)
       (print "useable method args:")
@@ -306,6 +323,7 @@
 (define (super-class* class-object)
   (prepare-local-jobject (super-class class-object)))
 
+<<<<<<< HEAD
 
 (define Class.isPrimitive
   (jlambda-method java.lang.Class boolean isPrimitive))
@@ -330,3 +348,11 @@
 ;(print "-----------------\n\n")
 ;(pp (testo-foo 111))
 ;(print "-----------------\n\n")
+=======
+(pp (jstring-value-of 1))
+(print "-----------------\n\n")
+(pp (testo-foo "muuuuuuuh"))
+(print "-----------------\n\n")
+(pp (testo-foo 111))
+(print "-----------------\n\n")
+>>>>>>> 2f1973961ecf3bf17efeba3e65979cb568fc9a1a

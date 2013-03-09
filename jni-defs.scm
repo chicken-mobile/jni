@@ -1,48 +1,26 @@
+;; generate type variant procedures
+(include "jni-def-macros.scm")
+(define-call-procs Void void)
 (define-type-procs)
 (define-get-field-procs)
 (define-jni-modifier-procs)
+;;
 
-(define-foreign-variable JNI_VERSION_1_1 int)
-(define-foreign-variable JNI_VERSION_1_2 int)
-(define-foreign-variable JNI_VERSION_1_4 int)
-(define-foreign-variable JNI_VERSION_1_6 int)
-
-(define-foreign-record-type (jvm-option "JavaVMOption")
-  (constructor: make-jvm-option)
-  (destructor: free-jvm-option)
-  (c-string  optionString jvm-option-string jvm-option-string-set!)
-  ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
-(define-foreign-record-type (jvm-init-args "JavaVMInitArgs")
-  (constructor: make-jvm-init-args)
-  (destructor: free-jvm-init-args)
-  (jint version jvm-init-args-version jvm-init-args-version-set!)
-  (jint nOptions jvm-init-args-options-length jvm-init-args-options-length-set!)
-  (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
-  (jboolean ignoreUnrecognized jvm-init-args-options-ignore-unrecognized jvm-init-args-options-ignore-unrecognized-set!))
-
+(define (invoke-jni/safe thunk)
+	(let* ((r      (thunk)))
+		(if (exception-check) 
+			(exception-clear))
+		r))
 
 (define version
   (jni-env-lambda jint GetVersion))
-(define jvm-get-default-init-args
-  (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args))
-(define jvm-create
-  (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
-(define jvm-destroy
-  (foreign-lambda* jint ((java-vm jvm))
-    "C_return((*jvm)->DestroyJavaVM(jvm));"))
-(define jvm-env
-  (foreign-lambda* jint ((java-vm jvm) ((c-pointer (c-pointer void)) env) (jint version))
-    "C_return((*jvm)->GetEnv(jvm, env, version));"))
-(define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
-    "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
-(define jvm-detach-current-thread
-  (foreign-lambda* int ((java-vm jvm))
-    "C_return((*jvm)->DetachCurrentThread(jvm));"))
 
-
-(define find-class
+(define find-class/jni
   (jni-env-lambda jclass FindClass (const c-string)))
+
+(define (find-class c)
+	(invoke-jni/safe (lambda () (find-class/jni c))))
+
 (define super-class
   (jni-env-lambda jclass GetSuperclass jclass))
 (define get-object-class
@@ -54,12 +32,13 @@
 (define assignable-from?
   (jni-env-lambda jboolean IsAssignableFrom jclass jclass))
 (define new-object
-  (jni-env-lambda jobject NewObject jclass jmethod-id))
+  (jni-env-lambda jobject NewObjectA jclass jmethod-id jvalue))
 
-(define get-field
+(define get-field/jni
   (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
-(define get-static-field
+(define get-static-field/jni
   (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string)))
+<<<<<<< HEAD
 (define get-method-id
   (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
 (define get-static-method-id
@@ -69,6 +48,21 @@
     (if method-id 
       method-id
       (get-static-method-id class/object method-name method-type))))
+=======
+(define get-method-id/jni
+	(jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
+(define get-static-method-id/jni
+	(jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+
+(define (get-field jclass name type)
+	(invoke-jni/safe (lambda () (get-field/jni jclass name type))))
+(define (get-static-field jclass name type)
+	(invoke-jni/safe (lambda () (get-static-field/jni jclass name type))))
+(define (get-method-id jclass name signature)
+	(invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
+(define (get-static-method-id jclass name signature)
+	(invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
+>>>>>>> 2f1973961ecf3bf17efeba3e65979cb568fc9a1a
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
@@ -118,6 +112,37 @@
 
 (define jstring
   (jni-env-lambda jstring NewStringUTF c-string))
+
+(define (expand-type type #!optional return)
+  (cond ((symbol? type)
+         (case type
+           ((boolean) "Z")
+           ((byte)    "B")
+           ((char)    "C")
+           ((short)   "S")
+           ((int)     "I")
+           ((long)    "J")
+           ((float)   "F")
+           ((double)  "D")
+           ((void)    "V")
+           (else (string-append "L" (mangle-class-name type) ";"))))
+        ((vector? type)
+         (string-append "[" (expand-type (vector-ref type 0))))
+        ((list? type)
+         (and-let* ((return (expand-type return)))
+           (string-append "(" (string-intersperse (map expand-type type) "") ")" return)))
+        (else 
+          #f)))
+
+(define-syntax type-signature
+  (er-macro-transformer
+    (lambda (x r c)
+      (let ((%expand-type   (r 'expand-type))
+            (type           (cadr x))
+            (return         (and (pair? (cddr x)) (caddr x))))
+        `(or (,%expand-type ,type ,return)
+             (error "Invalid Java type signature" ,type ,return))))))
+
 (define jstring->string
   (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
         (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
@@ -129,3 +154,18 @@
         (move-memory! chars str len)
         (release-chars jstring chars)
         str))))
+
+(define (array->list array-object)
+  (do ((idx 0 (+ idx 1))
+       (object-list '() (cons (array-ref array-object idx) object-list)))
+    ((<= (array-length array-object) idx) object-list)))
+
+(define (list->array class lst)
+  (let ((arr (make-array (length lst) class #f)))
+    (let loop ((i 0) (lst lst))
+      (if (null? lst)
+        arr
+        (begin
+          (array-set! arr i (car lst))
+          (loop (+ i 1) (cdr lst)))))))
+
