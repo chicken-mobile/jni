@@ -168,26 +168,22 @@ Example:
     
 #### Exceptions 
 
-##### exception-check
-    [procedure] (exception-check)
+Java exceptions are mapped to conditions of the kind '(exn java exception-class)
 
-Check for pending exceptions.
+#### java-exception-message
+    [procedure] (java-exception-message JAVA-CONDITION)
 
-##### exception-clear
-    [procedure] (exception-clear)
+Get java exception message as string.
 
-Clear pending exceptions.
+#### java-exception-trace
+    [procedure] (java-exception-trace JAVA-CONDITION)
 
-##### exception-describe
-    [procedure] (exception-describe)
+Get java exception trace as string.
 
-Prints an exception and a backtrace of the stack to a system error-reporting channel, such as stderr. This is a convenience routine provided for debugging.
+#### java-exception-type
+    [procedure] (java-exception-type JAVA-CONDITION) -> EXCEPTION-CLASS-SYMBOL
 
-##### exception-occurred
-    [procedure] (exception-occurred) -> jthrowable
-
-Determines if an exception is being thrown. The exception stays being thrown
-until either the native code calls ExceptionClear().
+Get java exception class as symbol.
 
 #### Other
 

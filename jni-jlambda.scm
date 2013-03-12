@@ -1,11 +1,22 @@
-(define-syntax check-jexception
-  (syntax-rules ()
-    ((_ on-error on-no-error)
-     (if (exception-check) 
-       (begin
-         (exception-describe)
-         on-error) 
-       on-no-error))))
+(define-syntax check-exists
+  (er-macro-transformer
+    (lambda (x r c)
+      (let* ((%let      (r 'let))
+             (%error    (r 'error))
+             (%format   (r 'format))
+             (%if       (r 'if))
+             (v         (cadr x))
+             (location  (caddr x))
+             (message   (cadddr x))
+             (args      (cddddr x)))
+        `(,%let ((value ,v))
+                (,%if value value (,%error ',location ,message '(,@args))))))))
+
+(define-for-syntax (static-signature? modifiers)
+  (if modifiers
+    (any (lambda (x) 
+           (eq? (strip-syntax x) 'static)) modifiers)
+    #f))
 
 (define-syntax class
   (ir-macro-transformer
@@ -16,12 +27,10 @@
 (define-syntax class/or-error
   (er-macro-transformer
     (lambda (x r c)
-      (let ((%let    (r 'let))
-            (%class  (r 'class))
-            (%error  (r 'error))
-            (args    (cdr x)))
-        `(,%let ((c (,%class ,@args)))
-                (if c c (,%error 'class "class not found")))))))
+      (let ((%check-exists   (r 'check-exists))
+            (%class          (r 'class))
+            (args            (cdr x)))
+        `(,%check-exists (,%class ,@args) class "class not found" ,@args)))))
 
 (define to-string
   (lambda (object)
@@ -49,20 +58,17 @@
                  (return       ,(if (primitive? return) `',return `(,%get-class-name (,%class ,return))))
                  (return-value (,fn class-object (symbol->string ',name) 
                                     (type-signature ',args return))))
-               (delete-local-ref class-object)
                return-value)))))
 
 (define-syntax method
   (syntax-rules ()
     ((_ args ...)
-     (let ((r (method* get-method-id args ...)))
-       (if r r (error 'method "Method not found"))))))
+     (check-exists (method* get-method-id args ...) method "Method not found" args ...))))
 
 (define-syntax static-method
   (syntax-rules ()
     ((_ args ...)
-     (let ((r (method* get-static-method-id args ...)))
-       (if r r (error 'method "Method not found"))))))
+     (check-exists (method* get-static-method-id args ...) method "Static method not found" args ...))))
 
 (define-syntax constructor
   (er-macro-transformer
@@ -118,7 +124,7 @@
             (jmethod                     (car (cddddr x)))
             (jvalues                     (cadr (cddddr x))))
         `(,%if ,jmethod
-            ,(if modifiers
+            ,(if (static-signature? modifiers)
                (case return-type
                  ((void)   `(,%call-static-void-method    ,object ,jmethod ,jvalues))
                  ((boolean)`(,%call-static-boolean-method ,object ,jmethod ,jvalues))
@@ -201,60 +207,60 @@
 (define-syntax jlambda-method*
   (er-macro-transformer
     (lambda (x r c)
-      (let ((%lambda               (r 'lambda))
-            (%let                  (r 'let*))
-            (%class                (r 'class))
-            (%method               (r 'method))
-            (%static-method        (r 'static-method))
-            (%make-jvalue-array    (r 'make-jvalue-array))
-            (%free-jvalue-array    (r 'free-jvalue-array))
-            (%error                (r 'error))
-            (modifiers             (cadr x))
-            (return-type           (caddr x))
-            (class-type            (cadddr x))
-            (method-name           (car (cddddr x)))
-            (argument-types        (cdr (cddddr x))))
+      (let* ((%lambda               (r 'lambda))
+             (%let                  (r 'let*))
+             (%class                (r 'class))
+             (%method               (r 'method))
+             (%static-method        (r 'static-method))
+             (%make-jvalue-array    (r 'make-jvalue-array))
+             (%free-jvalue-array    (r 'free-jvalue-array))
+             (modifiers             (cadr x))
+             (return-type           (caddr x))
+             (class-type            (cadddr x))
+             (method-name           (car (cddddr x)))
+             (argument-types        (cdr (cddddr x)))
+             (static                (static-signature? modifiers)))
         (let* ((argument-names  (build-argument-names argument-types)))
           `(extend-procedure
-             (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
+             (,%lambda (,@(append (if static '() '(object)) argument-names))
                        (,%let ((class-object (,%class ,class-type))
-                               (jmethod      (,(if modifiers %static-method %method) 
+                               (jmethod      (,(if static %static-method %method) 
                                                ,return-type ,class-type ,method-name ,@argument-types))
                                (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                               (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) 
+                               (return-value (call-method ,modifiers ,(if static 'class-object 'object) 
                                                           ,return-type jmethod jvalues)))
                               (,%free-jvalue-array jvalues)
-                              (check-jexception (,%error 'fooooo) return-value)))
+															(check-jexception return-value)))
              ',argument-types))))))
 
 (define-syntax jlambda-method
   (er-macro-transformer
     (lambda (x r c)
-      (let ((%lambda               (r 'lambda))
-            (%let                  (r 'let*))
-            (%class                (r 'class))
-            (%method               (r 'method))
-            (%static-method        (r 'static-method))
-            (%make-jvalue-array    (r 'make-jvalue-array))
-            (%free-jvalue-array    (r 'free-jvalue-array))
-            (%error                (r 'error))
-            (modifiers             (cadr x))
-            (return-type           (caddr x))
-            (class-type            (cadddr x))
-            (method-name           (car (cddddr x)))
-            (argument-types        (cdr (cddddr x))))
+      (let* ((%lambda               (r 'lambda))
+             (%let                  (r 'let*))
+             (%class                (r 'class))
+             (%method               (r 'method))
+             (%static-method        (r 'static-method))
+             (%make-jvalue-array    (r 'make-jvalue-array))
+             (%free-jvalue-array    (r 'free-jvalue-array))
+             (modifiers             (cadr x))
+             (return-type           (caddr x))
+             (class-type            (cadddr x))
+             (method-name           (car (cddddr x)))
+             (argument-types        (cdr (cddddr x)))
+             (static                (static-signature? modifiers)))
         (let* ((argument-names  (build-argument-names argument-types)))
           `(,%let ((class-object (,%class ,class-type))
-                   (jmethod      (,(if modifiers %static-method %method) 
+                   (jmethod      (,(if static %static-method %method) 
                                    ,return-type ,class-type ,method-name ,@argument-types)))
                   (extend-procedure
-                    (,%lambda (,@(append (if modifiers '() '(object)) argument-names))
+                    (,%lambda (,@(append (if static '() '(object)) argument-names))
                               (,%let (
                                       (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                      (return-value (call-method ,modifiers ,(if modifiers 'class-object 'object) 
+                                      (return-value (call-method ,modifiers ,(if static 'class-object 'object) 
                                                                  ,return-type jmethod jvalues)))
                                      (,%free-jvalue-array jvalues)
-                                     (check-jexception (,%error 'fooooo) return-value)))
+																		(check-jexception return-value)))
                     ',argument-types)))))))
 
 (define-syntax jlambda-constructor
@@ -267,7 +273,6 @@
             (%make-jvalue-array     (r 'make-jvalue-array))
             (%free-jvalue-array     (r 'free-jvalue-array))
             (%check-jexception      (r 'check-jexception))
-            (%error                 (r 'error))
             (%call-new              (r 'call-new))
             (class-type             (cadr x))
             (argument-types         (cddr x)))
@@ -280,12 +285,12 @@
                                   (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
                                   (return-value (,%call-new class-object jmethod jvalues)))
                                  (,%free-jvalue-array jvalues)
-                                 (check-jexception (,%error 'fooooo) return-value)))
+                                 (check-jexception return-value)))
                 ',argument-types)))))))
 
-(define-for-syntax (field-accessor-for static? accessor-type type)
+(define-for-syntax (field-accessor-for static accessor-type type)
   (let* ((accessor-type (symbol->string accessor-type))
-         (modifier      (if static? "static-" ""))
+         (modifier      (if static "static-" ""))
          (type          (if (primitive? type) (symbol->string type) "object"))
          (accessor-proc (string->symbol (string-append accessor-type "-" modifier type "-field"))))
     (eval accessor-proc)))
@@ -293,31 +298,33 @@
 (define-syntax jlambda-field
   (er-macro-transformer
     (lambda (x r c)
-      (let* ((%let*               (r 'let*))
-             (%class              (r 'class/or-error))
-             (%if                 (r 'if))
-             (%error              (r 'error))
-             (%lambda             (r 'lambda))
-             (%getter-with-setter (r 'getter-with-setter))
-             (%type-signature     (r 'type-signature))
-             (%get-jfield         (r 'get-field))
-             (%get-static-jfield  (r 'get-static-field))
-             (%field-accessor-for (r 'field-accessor-for))
-             (modifiers           (cadr x))
-             (type                (caddr x))
-             (class-name          (cadddr x))
-             (field-name          (symbol->string (car (cddddr x))))
-             (static?             (any (lambda (x) (eq? (strip-syntax x) 'static)) modifiers))
-             (field-fullname      (string-append (symbol->string class-name) "." field-name))
-             (instance            (if static? 'jclass 'object)))
+      (let* ((%let*                   (r 'let*))
+             (%class                  (r 'class/or-error))
+             (%if                     (r 'if))
+             (%error                  (r 'error))
+             (%lambda                 (r 'lambda))
+             (%getter-with-setter     (r 'getter-with-setter))
+             (%type-signature         (r 'type-signature))
+             (%get-jfield             (r 'get-field))
+             (%get-static-jfield      (r 'get-static-field))
+             (%field-accessor-for     (r 'field-accessor-for))
+             (%prepare-local-jobject  (r 'prepare-local-jobject))
+             (modifiers               (cadr x))
+             (type                    (caddr x))
+             (class-name              (cadddr x))
+             (field-name              (symbol->string (car (cddddr x))))
+             (static                  (static-signature? modifiers))
+             (field-fullname          (string-append (symbol->string class-name) "." field-name))
+             (instance                (if static 'jclass 'object)))
         `(,%let* ((signature (,%type-signature ',type))
                   (jclass    (,%class ,class-name))
-                  (jfield    (,(if static? %get-static-jfield %get-jfield) jclass ,field-name signature)))
+                  (jfield    (,(if static %get-static-jfield %get-jfield) jclass ,field-name signature)))
                  (,%if jfield
-                       (,%getter-with-setter (,%lambda (,@(if static? '() '(object)))
-                                                       ((,%field-accessor-for ,static? 'get ',type) ,instance jfield))
-                                             (,%lambda (,@(if static? '(value) '(object value)))
-                                                       ((,%field-accessor-for ,static? 'set ',type) ,instance jfield value))
+                       (,%getter-with-setter (,%lambda (,@(if static '() '(object)))
+                                                       (let ((v ((,%field-accessor-for ,static 'get ',type) ,instance jfield)))
+                                                         ,(if (primitive? type) 'v `(,%prepare-local-jobject v))))
+                                             (,%lambda (,@(if static '(value) '(object value)))
+                                                       ((,%field-accessor-for ,static 'set ',type) ,instance jfield value))
                                              ,field-fullname)
                        (,%error 'field "field not found")))))))
 
@@ -373,3 +380,56 @@
                  (set! find-class (lambda (c) (,%find-class* import-table old-find-class c)))
                  ,@body
                  (set! find-class old-find-class))))))
+
+(define (jexception-trace exception)
+  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
+    (jstring->string (m exception))))
+
+(define (jexception-message exception)
+  (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
+    (jstring->string (m exception))))
+
+(define (jexception-type exception)
+  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
+    (jstring->string (m exception))))
+
+(define (make-condition exception)
+  (let ((trace   (jexception-trace exception))
+        (message (jexception-message exception))
+        (type    (string->symbol (jexception-type exception))))
+      (exception-clear)
+      (make-composite-condition
+				(make-property-condition 'exn)
+				(make-property-condition 'java 'trace trace 'message message 'type type)
+				(make-property-condition type))))
+
+(define java-exception? 
+  (condition-predicate 'java))
+
+(define java-exception-message
+  (condition-property-accessor 'java 'message #f))
+
+(define java-exception-trace
+  (condition-property-accessor 'java 'trace #f))
+
+(define java-exception-type
+  (condition-property-accessor 'java 'type #f))
+
+(define java-condition-handler
+  (let ((o (current-exception-handler)))
+    (lambda (exception)
+      (if (java-exception? exception)
+        (let ((trace   (java-exception-trace exception))
+              (message (java-exception-message exception)))
+          (newline)
+          (print trace)
+          (abort (make-property-condition 'exn 'message "java-exception-handler returned")))
+        (o exception)))))
+
+(current-exception-handler java-condition-handler)
+
+(define (check-jexception v)
+	(let ((e (exception-occurred)))
+		(if e
+			(abort (make-condition e))
+			v)))
