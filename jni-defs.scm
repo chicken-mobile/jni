@@ -38,17 +38,6 @@
   (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
 (define get-static-field/jni
   (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string)))
-<<<<<<< HEAD
-(define get-method-id
-  (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
-(define get-static-method-id
-  (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
-(define (get-method/static-id class/object method-name method-type)
-  (let ((method-id (get-method-id class/object method-name method-type)))
-    (if method-id 
-      method-id
-      (get-static-method-id class/object method-name method-type))))
-=======
 (define get-method-id/jni
 	(jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
 (define get-static-method-id/jni
@@ -62,7 +51,6 @@
 	(invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
 (define (get-static-method-id jclass name signature)
 	(invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
->>>>>>> 2f1973961ecf3bf17efeba3e65979cb568fc9a1a
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
