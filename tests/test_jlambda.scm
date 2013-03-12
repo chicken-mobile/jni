@@ -86,9 +86,13 @@
             (define jstring-contains
               (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
 
+            (define jstring-contains2 ;testing modifiers
+              (jlambda-method (public)  boolean java.lang.String contains java.lang.CharSequence))
+
             (let ((eleven (jstring-value-of 11)))
               (test-jstring "11" eleven)
-              (test #t (jstring-contains eleven (jstring-value-of 1))))
+              (test #t (jstring-contains eleven (jstring-value-of 1)))
+              (test #t (jstring-contains2 eleven (jstring-value-of 1))))
 
             (test-error "class not found" (jlambda-method (static) boolean AFoo hi))
             (test #f (exception-check))
