@@ -5,7 +5,7 @@
 (module jni
 *
 
-(import chicken scheme foreign srfi-1 data-structures)
+(import chicken scheme foreign srfi-1 data-structures extras)
 (import-for-syntax chicken)
 (use lolevel foreigners)
 
