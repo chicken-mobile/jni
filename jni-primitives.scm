@@ -114,6 +114,9 @@
 (define (prepare-local-jobject jobject)
   (set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-local-ref))
 
+(define (prepare-local-jclass jclass)
+  (set-finalizer! jclass delete-local-ref))
+
 ;; jni jvm bindings
 (define-foreign-variable JNI_VERSION_1_1 int)
 (define-foreign-variable JNI_VERSION_1_2 int)
