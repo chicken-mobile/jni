@@ -168,7 +168,7 @@ Example:
     
 #### Exceptions 
 
-Java exceptions will be mapped to conditions of the kind: (exn java exception-class)
+Java exceptions are mapped to conditions of the kind '(exn java exception-class)
 
 #### java-exception-message
     [procedure] (java-exception-message JAVA-CONDITION)
