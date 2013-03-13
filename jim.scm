@@ -1,41 +1,16 @@
 (use jni lolevel expand-full moremacros srfi-13)
 
-(define android-sdk-path "/home/paul/opt/adt-bundle-linux-x86/sdk")
-(define android-platform-version 14)
-(define android-platform-path 
-  (string-append android-sdk-path "platforms/android-" (number->string android-platform-version) "/"))
-(define android-platform-jar-path
-  (string-append android-platform-path "android.jar"))
+;(define android-sdk-path "/home/paul/opt/adt-bundle-linux-x86/sdk")
+;(define android-platform-version 14)
+;(define android-platform-path 
+  ;(string-append android-sdk-path "platforms/android-" (number->string android-platform-version) "/"))
+;(define android-platform-jar-path
+  ;(string-append android-platform-path "android.jar"))
+;;(jvm-init android-platform-jar-path)
 (load "jlambda-def.scm")
 
-;;(jvm-init android-platform-jar-path)
 ;(jvm-init)
 (import-for-syntax jni)
-;(define (exc wut)
-  ;(if (exception-check)
-    ;(begin
-      ;(printf "~s~n" wut)
-      ;(exception-describe)
-      ;(exception-clear))))
-
-;(exc "contains1")
-;(ppexpand* '(jlambda-method java.lang.String boolean contains java.lang.CharSequence))
-;(ppexpand* '(jlambda-method java.lang.String java.lang.String valueOf int))
-;(exc "contains")
-;(define jstring-contains
-;  (jlambda-method java.lang.String boolean contains java.lang.CharSequence))
-;(exc "after CharSeq")
-;(define jstring-value-of
-  ;(jlambda-method java.lang.String java.lang.String valueOf int))
-(ppexpand* '(jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
-(ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
-
-(define jstring-contains
-  (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
-(define jstring-value-of
-  (jlambda-method (static) java.lang.String java.lang.String valueOf int))
-
-(import-for-syntax srfi-1)
 
 (define-syntax jlambda-methods
   (er-macro-transformer
@@ -60,9 +35,9 @@
 		      `(jlambda-method ,modifiers ,return-type ,class-type ,method-name ,@argument-types))
 		    argument-types-list))))))
 
-(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
-														 ((boolean) (char) (#(char)) (#(char) int int)
-																				(double) (float) (int) (long) (java.lang.Object))))
+;(ppexpand* '(jlambda-methods (static) java.lang.String java.lang.String valueOf
+														 ;((boolean) (char) (#(char)) (#(char) int int)
+																				;(double) (float) (int) (long) (java.lang.Object))))
 
 ;; zuerst wird gefiltert welche methoden überhaupt in frage kämen 
 ;;; also ob gleiche länge und "ungefähr" gleicher typ
@@ -134,16 +109,16 @@
 
       (apply (car useable-methods) args))))
 
-(define (array->list* array-object)
-  (map prepare-local-jobject (array->list array-object)))
-(define (class* class-symbol)
-  (prepare-local-jobject (find-class (mangle-class-name class-symbol))))
-(define (super-class* class-object)
-  (prepare-local-jobject (super-class class-object)))
+;(define (array->list* array-object)
+  ;(map prepare-local-jobject (array->list array-object)))
+;(define (class* class-symbol)
+  ;(prepare-local-jobject (find-class (mangle-class-name class-symbol))))
+;(define (super-class* class-object)
+  ;(prepare-local-jobject (super-class class-object)))
 
-(pp (jstring-value-of 1))
-(print "-----------------\n\n")
-(pp (testo-foo "muuuuuuuh"))
-(print "-----------------\n\n")
-(pp (testo-foo 111))
-(print "-----------------\n\n")
+;(pp (jstring-value-of 1))
+;(print "-----------------\n\n")
+;(pp (testo-foo "muuuuuuuh"))
+;(print "-----------------\n\n")
+;(pp (testo-foo 111))
+;(print "-----------------\n\n")
