@@ -1,11 +1,13 @@
-;Some advices:
-;  - I think "type" could be confusing in this context: there is scheme types, java types, jni types..
-;  maybe "arg-types" or something like that could be more clear.
+;TODO: Some advices:
 ;
-;  - Normally the convention is "a->b" named procedures are conversion procedures, not accesors
+;  - I think "type" could be confusing in this context: there is scheme types, java types, jni types..
+;  maybe "arg-types" or something like that could be more clear :-)
+;
+;  - Normally the convention is: "a->b" named procedures are conversion procedures, not accesors.
 ; so, ie: "type->matcher" should be "type-matcher"
 ;
 ;  - Maybe "type" can be a record.
+;
 
 (define primitive-types-score '(("byte" 0) ("short" 10) ("int" 20) ("long" 30) ("float" 40) ("double" 50)))
 

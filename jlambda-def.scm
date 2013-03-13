@@ -34,7 +34,7 @@
        (map value->type valuez)
        valuez))
 
-(define (values->jvalues-array . valuez)
+(define (values->jvalues-array valuez)
   ;(printf "values->jvalues-array: ~s~n" valuez)
   (if (null? valuez)
     #f
@@ -104,6 +104,15 @@
             (decl-type2-class (decl-type-type decl-type2)))
         (is-superclass? decl-type2-class decl-type1-class)))))
 
+;;TODO: this is not a compare method, a compare method returns a comparation 
+;; ie: -1 (if the first is lower than the second) 
+;;      0 (if they are equals) 
+;;      1 (if the first is greater than the second) 
+;; as this procedure is returning a boolean it should named accordly. for example: better-match?
+;;
+;; also, could you provide a little test for this procedure? I'm afraid to break something if 
+;; I make changes on this procedures
+
 ;; match1 is better match2 when at least one type in match1 is subclass of match2
 (define (compare-matches match1 match2)
   (if (or (not match2) (null? match2))
@@ -128,7 +137,7 @@
 
 (define (is-top-hier class)
   (or (not class)
-       (is-java/lang/object? class)))
+      (is-java/lang/object? class)))
 
 (define (get-super-classes class)
   ;(printf "Get superclass of ~s~n" (to-string class))
@@ -162,36 +171,27 @@
                 (cdr interfaces)))))))
 
 (define-for-syntax (get-ver)
-                   (version))
+  (version))
 
-(define (get-method-types methods)
-  (map (% method (list method (method-parameters method))) methods))
-
-(define (get-decl-method-types methods)
-  (let ((methods-desc (get-method-types methods)))
-    (map (% method-desc (list (car method-desc) (map make-decl-type (cadr method-desc)))) methods-desc)))
+(define (match-methods arg-types methods)
+  (fold 
+    (lambda (method best-match)
+      (let* ((decl-types (map make-decl-type (method-parameters method)))
+             (matched    (match-method-types arg-types decl-types)))
+        (if (or (not best-match)
+                (compare-matches matched (cdr best-match))) 
+          (cons method matched) 
+          best-match)))
+    #f methods))
 
 (define (match-method args methods)
   (let ((arg-types (values->types args)))
-    (print "arg-types: " arg-types)
-    (if (and (null? arg-types)
+    (if (and (null? arg-types)              ;;TODO I don't undestand this condition
              (not   (null? methods))
              (null? (cdr methods)))
       (car methods)
-      (let loop ((methods    (get-decl-method-types methods))
-                 (best-match '()))
-        (if (null? methods)
-          (car best-match)
-          (let* ((method-desc (car methods))
-                 ;(foo (printf "method-desc: ~s~n" method-desc))
-                 (decl-types (cadr method-desc))
-                 ;(foo (printf "decl ~s~n" decl-types))
-                 (matched (match-method-types arg-types decl-types)))
-            (printf "matched? ~s~n" matched)
-            (if (or (null? best-match)
-                    (compare-matches matched (cdr best-match)))
-              (loop (cdr methods) (cons (car method-desc) matched))
-              (loop (cdr methods) best-match))))))))
+      (let ((m (match-methods arg-types methods)))
+        (if m (car m) #f)))))
 
 (define (find-methods class name arn)
   (let ((methods (methods-by-name class name)))
@@ -221,9 +221,10 @@
                   (a-methods   (,%find-methods class ',name arn))
                   (method      (,%match-method args a-methods)))
            (if method
-             (call-method (static? modifiers) object ,return-type (Method->method-id method) (apply values->jvalues-array args))
+             (call-method (static? modifiers) object ,return-type (Method->method-id method) (values->jvalues-array args))
              (error (format "Can't match ~s with method ~s~n" args ',name)))))))))
 
+;; TODO: this is jimport really
 ;; (jlambda java.lang.String String) declares
 ;; (String-valueOf object arg)
 ;; (String-length) and so on
@@ -256,6 +257,7 @@
 (let ()
   (jlambda java.lang.String String)
   (let ((str (jstring-value-of 11)))
+    (print (String-getBytes str))
     (print (String-charAt str 1))))
 
 ;(jlambda java.lang.String String)
@@ -263,7 +265,6 @@
 ;(define o2-class (find-class "o$o2"))
 ;(define m1 (car mtests))
 ;(define m1t (method-parameters m1))
-;(define m-types (get-method-types mtests))
 ;;(define m-type (car m-types))
 ;(define o-obj (call o-class 'newInstance))
 ;(define args (list "abc" o-obj))
@@ -273,6 +274,4 @@
 ;(define a1 (jstring "abc"))
 ;(define a-type1 (pointer-value->type a1))
 ;;(define method-decl-types (map (% v (map make-decl-type v)) m-types))
-;(define int (cadr (list-ref (map cadr (get-decl-method-types m-types )) 4)))
 ;(define i1 (value->type 1))
-;(define mtypes/1 (get-method-types mtest/1))
