@@ -7,27 +7,19 @@
 (define android-platform-jar-path
   (string-append android-platform-path "android.jar"))
 
-;;(jvm-init android-platform-jar-path)
-;(jvm-init)
-
 (import-for-syntax jni)
 
-(define-for-syntax (jvm-init-macros)
-                   (jvm-init))
-(jvm-init-macros)
+(jvm-init)
+
+(include "jlambda-methods-arg-types.scm")
 
 (define-syntax %
   (syntax-rules ()
                 ((_ arg body)
                  (lambda (arg)
                    body))))
+
 (define id (% v v))
-
-(define primitive-types-score '(("byte" 0) ("short" 10) ("int" 20) ("long" 30) ("float" 40) ("double" 50)))
-
-(define (is-num? guard)
-  (lambda (v)
-    (and (number? v) (guard v))))
 
 (define (make-decl-type class)
   (list (to-string class) class))
@@ -37,91 +29,31 @@
 (define (decl-type-primitive? decl-type)
   (assoc (car decl-type) primitive-types-score))
 
-(define (prim-type-matcher names)
-  (lambda (decl-type)
-    (let ((decl-class (decl-type-type decl-type)))
-      (if (call decl-class 'isPrimitive)
-        (let ((simple-name (to-string (call decl-class 'getSimpleName))))
-          (printf "check simple-name: ~s in ~n" simple-name names)
-          (assoc simple-name names))
-        (begin
-          (printf "Not primitive: ~s~n" (to-string decl-class))
-          #f)))))
-
-(define (make-type type-name value-matcher jvalue-type matcher)
-  (list type-name value-matcher jvalue-type matcher))
-
-(define (make-prim-type* type-name value-matcher jvalue-type prim-type-names)
-  (make-type type-name value-matcher jvalue-type (prim-type-matcher prim-type-names)))
-(define (type->matcher type)
-  (cadr type))
-(define (type->type-matcher type)
-  (cadddr type))
-(define (type->jvalue type value)
-  ((caddr type) value))
-
-(define primitive-types
-  (list
-    (make-prim-type* "numeric"
-                     number?
-                     (% v (cond
-                            ((and (<= v 127) (>= v -128)) 'byte)
-                            ((and (<= v 32767) (>= v -32768)) 'short)
-                            ((and (<= v 2147483647) (>= v -2147483648)) 'int) ;; whut?
-                            ((not (fixnum? v)) 'float)))
-                     primitive-types-score)
-
-    (make-type "string"
-               string?
-               (% v 'java.lang.String)
-               (let ((jlstring (find-class "java/lang/String")))
-                 (lambda (decl-type)
-                   (call (decl-type-type decl-type) 'equals jlstring))))
-    ))
-
-(define (prim-value->type value)
-  (if (not (pointer? value))
-    (find (% type ((type->matcher type) value))
-            primitive-types)))
-(define (pointer-value->type value)
-  (if (pointer? value)
-    (make-type (to-string value)
-               #f
-               (% v 'java.lang.Object)
-               (lambda (decl-type)
-                 (call (decl-type-type decl-type) 'isInstance value)))))
-
-(define (value->type value)
-  (if (pointer? value)
-    (pointer-value->type value)
-    (prim-value->type value)))
-(define (values->types . valuez)
-  (map value->type valuez))
-(define (values->jvalues . valuez)
+(define (values->jvalues valuez)
   (map type->jvalue
        (map value->type valuez)
        valuez))
 
 (define (values->jvalues-array . valuez)
-  (printf "values->jvalues-array: ~s~n" valuez)
+  ;(printf "values->jvalues-array: ~s~n" valuez)
   (if (null? valuez)
     #f
-    (let ((types (apply values->jvalues valuez))
+    (let ((types        (values->jvalues valuez))
           (jvalue-array (make-jvalue-array (length valuez))))
       (fold (lambda (arg i)
               (let ((type (list-ref types i)))
-                (printf "Setting ~s to ~s~n" i arg)
+                ;(printf "Setting ~s to ~s~n" i arg)
                 (if (pointer? arg)
                   (set-object-jvalue! jvalue-array i arg)
                   (case type
                     ((boolean) (set-boolean-jvalue! jvalue-array i arg))
-                    ((char) (set-char-jvalue! jvalue-array i (integer->char arg)))
-                    ((byte) (set-byte-jvalue! jvalue-array i (integer->char arg)))
-                    ((short) (set-short-jvalue! jvalue-array i arg))
-                    ((int) (set-int-jvalue! jvalue-array i arg))
-                    ((long) (set-long-jvalue! jvalue-array i arg))
-                    ((float) (set-float-jvalue! jvalue-array i arg))
-                    ((double) (set-double-jvalue! jvalue-array i arg))
+                    ((char)    (set-char-jvalue! jvalue-array i (integer->char arg)))
+                    ((byte)    (set-byte-jvalue! jvalue-array i (integer->char arg)))
+                    ((short)   (set-short-jvalue! jvalue-array i arg))
+                    ((int)     (set-int-jvalue! jvalue-array i arg))
+                    ((long)    (set-long-jvalue! jvalue-array i arg))
+                    ((float)   (set-float-jvalue! jvalue-array i arg))
+                    ((double)  (set-double-jvalue! jvalue-array i arg))
                     (else (error (format "Can't match jvalue argument ~s" type) "baaaaaaar!!!!")))))
               (+ i 1))
             0
@@ -129,9 +61,9 @@
       jvalue-array)))
 
 (define (match-type-to-decl-type type decl-type)
-  (printf "Matching type ~s to ~s ~n" type decl-type)
+  ;(printf "Matching type ~s to ~s ~n" type decl-type)
   (let ((matcher (type->type-matcher type)))
-    (printf "matched: ~s~n" (matcher decl-type))
+    ;(printf "matched: ~s~n" (matcher decl-type))
     (matcher decl-type)))
 
 ;; match single method declaration with arg-types
@@ -141,7 +73,7 @@
                           decl-type
                           #f))
                       arg-types method-types)))
-    (printf "match-method-types: ~s to ~s is ~s~n" arg-types method-types matched)
+    ;(printf "match-method-types: ~s to ~s is ~s~n" arg-types method-types matched)
     (if (member #f matched)
       #f
       matched)))
@@ -162,7 +94,7 @@
 ;; determines if decl-type1 is better then decl-type2
 ;; the type1 is better of type2 if type2 is super-class of type1, so it is more precise
 (define (compare-decl-type decl-type1 decl-type2)
-  (printf "compare ~s to ~s~n" decl-type1 decl-type2)
+  ;(printf "compare ~s to ~s~n" decl-type1 decl-type2)
   ;; let's check is this prim type
   (let ((prim1 (decl-type-primitive? decl-type1))
         (prim2 (decl-type-primitive? decl-type2)))
@@ -185,26 +117,6 @@
           (if (compare-decl-type decl-type1 decl-type2)
             #t
             (loop (cdr match1) (cdr match2))))))))
-
-(define (match-method arg-types methods)
-  (if (and (null? arg-types)
-           (not (null? methods))
-           (null? (cdr methods)))
-    (car methods)
-    (let loop ((methods (get-decl-method-types methods))
-               (best-match '()))
-      (if (null? methods)
-        (car best-match)
-        (let* ((method-desc (car methods))
-               (foo (printf "method-desc: ~s~n" method-desc))
-               (decl-types (cadr method-desc))
-               (foo (printf "decl ~s~n" decl-types))
-               (matched (match-method-types arg-types decl-types)))
-          (printf "matched? ~s~n" matched)
-          (if (or (null? best-match)
-                  (compare-matches matched (cdr best-match)))
-            (loop (cdr methods) (cons (car method-desc) matched))
-            (loop (cdr methods) best-match)))))))
 
 (define-for-syntax (class-by-name class-name)
                    (find-class class-name))
@@ -243,12 +155,11 @@
         hier
         (let* ((interface (car interfaces))
                (super-interfaces (get-super-classes interface)))
-          (printf "SI: ~s~n" super-interfaces)
+          ;(printf "SI: ~s~n" super-interfaces)
           (loop (append hier (if super-interfaces
                                (append (list interface) super-interfaces)
                                (list interface)))
                 (cdr interfaces)))))))
-
 
 (define-for-syntax (get-ver)
                    (version))
@@ -259,6 +170,28 @@
 (define (get-decl-method-types methods)
   (let ((methods-desc (get-method-types methods)))
     (map (% method-desc (list (car method-desc) (map make-decl-type (cadr method-desc)))) methods-desc)))
+
+(define (match-method args methods)
+  (let ((arg-types (values->types args)))
+    (print "arg-types: " arg-types)
+    (if (and (null? arg-types)
+             (not   (null? methods))
+             (null? (cdr methods)))
+      (car methods)
+      (let loop ((methods    (get-decl-method-types methods))
+                 (best-match '()))
+        (if (null? methods)
+          (car best-match)
+          (let* ((method-desc (car methods))
+                 ;(foo (printf "method-desc: ~s~n" method-desc))
+                 (decl-types (cadr method-desc))
+                 ;(foo (printf "decl ~s~n" decl-types))
+                 (matched (match-method-types arg-types decl-types)))
+            (printf "matched? ~s~n" matched)
+            (if (or (null? best-match)
+                    (compare-matches matched (cdr best-match)))
+              (loop (cdr methods) (cons (car method-desc) matched))
+              (loop (cdr methods) best-match))))))))
 
 (define (find-methods class name arn)
   (let ((methods (methods-by-name class name)))
@@ -286,7 +219,7 @@
          (,%let* ((arn         (,%length args))
                   (class       (,%get-object-class object))
                   (a-methods   (,%find-methods class ',name arn))
-                  (method      (,%match-method (apply values->types args) a-methods)))
+                  (method      (,%match-method args a-methods)))
            (if method
              (call-method (static? modifiers) object ,return-type (Method->method-id method) (apply values->jvalues-array args))
              (error (format "Can't match ~s with method ~s~n" args ',name)))))))))
