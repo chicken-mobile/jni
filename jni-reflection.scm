@@ -101,7 +101,7 @@
 								 (,%if Field
 											 (,%let* ((static (static? (Field.getModifiers Field)))
 																(type   (get-field-type Field)))
-															 (jlambda-field* static type ,class-name ,field-name))
+															 (jlambda-field* static type ',class-name ,field-name))
 											 #f))))))
 
 (define (find-Method-parameter-types Method)

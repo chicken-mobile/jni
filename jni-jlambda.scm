@@ -12,6 +12,12 @@
         `(,%let ((value ,v))
                 (,%if value value (,%error ',location ,message '(,@args))))))))
 
+(define (find-class/or-error name)
+  (let ((class (find-class (mangle-class-name name))))
+    (if class
+      class
+      (error 'find-class/or-error "class not found" name))))
+
 (define-for-syntax (static-signature? modifiers)
 	(if (list? modifiers)
 		(any (lambda (x) 
@@ -288,6 +294,13 @@
 (define (primitive2? type)
   (member type '(void boolean byte char short int long float double)))
 
+;TODO: idem
+(define (static-signature2? modifiers)
+	(if (list? modifiers)
+		(any (lambda (x) 
+					 (eq? (strip-syntax x) 'static)) modifiers)
+		modifiers))
+
 (define (field-accessor-for static accessor-type type)
   (let* ((accessor-type (symbol->string accessor-type))
          (modifier      (if static "static-" ""))
@@ -312,43 +325,25 @@
 			((field-accessor-for #f 'set type) object jfield value))))
 
 ; jlambda-field implementation
-(define-syntax jlambda-field*
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%let*                   (r 'let*))
-             (%class                  (r 'class/or-error))
-             (%if                     (r 'if))
-             (%error                  (r 'error))
-             (%lambda                 (r 'lambda))
-             (%getter-with-setter     (r 'getter-with-setter))
-             (%type-signature         (r 'type-signature))
-             (%get-jfield             (r 'get-field))
-             (%get-static-jfield      (r 'get-static-field))
-             (%field-accessor-for     (r 'field-accessor-for))
-             (%prepare-local-jobject  (r 'prepare-local-jobject))
-             (modifiers               (cadr x))
-             (type                    (caddr x))
-             (class-name              (cadddr x))
-             (field-name              (car (cddddr x))))
-        `(,%let* ((type           ,type)
-        					(field-name     (symbol->string ,field-name))
-        					(signature      (,%type-signature type))
-									(static         (static-signature? ,modifiers))
-                  (jclass         (,%class ,class-name))
-                  (jfield         ((if static ,%get-static-jfield ,%get-jfield) jclass field-name signature))
-									(field-fullname (string-append (symbol->string ',class-name) "." field-name)))
-                 (,%if jfield
-                       (,%getter-with-setter 
-												 (make-field-getter static type jclass jfield)
-												 (make-field-setter static type jclass jfield)
-												 field-fullname)
-                       (,%error 'field "field not found")))))))
+(define (jlambda-field* modifiers type class-name field-name)
+  (let* ((field-name     (symbol->string field-name))
+         (signature      (type-signature type))
+         (static         (static-signature2? modifiers))
+         (jclass         (find-class/or-error class-name))
+         (jfield         ((if static get-static-field get-field) jclass field-name signature))
+         (field-fullname (string-append (symbol->string class-name) "." field-name)))
+    (if jfield
+      (getter-with-setter 
+        (make-field-getter static type jclass jfield)
+        (make-field-setter static type jclass jfield)
+        field-fullname)
+      (error 'field "field not found"))))
 
 ; convenient macro to access jlambda-field*
 (define-syntax jlambda-field
   (syntax-rules ()
   	((_ modifiers type class-name field-name)
-  	 (jlambda-field* 'modifiers 'type class-name 'field-name))))
+  	 (jlambda-field* 'modifiers 'type 'class-name 'field-name))))
 
 (define (join-class-pkg pkg class)
   (symbol-append (string->symbol pkg) '|.| class))
