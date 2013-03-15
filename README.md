@@ -65,6 +65,27 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 
 ### Java to Scheme
 
+#### jlambda
+    [macro] (jlambda CLASS [METHOD/FIELD])
+
+(jlambda CLASS) => jclass
+(jlambda field) => jlambda-field
+(jlambda method) => jlambda-methods
+
+#### jlambda-field
+    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
+
+Example:
+  (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
+    (print (user-lastname user))
+    (set! (user-lastname user) "Perez"))
+
+#### jlambda-field*
+    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
+
+Same as jlambda-field macro, but avoid class and field checking until the
+invocation, this way the jvm is not invoked in expansion time.
+
 #### jlambda-method
     [macro] (jlambda-method MODIFIERS RETURN-TYPE CLASS METHOD-NAME ARGS...) -> lambda
 
@@ -80,20 +101,6 @@ Returns a lambda associated to the class constructor.
 
 Example:
     (jlambda-constructor java.lang.Integer int))
-
-#### jlambda-field
-    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
-
-Example:
-  (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
-    (print (user-lastname user))
-    (set! (user-lastname user) "Perez"))
-
-#### jlambda-field*
-    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
-
-Same as jlambda-field macro, but avoid class and field checking until the
-invocation, this way the jvm is not invoked in expansion time.
 
 #### import-java-ns
     [macro] (import-java-ns ((PACKAGE-FROM IMPORT) ...) BODY...)
@@ -116,15 +123,10 @@ Example:
 #### class
     [macro] (class CLASS-SYMBOL) -> jclass
 
-Returns the associated jclass.
+Returns the associated jclass. Raise error if the class is not found.
 Example:
 
     (class java.lang.String)
-
-#### class/or-error
-    [macro] (class CLASS-SYMBOL) -> jclass
-
-Same as class macro, but raises an error if the class doesn't exists.
 
 #### super-class
     [procedure] (super-class JCLASS) -> jclass

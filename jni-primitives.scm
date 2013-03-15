@@ -194,5 +194,5 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 									(java-vm jvm)
 									(jni-env env))))
 
-(define-for-syntax (primitive? type)
+(define (primitive? type)
   (member type '(void boolean byte char short int long float double)))

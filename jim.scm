@@ -11,6 +11,54 @@
 (jvm-init)
 (import-for-syntax jni)
 
+(define-syntax jimport
+  (er-macro-transformer
+    (lambda (x r c)
+      (pp x)
+      (let ((object-class (class* (cadr x))))
+        (pp object-class)
+        `(list ,@(map (lambda (method)
+                        (let ((class-name (string->symbol (string-drop (to-string object-class) 6)))
+                              (modifier (Method.getModifiers method))
+                              (name (Method.getName method))
+                              (return-type (Method.getReturnType method))
+                              (params (array->list* (Method.getParameterTypes method))))
+
+                          (let ((modifier-symbols
+                                  (let ((modifier-symbols '()))
+                                    (if (not (public? modifier))
+                                      (set! modifier-symbols (cons 'private modifier-symbols)))
+                                    (if (static? modifier)
+                                      (set! modifier-symbols (cons 'static modifier-symbols)))                      
+                                    modifier-symbols)))
+
+                            (let ((jlambda-def 
+                                    `(,class-name
+                                       ,(string->symbol (let ((foo (to-string return-type)))
+                                                          (if (string-prefix? "class " foo)
+                                                            (string-drop foo 6)
+                                                            foo)) ) 
+                                       ,(string->symbol (jstring->string name)) 
+                                       ,@(map (lambda (param)
+                                                (string->symbol (let ((foo (to-string param)))
+                                                                  (if (string-prefix? "class " foo)
+                                                                    (string-drop foo 6)
+                                                                    foo))))
+                                              params))))
+                              (cons 'jlambda-method
+                                    (if (null? modifier-symbols)
+                                      (cons #f jlambda-def)
+                                      (cons modifier-symbols jlambda-def))))
+                            )))
+                      (array->list* (Class.getDeclaredMethods object-class))))))))
+
+(define (jprint . values)
+  (for-each display
+            (map (lambda (value)
+                   (if (pointer? value)
+                     (to-string value) 
+                     value))
+                 (cons values "\n"))))
 (ppexpand* '(jlambda-method #f boolean java.lang.String contains java.lang.CharSequence))
 (ppexpand* '(jlambda-method (static) java.lang.String java.lang.String valueOf int))
 

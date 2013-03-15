@@ -7,7 +7,7 @@
 
 (import chicken scheme foreign srfi-1 data-structures extras srfi-13)
 (import-for-syntax chicken)
-(use lolevel foreigners)
+(use lolevel foreigners srfi-1)
 
 (include "jni-primitives.scm")
 (include "jni-defs.scm")

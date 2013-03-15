@@ -179,3 +179,28 @@
 					 (string->symbol (string-drop class-str (string-length "class "))))
 					(#t
 					 (string->symbol class-str)))))
+
+(define (find-class/or-error name)
+  (let ((class (find-class (mangle-class-name name))))
+    (if class
+      class
+      (error 'find-class/or-error "class not found" name))))
+
+(define to-string
+  (lambda (object)
+    (let* ((Object.toString/method (get-method-id (find-class/or-error 'java.lang.Object) "toString" "()Ljava/lang/String;"))
+           (String/instance (call-object-method object Object.toString/method #f))
+           (string (jstring->string String/instance)))
+      (delete-local-ref String/instance) string)))
+
+(define-syntax define-method
+  (ir-macro-transformer
+    (lambda (x i c)
+      (let* ((name (mangle-method-name (strip-syntax (caadr x)))))
+        `(define-external (,(i name)
+                            (,(i '(c-pointer "JNIEnv")) env)
+                            (,(i '(c-pointer "jobject")) ,(cadadr x))
+                            . ,(cddadr x))
+                          ,(i (caddr x))
+                          (parameterize ((jni-env env)) . ,(cdddr x)))))))
+

@@ -42,8 +42,7 @@
 
 (test-group "class"
             (test-class java.lang.System (class java.lang.System))
-            (test #f (class System))
-            (test-error (class/or-error Short)))
+            (test-error #f (class System)))
 
 (test-group "jlambda-field"
 
@@ -127,7 +126,7 @@
             (import-java-ns ((java.lang String))
                             (test-class java.lang.String (class java.lang.String))
                             (test-class java.lang.String (class String))
-                            (test #f (class OtherString)))
+                            (test-error (class OtherString)))
 
             (import-java-ns ((java.lang *)
                              (com.chicken_mobile.jni.test *))
@@ -135,13 +134,13 @@
                             (test-class java.lang.String (class String))
                             (test-class java.lang.System (class System))
                             (test-class java.lang.Short (class Short))
-                            (test #f (class OtherString)))
+                            (test-error (class OtherString)))
 
             (import-java-ns ((java.lang (String System)))
                             (test-class java.lang.String (class java.lang.String))
                             (test-class java.lang.String (class String))
                             (test-class java.lang.System (class System))
-                            (test #f (class Short)))
+                            (test-error (class Short)))
 
             (import-java-ns ((java.lang *)
                              (com.chicken_mobile.jni.test *))
