@@ -36,30 +36,22 @@
                      (,%env-lambda ,s-type ,static-jni-proc-name jobject jmethod-id jvalue)))))))
 
 (define-syntax define-jvalue-procs
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%begin  (r 'begin))
-             (%export (r 'export))
-             (%define (r 'define))
-             (%foreign-lambda (r 'foreign-lambda))
+	(er-macro-transformer
+		(lambda (x r c)
+			(let* ((%begin  (r 'begin))
+						 (%export (r 'export))
+						 (%define (r 'define))
+						 (%foreign-lambda (r 'foreign-lambda))
 
-             (type (string->symbol (string-downcase (symbol->string (cadr x)))))
-             (s-type (caddr x))
-             (type-string (symbol->string type))
-             #;(get-proc-name   (string->symbol (format "get-~A-jvalue" type-string)))
-             #;(c-get-proc-name (string->symbol (format "get_~A_jvalue"  type-string)))
-             (set-proc-name  (string->symbol (format "set-~A-jvalue!" type-string)))
-             (c-set-proc-name (string->symbol (format "set_~A_jvalue" type-string))))
+						 (type (string->symbol (string-downcase (symbol->string (cadr x)))))
+						 (s-type (caddr x))
+						 (type-string (symbol->string type))
+						 (set-proc-name  (string->symbol (format "set-~A-jvalue!" type-string)))
+						 (c-set-proc-name (string->symbol (format "set_~A_jvalue" type-string))))
 
-        `(,%begin
-           #;(,%export ,get-proc-name)
-           (,%export ,set-proc-name)
-
-           #;(,%define ,get-proc-name
-           (,%foreign-lambda jvalue ,c-get-proc-name jvalue int ,s-type))
-
-        (,%define ,set-proc-name
-                  (,%foreign-lambda jvalue ,c-set-proc-name jvalue int ,s-type)))))))
+				`(,%begin
+					 (,%define ,set-proc-name
+										 (,%foreign-lambda jvalue ,c-set-proc-name jvalue int ,s-type)))))))
 
 (define-syntax define-type-procs
   (er-macro-transformer

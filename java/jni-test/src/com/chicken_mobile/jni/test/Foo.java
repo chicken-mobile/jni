@@ -1,6 +1,7 @@
 package com.chicken_mobile.jni.test;
 
 
+
 public class Foo {
 	
 	public static boolean lie = true;
@@ -19,4 +20,7 @@ public class Foo {
 		throw new RuntimeException("bad protocol");
 	}
 	
+	public String xxx2() {
+		throw new RuntimeException("bad protocol");
+	}
 }

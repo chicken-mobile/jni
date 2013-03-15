@@ -157,3 +157,25 @@
           (array-set! arr i (car lst))
           (loop (+ i 1) (cdr lst)))))))
 
+(define (get-type-symbol type-name)
+	(if (string-prefix? "L" type-name)
+		(string->symbol (string-drop (string-drop-right type-name 1) 1)) ; Lclass;
+		(cond ((string=? type-name "Z") 'boolean)
+					((string=? type-name "B") 'byte)
+					((string=? type-name "C") 'char)    
+					((string=? type-name "S") 'short)   
+					((string=? type-name "I") 'int)     
+					((string=? type-name "J") 'long)    
+					((string=? type-name "F") 'float)   
+					((string=? type-name "D") 'double)  
+					((string=? type-name "V") 'void)
+					(#t (error 'get-type-symbol "wrong type" type-name)))))
+
+(define (class->type c)
+	(let* ((class-str (to-string c)))
+		(cond ((string-prefix? "class [" class-str) ; ie: "class [Ljava.lang.reflect.Method;"
+					 (vector (get-type-symbol (string-drop class-str (string-length "class [")))))
+					((string-prefix? "class " class-str)
+					 (string->symbol (string-drop class-str (string-length "class "))))
+					(#t
+					 (string->symbol class-str)))))

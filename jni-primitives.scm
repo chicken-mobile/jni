@@ -112,7 +112,9 @@
 					(apply old args))))))
 
 (define (prepare-local-jobject jobject)
-  (set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-local-ref))
+	(if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
+		(set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-local-ref)
+		jobject))
 
 (define (prepare-local-jclass jclass)
   (set-finalizer! jclass delete-local-ref))
