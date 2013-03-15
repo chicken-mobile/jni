@@ -5,33 +5,33 @@
 ;;  package com.chicken_mobile.jni.test;
 ;;  
 ;;  public class Foo {
-;;  	
-;;  	public static boolean lie = true;
-;;  	public static String noSense = "lil oiuy pppq";
-;;   	public static String sense = "cogito ergo sum";
-;;  	public int number;
-;;  	private int secret_number;
+;;    
+;;    public static boolean lie = true;
+;;    public static String noSense = "lil oiuy pppq";
+;;    public static String sense = "cogito ergo sum";
+;;    public int number;
+;;    private int secret_number;
 ;;  
-;;  	public Foo() {
-;;  		number = 12;
-;;  		secret_number = 8;  //¡¡¡¡¡¡¡¡ oohhh  !!!!!!
-;;  	}
-;;  		
-;;	  public void xxx() {
-;;	  	throw new ProtocolException("bad protocol");
-;;	  }
-;;	
-;;   	public String xxx2() {
+;;    public Foo() {
+;;      number = 12;
+;;      secret_number = 8;  //¡¡¡¡¡¡¡¡ oohhh  !!!!!!
+;;    }
+;;      
+;;    public void xxx() {
+;;      throw new ProtocolException("bad protocol");
+;;    }
+;;  
+;;    public String xxx2() {
 ;;      throw new RuntimeException("bad protocol");
-;;   	}
+;;    }
 ;;  }
 
 (jvm-init "tests/test.jar:java/misc-utils.jar")
 
 (define-syntax test-jstring
-	(syntax-rules ()
-		((_ str jstring)
-		 (test str (jstring->string jstring)))))
+  (syntax-rules ()
+    ((_ str jstring)
+     (test str (jstring->string jstring)))))
 
 (define-syntax test-class
   (syntax-rules ()
@@ -84,8 +84,8 @@
             ); end jlambda-field test group
 
 (test-group "jlambda-method"
-						;test #(..) signature, if not defined raises an error
-						(jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods)
+            ;test #(..) signature, if not defined raises an error
+            (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods)
             (define jstring-value-of
               (jlambda-method (static) java.lang.String java.lang.String valueOf int))
 
@@ -162,59 +162,59 @@
                   (o (new-Foo)))
               (test-error (foo-xxx2 o)))
 
-						(define (exception-thunk)
-							(let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
-										(o (new-Foo)))
-								(foo-xxx o)))
+            (define (exception-thunk)
+              (let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
+                    (o (new-Foo)))
+                (foo-xxx o)))
 
-						(call/cc
-							(lambda (k)
-								(with-exception-handler (lambda (exception) 
-																					(test #t (java-exception? exception))
-																					(test "bad protocol" (java-exception-message exception))
-																					(test 'java.lang.RuntimeException (java-exception-type exception))
-																					(test #f (exception-check))
-																					(k '()))
-																				exception-thunk)))
+            (call/cc
+              (lambda (k)
+                (with-exception-handler (lambda (exception) 
+                                          (test #t (java-exception? exception))
+                                          (test "bad protocol" (java-exception-message exception))
+                                          (test 'java.lang.RuntimeException (java-exception-type exception))
+                                          (test #f (exception-check))
+                                          (k '()))
+                                        exception-thunk)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java java.lang.RuntimeException) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java java.lang.RuntimeException) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java.lang.RuntimeException) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java.lang.RuntimeException) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((exn)  #t)
-										(var () #f)))
-						); end exceptions test group
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((exn)  #t)
+                    (var () #f)))
+            ); end exceptions test group
 
 (test-group "jlambda"
-						;;jlambda class
-						(test-class java.lang.System (jlambda java.lang.System))
+            ;;jlambda class
+            (test-class java.lang.System (jlambda java.lang.System))
 
-						;; jlambda field
+            ;; jlambda field
             (let ((foo-number (jlambda com.chicken_mobile.jni.test.Foo number))
                   (o (new-Foo)))
               (test 12 (foo-number o))
               (set! (foo-number o) 300)
               (test 300 (foo-number o)))
 
-						;;invalid 
-						(test-error (jlambda com.chicken_mobile.jni.test.Foo sense2))
+            ;;invalid 
+            (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2))
 
-						;TODO: temp until jlambda-methods is ready
-						(test '((java.nio.charset.Charset) (java.lang.String) (int #(byte) int int) ())
-									(jlambda java.lang.String getBytes))
+            ;TODO: temp until jlambda-methods is ready
+            (test '((java.nio.charset.Charset) (java.lang.String) (int #(byte) int int) ())
+                  (jlambda java.lang.String getBytes))
             ); end jlambda test group
 
 (test-exit)
