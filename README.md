@@ -68,9 +68,9 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 #### jlambda
     [macro] (jlambda CLASS [METHOD/FIELD])
 
-(jlambda CLASS) => jclass
-(jlambda field) => jlambda-field
-(jlambda method) => jlambda-methods
+- (jlambda CLASS)  => jclass
+- (jlambda field)  => jlambda-field
+- (jlambda method) => jlambda-methods
 
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
