@@ -1,8 +1,8 @@
 (define (static-signature? modifiers)
-	(if (list? modifiers)
-		(any (lambda (x) 
-					 (eq? (strip-syntax x) 'static)) modifiers)
-		modifiers))
+  (if (list? modifiers)
+    (any (lambda (x) 
+           (eq? (strip-syntax x) 'static)) modifiers)
+    modifiers))
 
 (define (method static return class-name name args)
   (let* ((class-object   (find-class/or-error class-name))
@@ -121,20 +121,20 @@
     (eval accessor-proc)))
 
 (define (make-field-getter static type jclass jfield)
-	(let ((prepare (lambda (v) 
-									 (if (primitive? type) v (prepare-local-jobject v)))))
-		(if static
-			(lambda () 
-				(prepare ((field-accessor-for #t 'get type) jclass jfield)))
-			(lambda (object)
-				(prepare ((field-accessor-for #f 'get type) object jfield))))))
+  (let ((prepare (lambda (v) 
+                   (if (primitive? type) v (prepare-local-jobject v)))))
+    (if static
+      (lambda () 
+        (prepare ((field-accessor-for #t 'get type) jclass jfield)))
+      (lambda (object)
+        (prepare ((field-accessor-for #f 'get type) object jfield))))))
 
 (define (make-field-setter static type jclass jfield)
-	(if static
-		(lambda (value)
-			((field-accessor-for #t 'set type) jclass jfield value))
-		(lambda (object value)
-			((field-accessor-for #f 'set type) object jfield value))))
+  (if static
+    (lambda (value)
+      ((field-accessor-for #t 'set type) jclass jfield value))
+    (lambda (object value)
+      ((field-accessor-for #f 'set type) object jfield value))))
 
 (define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
@@ -171,8 +171,8 @@
 ; convenient macro to access jlambda-field-imple
 (define-syntax jlambda-field
   (syntax-rules ()
-  	((_ modifiers type class-name field-name)
-  	 (jlambda-field-imple 'modifiers 'type 'class-name 'field-name))))
+    ((_ modifiers type class-name field-name)
+     (jlambda-field-imple 'modifiers 'type 'class-name 'field-name))))
 
 ; convenient macro to access find-class/or-error
 (define-syntax class
@@ -198,9 +198,9 @@
         (type    (string->symbol (jexception-type exception))))
       (exception-clear)
       (make-composite-condition
-				(make-property-condition 'exn)
-				(make-property-condition 'java 'trace trace 'message message 'type type)
-				(make-property-condition type))))
+        (make-property-condition 'exn)
+        (make-property-condition 'java 'trace trace 'message message 'type type)
+        (make-property-condition type))))
 
 (define java-exception? 
   (condition-predicate 'java))
@@ -228,7 +228,7 @@
 (current-exception-handler java-condition-handler)
 
 (define (check-jexception v)
-	(let ((e (exception-occurred)))
-		(if e
-			(abort (make-condition e))
-			v)))
+  (let ((e (exception-occurred)))
+    (if e
+      (abort (make-condition e))
+      v)))
