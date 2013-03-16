@@ -52,157 +52,77 @@
         (else     (prepare-local-jobject (call-object-method  object jmethod jvalues)))))
     (error 'call-method "method not found")))
 
-(define-syntax jvalue-zip
-  (er-macro-transformer
-    (lambda (x r c)
-      (let ((%let                 (r 'let))
-            (%error               (r 'error))
-            (%make-jvalue-array   (r 'make-jvalue-array))
-            (%set-boolean-jvalue! (r 'set-boolean-jvalue!))
-            (%set-byte-jvalue!    (r 'set-byte-jvalue!))
-            (%set-char-jvalue!    (r 'set-char-jvalue!))
-            (%set-int-jvalue!     (r 'set-int-jvalue!))
-            (%set-long-jvalue!    (r 'set-long-jvalue!))
-            (%set-float-jvalue!   (r 'set-float-jvalue!))
-            (%set-double-jvalue!  (r 'set-double-jvalue!))
-            (%set-object-jvalue!  (r 'set-object-jvalue!))
-            (%if                  (r 'if))
-            (%car                 (r 'car))
-            (%string?             (r 'string?))
-            (%jstring             (r 'jstring))
-            (argument-types       (cadr x))
-            (argument-names       (caddr x)))
+(define (build-jvalues argument-types args)
+  (let ((jvalues (make-jvalue-array (length argument-types))))
+    (for-each (lambda (type arg index)
+                (case type
+                  ((boolean) (set-boolean-jvalue! jvalues index arg))
+                  ((byte)    (set-byte-jvalue!    jvalues index arg))
+                  ((char)    (set-char-jvalue!    jvalues index arg))
+                  ((short)   (set-short-jvalue!   jvalues index arg))
+                  ((int)     (set-int-jvalue!     jvalues index arg))
+                  ((long)    (set-long-jvalue!    jvalues index arg))
+                  ((float)   (set-float-jvalue!   jvalues index arg))
+                  ((double)  (set-double-jvalue!  jvalues index arg))
+                  ((java.lang.String java.lang.CharSequence java.lang.Object)
+                   (if (string? arg)
+                     (set-object-jvalue! jvalues index (jstring arg)) ;; wont be GCed :(
+                     (set-object-jvalue! jvalues index arg)))
+                  (else
+                    (set-object-jvalue! jvalues index arg))))
+              argument-types
+              args
+              (iota (length argument-types)))
+    jvalues))
 
-        `(,%let ((jvalues (,%make-jvalue-array ,(length argument-types))))
-                ,@(map (lambda (argument-type arg index)
-                         (case argument-type
-                           ((boolean) `(,%set-boolean-jvalue! jvalues ,index ,arg))
-                           ((byte)    `(,%set-byte-jvalue!    jvalues ,index ,arg))
-                           ((char)    `(,%set-char-jvalue!    jvalues ,index ,arg))
-                           ((short)   `(,%set-short-jvalue!   jvalues ,index ,arg))
-                           ((int)     `(,%set-int-jvalue!     jvalues ,index ,arg))
-                           ((long)    `(,%set-long-jvalue!    jvalues ,index ,arg))
-                           ((float)   `(,%set-float-jvalue!   jvalues ,index ,arg))
-                           ((double)  `(,%set-double-jvalue!  jvalues ,index ,arg))
-                           ((java.lang.String java.lang.CharSequence java.lang.Object)
-                            `(,%if (,%string? ,arg)
-                                   (,%set-object-jvalue! jvalues ,index (,%jstring ,arg)) ;; wont be GCed :(
-                                   (,%set-object-jvalue! jvalues ,index ,arg)))
-                           (else
-                             `(,%set-object-jvalue! jvalues ,index ,arg))))
-                       argument-types
-                       argument-names
-                       (iota (length argument-types))))))))
+(define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
+  (let* ((static       (static-signature? modifiers)))
+    (extend-procedure
+      (if static
+        (lambda args
+          (let* ((class-object (find-class/or-error class-type))
+                 (jmethod      (method static return-type class-type method-name argument-types))
+                 (jvalues      (build-jvalues argument-types args))
+                 (return-value (call-method modifiers class-object return-type jmethod jvalues)))
+            (free-jvalue-array jvalues)
+            (check-jexception return-value)))
+        (lambda (object . args)
+          (let* ((class-object (find-class/or-error class-type))
+                 (jmethod      (method static return-type class-type method-name argument-types))
+                 (jvalues      (build-jvalues argument-types args))
+                 (return-value (call-method modifiers object return-type jmethod jvalues)))
+            (free-jvalue-array jvalues)
+            (check-jexception return-value))))
+      argument-types)))
 
-(define-for-syntax (build-argument-names argument-types)
-  (map (lambda (arg-count)
-         (string->symbol (format "a~A" arg-count)))
-       (iota (length argument-types) 1 1)))
+(define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
+  (let* ((static       (static-signature? modifiers))
+         (class-object (find-class/or-error class-type))
+         (jmethod      (method static return-type class-type method-name argument-types)))
+    (extend-procedure
+      (if static
+        (lambda args
+          (let* ((jvalues      (build-jvalues argument-types args))
+                 (return-value (call-method modifiers class-object return-type jmethod jvalues)))
+            (free-jvalue-array jvalues)
+            (check-jexception return-value)))
+        (lambda (object . args)
+          (let* ((jvalues      (build-jvalues argument-types args))
+                 (return-value (call-method modifiers object return-type jmethod jvalues)))
+            (free-jvalue-array jvalues)
+            (check-jexception return-value))))
+      argument-types)))
 
-(define-syntax build-arguments-jvalue 
-  (er-macro-transformer
-    (lambda (x r c)
-      (let ((argument-types (cadr x))
-            (argument-names (caddr x)))
-      (if (null? argument-types) 
-        #f 
-        `(jvalue-zip ,argument-types ,argument-names))))))
-
-;; (jlambda-method [modifiers] CLASS RETURN-TYPE METHOD-NAME ARGS...) => lambda
-(define-syntax jlambda-method*
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%lambda               (r 'lambda))
-             (%let                  (r 'let*))
-             (%method               (r 'method))
-             (%static-method        (r 'static-method))
-             (%make-jvalue-array    (r 'make-jvalue-array))
-             (%free-jvalue-array    (r 'free-jvalue-array))
-             (modifiers             (cadr x))
-             (return-type           (caddr x))
-             (class-type            (cadddr x))
-             (method-name           (car (cddddr x)))
-             (argument-types        (cdr (cddddr x))))
-        (let* ((argument-names  (build-argument-names argument-types)))
-          `(,%let ((static       (static-signature? ',modifiers)))
-                  (extend-procedure
-                    (if static
-                      (,%lambda (,@argument-names)
-                                (,%let ((class-object (find-class/or-error ',class-type))
-                                        (jmethod      (method static
-                                                                    ',return-type ',class-type ',method-name ',argument-types))
-                                        (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                        (return-value (call-method ',modifiers class-object
-                                                                   ',return-type jmethod jvalues)))
-                                       (,%free-jvalue-array jvalues)
-                                       (check-jexception return-value)))
-                      (,%lambda (,@(append '(object) argument-names))
-                                (,%let ((class-object (find-class/or-error ',class-type))
-                                        (jmethod      (method static
-                                                                    ',return-type ',class-type ',method-name ',argument-types))
-                                        (jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                        (return-value (call-method ',modifiers object
-                                                                   ',return-type jmethod jvalues)))
-                                       (,%free-jvalue-array jvalues)
-                                       (check-jexception return-value))))
-                    ',argument-types)))))))
-
-(define-syntax jlambda-method
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%lambda               (r 'lambda))
-             (%let                  (r 'let*))
-             (%make-jvalue-array    (r 'make-jvalue-array))
-             (%free-jvalue-array    (r 'free-jvalue-array))
-             (modifiers             (cadr x))
-             (return-type           (caddr x))
-             (class-type            (cadddr x))
-             (method-name           (car (cddddr x)))
-             (argument-types        (cdr (cddddr x))))
-        (let* ((argument-names  (build-argument-names argument-types)))
-          `(,%let (
-                   (static       (static-signature? ',modifiers))
-                   (class-object (find-class/or-error ',class-type))
-                   (jmethod      (method static
-                                   ',return-type ',class-type ',method-name ',argument-types)))
-                  (extend-procedure
-                    (if static
-                      (,%lambda (,@argument-names)
-                                (,%let ((jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                        (return-value (call-method ',modifiers class-object
-                                                                   ',return-type jmethod jvalues)))
-                                       (,%free-jvalue-array jvalues)
-                                       (check-jexception return-value)))
-                      (,%lambda (,@(append '(object) argument-names))
-                                (,%let ((jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                        (return-value (call-method ',modifiers object
-                                                                   ',return-type jmethod jvalues)))
-                                       (,%free-jvalue-array jvalues)
-                                       (check-jexception return-value))))
-                    ',argument-types)))))))
-
-(define-syntax jlambda-constructor
-  (er-macro-transformer
-    (lambda (x r c)
-      (let ((%lambda                (r 'lambda))
-            (%let                   (r 'let*))
-            (%method                (r 'method))
-            (%make-jvalue-array     (r 'make-jvalue-array))
-            (%free-jvalue-array     (r 'free-jvalue-array))
-            (%check-jexception      (r 'check-jexception))
-            (%call-new              (r 'call-new))
-            (class-type             (cadr x))
-            (argument-types         (cddr x)))
-        (let* ((argument-names  (build-argument-names argument-types)))
-          `(,%let ((class-object (find-class/or-error ',class-type))
-                   (jmethod      (,%method #f 'void ',class-type '<init> ',argument-types)))
-              (extend-procedure
-                (,%lambda (,@argument-names)
-                          (,%let ((jvalues      (build-arguments-jvalue ,argument-types ,argument-names))
-                                  (return-value (,%call-new class-object jmethod jvalues)))
-                                 (,%free-jvalue-array jvalues)
-                                 (check-jexception return-value)))
-                ',argument-types)))))))
+(define (jlambda-constructor-imple class-type argument-types)
+  (let ((class-object (find-class/or-error class-type))
+        (jmethod      (method #f 'void class-type '<init> argument-types)))
+    (extend-procedure
+      (lambda args
+        (let* ((jvalues      (build-jvalues argument-types args))
+               (return-value (call-new class-object jmethod jvalues)))
+          (free-jvalue-array jvalues)
+          (check-jexception return-value)))
+      argument-types)))
 
 (define (field-accessor-for static accessor-type type)
   (let* ((accessor-type (symbol->string accessor-type))
@@ -228,7 +148,7 @@
 			((field-accessor-for #f 'set type) object jfield value))))
 
 ; jlambda-field implementation
-(define (jlambda-field* modifiers type class-name field-name)
+(define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
          (signature      (type-signature type))
          (static         (static-signature? modifiers))
@@ -242,11 +162,26 @@
         field-fullname)
       (error 'field "field not found"))))
 
-; convenient macro to access jlambda-field*
+(define-syntax jlambda-method
+  (syntax-rules ()
+    ((_ modifiers return-type class-type method-name argument-types ...)
+     (jlambda-method-imple 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
+
+(define-syntax jlambda-method*
+  (syntax-rules ()
+    ((_ modifiers return-type class-type method-name argument-types ...)
+     (jlambda-method-imple* 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
+
+(define-syntax jlambda-constructor
+  (syntax-rules ()
+    ((_ class argument-types ...)
+     (jlambda-constructor-imple 'class '(argument-types ...)))))
+
+; convenient macro to access jlambda-field-imple
 (define-syntax jlambda-field
   (syntax-rules ()
   	((_ modifiers type class-name field-name)
-  	 (jlambda-field* 'modifiers 'type 'class-name 'field-name))))
+  	 (jlambda-field-imple 'modifiers 'type 'class-name 'field-name))))
 
 (define (join-class-pkg pkg class)
   (symbol-append (string->symbol pkg) '|.| class))
@@ -309,7 +244,7 @@
     (jstring->string (m exception))))
 
 (define (jexception-type exception)
-  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
+  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
     (jstring->string (m exception))))
 
 (define (make-condition exception)
