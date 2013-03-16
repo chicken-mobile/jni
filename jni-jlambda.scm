@@ -69,24 +69,24 @@
               (iota (length argument-types)))
     jvalues))
 
+(define (make-caller argument-types modifiers return-type jmethod)
+  (lambda (args instance)
+    (let* ((jvalues      (build-jvalues argument-types args))
+           (return-value (call-method modifiers instance return-type jmethod jvalues)))
+      (free-jvalue-array jvalues)
+      (check-jexception return-value))))
+
 (define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
   (let* ((static       (static-signature? modifiers)))
     (extend-procedure
-      (if static
-        (lambda args
-          (let* ((class-object (find-class/or-error class-type))
-                 (jmethod      (method static return-type class-type method-name argument-types))
-                 (jvalues      (build-jvalues argument-types args))
-                 (return-value (call-method modifiers class-object return-type jmethod jvalues)))
-            (free-jvalue-array jvalues)
-            (check-jexception return-value)))
-        (lambda (object . args)
-          (let* ((class-object (find-class/or-error class-type))
-                 (jmethod      (method static return-type class-type method-name argument-types))
-                 (jvalues      (build-jvalues argument-types args))
-                 (return-value (call-method modifiers object return-type jmethod jvalues)))
-            (free-jvalue-array jvalues)
-            (check-jexception return-value))))
+      (let ((do-call (lambda (args instance)
+                       (let* ((jmethod (method static return-type class-type method-name argument-types)))
+                         ((make-caller argument-types modifiers return-type jmethod) args instance)))))
+        (if static
+          (lambda args 
+            (do-call args (find-class/or-error class-type)))
+          (lambda (object . args) 
+            (do-call args object))))
       argument-types)))
 
 (define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
@@ -94,18 +94,13 @@
          (class-object (find-class/or-error class-type))
          (jmethod      (method static return-type class-type method-name argument-types)))
     (extend-procedure
-      (if static
-        (lambda args
-          (let* ((jvalues      (build-jvalues argument-types args))
-                 (return-value (call-method modifiers class-object return-type jmethod jvalues)))
-            (free-jvalue-array jvalues)
-            (check-jexception return-value)))
-        (lambda (object . args)
-          (let* ((jvalues      (build-jvalues argument-types args))
-                 (return-value (call-method modifiers object return-type jmethod jvalues)))
-            (free-jvalue-array jvalues)
-            (check-jexception return-value))))
-      argument-types)))
+      (let ((do-call (make-caller argument-types modifiers return-type jmethod)))
+        (if static
+          (lambda args 
+            (do-call args class-object))
+          (lambda (object . args) 
+            (do-call args object))))
+        argument-types)))
 
 (define (jlambda-constructor-imple class-type argument-types)
   (let ((class-object (find-class/or-error class-type))
