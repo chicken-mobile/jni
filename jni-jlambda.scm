@@ -4,12 +4,6 @@
 					 (eq? (strip-syntax x) 'static)) modifiers)
 		modifiers))
 
-(define-syntax class
-  (ir-macro-transformer
-    (lambda (x i c)
-      (let ((name (strip-syntax (cadr x))))
-        `(find-class/or-error ',name)))))
-
 (define (method static return class-name name args)
   (let* ((class-object   (find-class/or-error class-name))
          (return         (if (primitive? return) return (class->type (find-class/or-error return))))
@@ -147,7 +141,6 @@
 		(lambda (object value)
 			((field-accessor-for #f 'set type) object jfield value))))
 
-; jlambda-field implementation
 (define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
          (signature      (type-signature type))
@@ -162,16 +155,19 @@
         field-fullname)
       (error 'field "field not found"))))
 
+; convenient macro to access jlambda-method-imple
 (define-syntax jlambda-method
   (syntax-rules ()
     ((_ modifiers return-type class-type method-name argument-types ...)
      (jlambda-method-imple 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
 
+; convenient macro to access jlambda-method-imple*
 (define-syntax jlambda-method*
   (syntax-rules ()
     ((_ modifiers return-type class-type method-name argument-types ...)
      (jlambda-method-imple* 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
 
+; convenient macro to access jlambda-constructor-imple
 (define-syntax jlambda-constructor
   (syntax-rules ()
     ((_ class argument-types ...)
@@ -183,57 +179,11 @@
   	((_ modifiers type class-name field-name)
   	 (jlambda-field-imple 'modifiers 'type 'class-name 'field-name))))
 
-(define (join-class-pkg pkg class)
-  (symbol-append (string->symbol pkg) '|.| class))
-
-(define (make-import-table imports)
-  (let loop ((imports imports)
-             (classes '())
-             (pkgs    '()))
-    (if (null? imports)
-      (append classes (list (cons '* pkgs)))
-      (let* ((import   (car imports))
-             (pkg      (symbol->string (car import)))
-             (s-class  (cadr import)))
-        (if (eq? s-class '*)
-          (loop (cdr imports) classes (cons pkg pkgs))
-          (loop (cdr imports) 
-                (if (list? s-class)
-                  (append (map (lambda (x) (cons x (join-class-pkg pkg x))) s-class) classes)
-                  (cons (cons s-class (join-class-pkg pkg s-class)) classes))
-                pkgs))))))
-
-(define (find-class/by-pkgs find-class class pkgs)
-  (call/cc (lambda (found)
-             (fold (lambda (import _)
-                     (let* ((class-name   (join-class-pkg import class))
-                            (mangled-name (mangle-class-name class-name))
-                            (r            (find-class mangled-name)))
-                       (if r (found r) #f)))
-                   '() pkgs))))
-
-(define (find-class* import-table find-class class)
-  (let ((s-class (string->symbol class)))
-    (or (find-class class)
-        (let ((import (assq s-class import-table)))
-          (and import (find-class (mangle-class-name (cdr import)))))
-        (let ((pkgs (cdr (assq '* import-table))))
-          (and (not (null? pkgs))
-               (find-class/by-pkgs find-class s-class pkgs))))))
-
-(define-syntax import-java-ns 
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%let*        (r 'let*))
-             (%find-class  (r 'find-class))
-             (%find-class* (r 'find-class*))
-             (imports      (cadr x))
-             (body         (cddr x)))
-        `(,%let* ((old-find-class ,%find-class)
-                  (import-table   (make-import-table ',imports)))
-                 (set! find-class (lambda (c) (,%find-class* import-table old-find-class c)))
-                 ,@body
-                 (set! find-class old-find-class))))))
+; convenient macro to access find-class/or-error
+(define-syntax class
+  (syntax-rules ()
+    ((_ name)
+     (find-class/or-error 'name))))
 
 (define (jexception-trace exception)
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))

@@ -12,6 +12,7 @@
 (include "jni-primitives.scm")
 (include "jni-defs.scm")
 (include "jni-jlambda.scm")
+(include "jni-import-ns.scm")
 (include "jni-reflection.scm")
 
 )
