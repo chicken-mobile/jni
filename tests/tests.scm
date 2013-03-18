@@ -40,6 +40,9 @@
     
 (define new-Foo (jlambda-constructor com.chicken_mobile.jni.test.Foo))
 
+(test-group "primitives"
+            (test-class com.chicken_mobile.jni.test.Foo (get-object-class (new-Foo))))
+
 (test-group "class"
             (test-class java.lang.System (class java.lang.System))
             (test-error #f (class System)))
@@ -85,6 +88,7 @@
 (test-group "jlambda-method"
             ;test #(..) signature, if not defined raises an error
             (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods)
+
             (define jstring-value-of
               (jlambda-method (static) java.lang.String java.lang.String valueOf int))
 
@@ -103,7 +107,6 @@
             (test #f (exception-check))
             (test-error "method not found" (jlambda-method (static) boolean java.lang.String hi))
             (test #f (exception-check))
-
             ); end jlambda-method test group
 
 (test-group "jlambda-constructor"
