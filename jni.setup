@@ -38,12 +38,16 @@
 
   (cond-expand
    (android
-    (compile -s jni.scm -J)
-    (compile -s jni.import.scm))
+    (compile -s jni-dvm.scm -J)
+    (compile -s jni-dvm.import.scm)
+    (compile -s jni-jvm.scm -J)
+    (compile -s jni-jvm.import.scm))
    (else
-    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni.scm -J)
-    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni.import.scm))))
+    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni-dvm.scm -J)
+    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni-dvm.import.scm)
+    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni-jvm.scm -J)
+    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni-jvm.import.scm))))
 
 (install-extension 'jni
-  '("jni.so" "jni.import.so")
+  '("jni-jvm.so" "jni-jvm.import.so" "jni-dvm.so" "jni-dvm.import.so")
   '((version "0.1")))
