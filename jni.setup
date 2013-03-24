@@ -9,7 +9,6 @@
         (exit 1))))
 
 (let* ((java-path (require-envvar "JAVA_HOME"))
-       (ndk-libdir (require-envvar "NDK_LIBDIR"))
        (java-include-path (string-append java-path "/include/"))
        (libjvm-path
         (if (host-extension)
@@ -34,7 +33,7 @@
                     (if (file-exists? client-jvm-path)
                         client-jvm-path
                         (error 'jni "could not find libjvm :("))))))
-            ndk-libdir)))
+            (require-envvar "NDK_LIBDIR"))))
 
   (cond-expand
    (android
