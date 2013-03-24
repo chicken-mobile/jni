@@ -37,7 +37,7 @@
          "/jre/lib/i386/client/")))
       (require-envvar "NDK_LIBDIR")))
 
-(define-syntax compile/jvm
+(define-syntax compile/non-android
   (ir-macro-transformer
    (lambda (x i c)
      `(compile ,',(string-append "-L" libjvm-path)
@@ -50,8 +50,8 @@
   (compile -s jni.scm -J)
   (compile -s jni.import.scm))
  (else
-  (compile/jvm -s jni.scm -J)
-  (compile/jvm -s jni.import.scm)))
+  (compile/non-android -s jni.scm -J)
+  (compile/non-android -s jni.import.scm)))
 
 (install-extension 'jni
   '("jni.so" "jni.import.so")
