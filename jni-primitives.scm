@@ -188,11 +188,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 		(jvm-option-string-set! class-path-option (string-append "-Djava.class.path=" class-path))
 
 		(let-location ((jvm java-vm)
-									 (env jni-env))
-
-									(jvm-create (location jvm) (location env) args)
-									(java-vm jvm)
-									(jni-env env))))
+                   (env jni-env))
+                  (jvm-create (location jvm) (location env) args)
+                  (jni-env env)
+                  (java-vm jvm))))
 
 (define (primitive? type)
   (member type '(void boolean byte char short int long float double)))
