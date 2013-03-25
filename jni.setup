@@ -1,5 +1,7 @@
 ;; -*- scheme -*-
 
+(use files srfi-1)
+
 (define (require-envvar var)
   (let ((val (get-environment-variable var)))
     (or val
@@ -8,41 +10,48 @@
             (printf "\n\n=== Please, set the ~a environment variable. ===\n\n" var)))
         (exit 1))))
 
-(let* ((java-path (require-envvar "JAVA_HOME"))
-       (ndk-libdir (require-envvar "NDK_LIBDIR"))
-       (java-include-path (string-append java-path "/include/"))
-       (libjvm-path
-        (if (host-extension)
-            (cond-expand
-             (x86-64
-              (let* ((server-jvm-path (string-append java-path "/jre/lib/amd64/server/"))
-                     (server-jvm-path (if (file-exists? server-jvm-path) server-jvm-path
-                                          (string-append java-path "/jre/lib/x64/server/")))
-                     (client-jvm-path (string-append java-path "/jre/lib/amd64/client/"))
-                     (client-jvm-path (if (file-exists? client-jvm-path) client-jvm-path
-                                          (string-append java-path "/jre/lib/x64/client/"))))
-                (if (file-exists? server-jvm-path)
-                    server-jvm-path
-                    (if (file-exists? client-jvm-path)
-                        client-jvm-path
-                        (error 'jni "could not find libjvm :(")))))
-             (x86
-              (let* ((server-jvm-path (string-append java-path "/jre/lib/i386/client/"))
-                     (client-jvm-path (string-append java-path "/jre/lib/i386/client/")))
-                (if (file-exists? server-jvm-path)
-                    server-jvm-path
-                    (if (file-exists? client-jvm-path)
-                        client-jvm-path
-                        (error 'jni "could not find libjvm :("))))))
-            ndk-libdir)))
 
-  (cond-expand
-   (android
-    (compile -s jni.scm -J)
-    (compile -s jni.import.scm))
-   (else
-    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni.scm -J)
-    (compile ,(string-append "-L" libjvm-path) ,@(if (host-extension) '(-ljvm) '()) -s ,(string-append "-I" java-include-path) jni.import.scm))))
+(define java-path
+  (require-envvar "JAVA_HOME"))
+
+(define (choose-libjvm-path . jvm-paths)
+  (let ((candidates
+         (map (lambda (jvm-path)
+                (make-pathname java-path jvm-path))
+              jvm-paths)))
+    (or (find file-exists? candidates)
+        (error 'jni "could not find libjvm" candidates))))
+
+(define libjvm-path
+  (if (host-extension)
+      (cond-expand
+       (x86-64
+        (choose-libjvm-path
+         "/jre/lib/amd64/server/"
+         "/jre/lib/x64/server/"
+         "/jre/lib/amd64/client/"
+         "/jre/lib/x64/client/"))
+       (x86
+        (choose-libjvm-path
+         "/jre/lib/i386/server/"
+         "/jre/lib/i386/client/")))
+      (require-envvar "NDK_LIBDIR")))
+
+(define-syntax compile/non-android
+  (ir-macro-transformer
+   (lambda (x i c)
+     `(compile ,',(string-append "-L" libjvm-path)
+               ,',@(if (host-extension) '(-ljvm) '())
+               ,',(string-append "-I" (make-pathname java-path "/include/"))
+               . ,(cdr x)))))
+
+(cond-expand
+ (android
+  (compile -s jni.scm -J)
+  (compile -s jni.import.scm))
+ (else
+  (compile/non-android -s jni.scm -J)
+  (compile/non-android -s jni.import.scm)))
 
 (install-extension 'jni
   '("jni.so" "jni.import.so")
