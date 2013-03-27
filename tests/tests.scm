@@ -1,4 +1,4 @@
-(use jni lolevel expand-full moremacros srfi-13 test)
+(use jni-jvm lolevel expand-full moremacros srfi-13 test)
 
 ;; Foo.java
 ;; 
@@ -45,7 +45,7 @@
 
 (test-group "class"
             (test-class java.lang.System (class java.lang.System))
-            (test-error #f (class System)))
+            (test-error (class System)))
 
 (test-group "jlambda-field"
 
