@@ -25,9 +25,9 @@
 (jvm-init "tests/test.jar:java/misc-utils.jar")
 
 (define-syntax test-jstring
-	(syntax-rules ()
-		((_ str jstring)
-		 (test str (jstring->string jstring)))))
+  (syntax-rules ()
+    ((_ str jstring)
+     (test str (jstring->string jstring)))))
 
 (define-syntax test-class
   (syntax-rules ()
@@ -118,74 +118,80 @@
             ); end jlambda-constructor test group
 
 (test-group "import-java-ns"
-            (import-java-ns ((java.lang String))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test #f (class OtherString)))
+            (import-java-ns ((java.lang String)))
+
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test #f (class OtherString))
+
+            (import-table #f) ; reset import-table
 
             (import-java-ns ((java.lang *)
-                             (com.chicken_mobile.jni.test *))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test-class java.lang.System (class System))
-                            (test-class java.lang.Short (class Short))
-                            (test #f (class OtherString)))
+                             (com.chicken_mobile.jni.test *)))
 
-            (import-java-ns ((java.lang (String System)))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test-class java.lang.System (class System))
-                            (test #f (class Short)))
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test-class java.lang.System (class System))
+            (test-class java.lang.Short (class Short))
+            (test #f (class OtherString))
+
+            (import-table #f) ; reset import-table
+
+            (import-java-ns ((java.lang (String System))))
+
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test-class java.lang.System (class System))
+            (test #f (class Short))
+
+            (import-table #f) ; reset import-table
 
             (import-java-ns ((java.lang *)
-                             (com.chicken_mobile.jni.test *))
+                             (com.chicken_mobile.jni.test *)))
 
-                            (let ((jstring-value-of 
-                                    (jlambda-method (static) java.lang.String java.lang.String valueOf int)))
-                              (test-jstring "11" (jstring-value-of 11)))
-
-                            (let ((jstring-value-of 
-                                    (jlambda-method (static) String String valueOf int)))
-                              (test-jstring "11" (jstring-value-of 11))))
+            (let ((jstring-value-of (jlambda-method (static) java.lang.String java.lang.String valueOf int))
+                  (jstring-value-of2 (jlambda-method (static) String String valueOf int)))
+              (test-jstring "11" (jstring-value-of 11))
+              (test-jstring "11" (jstring-value-of2 11)))
 
             ); end import-java-ns test group
 
 (test-group "exceptions"
 
-						(define (exception-thunk)
-							(let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
-										(o (new-Foo)))
-								(foo-xxx o)))
+            (define (exception-thunk)
+              (let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
+                    (o (new-Foo)))
+                (foo-xxx o)))
 
-						(call/cc
-							(lambda (k)
-								(with-exception-handler (lambda (exception) 
-																					(test #t (java-exception? exception))
-																					(test "bad protocol" (java-exception-message exception))
-																					(test 'java.lang.RuntimeException (java-exception-type exception))
-																					(test #f (exception-check))
-																					(k '()))
-																				exception-thunk)))
+            (call/cc
+              (lambda (k)
+                (with-exception-handler (lambda (exception) 
+                                          (test #t (java-exception? exception))
+                                          (test "bad protocol" (java-exception-message exception))
+                                          (test 'java.lang.RuntimeException (java-exception-type exception))
+                                          (test #f (exception-check))
+                                          (k '()))
+                                        exception-thunk)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java java.lang.RuntimeException) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java java.lang.RuntimeException) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java.lang.RuntimeException) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java.lang.RuntimeException) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((java) #t)
-										(var () #f)))
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((java) #t)
+                    (var () #f)))
 
-						(test "exception match" #t
-									(condition-case (exception-thunk)
-										((exn)  #t)
-										(var () #f)))
-						); end exceptions test group
+            (test "exception match" #t
+                  (condition-case (exception-thunk)
+                    ((exn)  #t)
+                    (var () #f)))
+            ); end exceptions test group
 
 (test-exit)
