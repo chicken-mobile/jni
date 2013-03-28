@@ -18,8 +18,56 @@
 (define find-class/jni
   (jni-env-lambda jclass FindClass (const c-string)))
 
-(define (find-class c)
-	(invoke-jni/safe (lambda () (find-class/jni c))))
+(define (join-class-pkg pkg class)
+  (symbol-append (string->symbol pkg) '|.| class))
+
+(define (make-import-table imports)
+  (let loop ((imports imports)
+             (classes '())
+             (pkgs    '()))
+    (if (null? imports)
+      (append classes (list (cons '* pkgs)))
+      (let* ((import   (car imports))
+             (pkg      (symbol->string (car import)))
+             (s-class  (cadr import)))
+        (if (eq? s-class '*)
+          (loop (cdr imports) classes (cons pkg pkgs))
+          (loop (cdr imports) 
+                (if (list? s-class)
+                  (append (map (lambda (x) (cons x (join-class-pkg pkg x))) s-class) classes)
+                  (cons (cons s-class (join-class-pkg pkg s-class)) classes))
+                pkgs))))))
+
+(define (find-class/by-pkgs find-class class pkgs)
+  (call/cc (lambda (found)
+             (fold (lambda (import _)
+                     (let* ((class-name   (join-class-pkg import class))
+                            (mangled-name (mangle-class-name class-name))
+                            (r            (find-class mangled-name)))
+                       (if r (found r) #f)))
+                   '() pkgs))))
+
+(define import-table (make-parameter #f))
+
+(define (find-class class)
+  (invoke-jni/safe 
+    (lambda () 
+      (if (import-table)
+        (let ((s-class (string->symbol class)))
+          (or (find-class/jni class)
+              (let ((import (assq s-class (import-table))))
+                (and import 
+                     (find-class/jni (mangle-class-name (cdr import)))))
+              (let ((pkgs (cdr (assq '* (import-table)))))
+                (and (not (null? pkgs))
+                     (find-class/by-pkgs find-class/jni s-class pkgs)))))
+        (find-class/jni class)))))
+
+(define (find-class/or-error name)
+  (let ((class (find-class (mangle-class-name name))))
+    (if class
+      class
+      (error 'find-class/or-error "class not found" name))))
 
 (define super-class
   (jni-env-lambda jclass GetSuperclass jclass))
@@ -179,12 +227,6 @@
 					 (string->symbol (string-drop class-str (string-length "class "))))
 					(#t
 					 (string->symbol class-str)))))
-
-(define (find-class/or-error name)
-  (let ((class (find-class (mangle-class-name name))))
-    (if class
-      class
-      (error 'find-class/or-error "class not found" name))))
 
 (define to-string
   (lambda (object)

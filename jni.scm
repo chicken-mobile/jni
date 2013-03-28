@@ -17,12 +17,6 @@
         (jlambda)
         (import scheme chicken)
         (reexport jni-lolevel)
-        (use jni-lolevel data-structures)
-        (import-for-syntax jni-lolevel)
-
-        (begin-for-syntax
-          (import-for-syntax jni-lolevel chicken scheme)
-          (require-library jni-lolevel))
         (include "jni-highlevel.scm"))
 
 (module jni-dvm

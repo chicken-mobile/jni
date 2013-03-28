@@ -1,3 +1,9 @@
+(import-for-syntax jni-lolevel)
+
+(begin-for-syntax
+  (import-for-syntax jni-lolevel chicken scheme)
+  (require-library jni-lolevel))
+
 (define-for-syntax (find-Method-parameter-types Method)
   (map class->type (array->list (Method.getParameterTypes Method))))
 

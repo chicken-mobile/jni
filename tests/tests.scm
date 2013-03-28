@@ -132,35 +132,41 @@
             ); end jlambda-constructor test group
 
 (test-group "import-java-ns"
-            (import-java-ns ((java.lang String))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test-error (class OtherString)))
+            (import-java-ns ((java.lang String)))
+
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test-error (class OtherString))
+
+            (import-table #f) ; reset import-table
 
             (import-java-ns ((java.lang *)
-                             (com.chicken_mobile.jni.test *))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test-class java.lang.System (class System))
-                            (test-class java.lang.Short (class Short))
-                            (test-error (class OtherString)))
+                             (com.chicken_mobile.jni.test *)))
 
-            (import-java-ns ((java.lang (String System)))
-                            (test-class java.lang.String (class java.lang.String))
-                            (test-class java.lang.String (class String))
-                            (test-class java.lang.System (class System))
-                            (test-error (class Short)))
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test-class java.lang.System (class System))
+            (test-class java.lang.Short (class Short))
+            (test-error (class OtherString))
+
+            (import-table #f) ; reset import-table
+
+            (import-java-ns ((java.lang (String System))))
+
+            (test-class java.lang.String (class java.lang.String))
+            (test-class java.lang.String (class String))
+            (test-class java.lang.System (class System))
+            (test-error (class OtherString))
+
+            (import-table #f) ; reset import-table
 
             (import-java-ns ((java.lang *)
-                             (com.chicken_mobile.jni.test *))
+                             (com.chicken_mobile.jni.test *)))
 
-                            (let ((jstring-value-of 
-                                    (jlambda-method (static) java.lang.String java.lang.String valueOf int)))
-                              (test-jstring "11" (jstring-value-of 11)))
-
-                            (let ((jstring-value-of 
-                                    (jlambda-method (static) String String valueOf int)))
-                              (test-jstring "11" (jstring-value-of 11))))
+            (let ((jstring-value-of (jlambda-method (static) java.lang.String java.lang.String valueOf int))
+                  (jstring-value-of2 (jlambda-method (static) String String valueOf int)))
+              (test-jstring "11" (jstring-value-of 11))
+              (test-jstring "11" (jstring-value-of2 11)))
 
             ); end import-java-ns test group
 
