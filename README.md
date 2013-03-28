@@ -96,7 +96,7 @@ Same as jlambda-field macro, but avoid class and field checking until the
 invocation, this way the jvm is not invoked in expansion time.
 
 #### import-java-ns
-    [macro] (import-java-ns ((PACKAGE-FROM IMPORT) ...) BODY...)
+    [macro] (import-java-ns ((PACKAGE-FROM IMPORT) ...))
 
 IMPORT could be: 
 
@@ -108,7 +108,7 @@ Example:
 
     (import-java-ns ((java.lang *)
                      (java.lang (System String))
-                     (com.bevuta.testapp Foo))
+                     (com.bevuta.testapp Foo)))
 		(class String)
 		(class System)
 		(class Foo))
