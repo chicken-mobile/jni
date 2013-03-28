@@ -125,12 +125,6 @@
 (define-foreign-variable JNI_VERSION_1_4 int)
 (define-foreign-variable JNI_VERSION_1_6 int)
 
-(define-foreign-record-type (jvm-option "JavaVMOption")
-  (constructor: make-jvm-option)
-  (destructor: free-jvm-option)
-  (c-string  optionString jvm-option-string jvm-option-string-set!)
-  ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
-
 (define jvm-destroy
   (foreign-lambda* jint ((java-vm jvm))
     "C_return((*jvm)->DestroyJavaVM(jvm));"))

@@ -1,4 +1,5 @@
 (use jni-jvm lolevel expand-full moremacros srfi-13 test)
+(import-for-syntax test)
 
 ;; Foo.java
 ;; 
@@ -27,6 +28,11 @@
 ;;  }
 
 (jvm-init "tests/test.jar:java/misc-utils.jar")
+
+(begin-for-syntax
+  (import chicken)
+  (unless (jni-env)
+    (jvm-init "tests/test.jar:java/misc-utils.jar")))
 
 (define-syntax test-jstring
   (syntax-rules ()
@@ -201,7 +207,7 @@
             ); end exceptions test group
 
 (test-group "jlambda"
-            ;;jlambda class
+            ;jlambda class
             (test-class java.lang.System (jlambda java.lang.System))
 
             ;; jlambda field
@@ -211,12 +217,14 @@
               (set! (foo-number o) 300)
               (test 300 (foo-number o)))
 
-            ;;invalid 
-            (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2))
+            ;;;invalid 
+            (begin-for-syntax
+              (require-library test)
+              (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
 
-            ;TODO: temp until jlambda-methods is ready
-            (test '((java.nio.charset.Charset) (java.lang.String) (int #(byte) int int) ())
-                  (jlambda java.lang.String getBytes))
+            ;;TODO: temp until jlambda-methods is ready
+            ;(test '((java.nio.charset.Charset) (java.lang.String) (int #(byte) int int) ())
+                  ;(jlambda java.lang.String getBytes))
             ); end jlambda test group
 
 (test-exit)

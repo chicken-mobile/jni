@@ -46,16 +46,19 @@
 
 (cond-expand
  (android
+  (compile -s jni.scm -J)
   (compile -s jni-jvm.scm -J)
   (compile -s jni-jvm.import.scm)
   (compile -s jni-dvm.scm -J)
   (compile -s jni-dvm.import.scm))
  (else
-  (compile/non-android -s jni-jvm.scm -J)
-  (compile/non-android -s jni-jvm.import.scm)
-  (compile/non-android -s jni-dvm.scm -J)
-  (compile/non-android -s jni-dvm.import.scm)))
+  (compile/non-android -s jni.scm -J -o jni-jvm.so)
+  (file-copy "jni-jvm.so" "jni-dvm.so")
+	(compile/non-android -s jni-lolevel.import.scm)
+	(compile/non-android -s jni-highlevel.import.scm)
+	(compile/non-android -s jni-jvm.import.scm)
+	(compile/non-android -s jni-dvm.import.scm)))
 
 (install-extension 'jni
-  '("jni-jvm.so" "jni-jvm.import.so" "jni-dvm.so" "jni-dvm.import.so")
+  '("jni-dvm.import.so" "jni-highlevel.import.so" "jni-jvm.import.so" "jni-lolevel.import.so" "jni-jvm.so" "jni-dvm.so")
   '((version "0.1")))

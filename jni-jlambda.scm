@@ -113,6 +113,10 @@
           (check-jexception return-value)))
       argument-types)))
 
+;;TODO
+(define (jlambda-methods types)
+  (print types))
+
 (define (field-accessor-for static accessor-type type)
 	(if (eq? accessor-type 'get)
 		(case type
