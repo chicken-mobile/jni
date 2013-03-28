@@ -46,35 +46,38 @@
         (else     (prepare-local-jobject (call-object-method  object jmethod jvalues)))))
     (error 'call-method "method not found")))
 
-(define (build-jvalues argument-types args)
-  (let ((jvalues (make-jvalue-array (length argument-types))))
-    (for-each (lambda (type arg index)
-                (case type
-                  ((boolean) (set-boolean-jvalue! jvalues index arg))
-                  ((byte)    (set-byte-jvalue!    jvalues index arg))
-                  ((char)    (set-char-jvalue!    jvalues index arg))
-                  ((short)   (set-short-jvalue!   jvalues index arg))
-                  ((int)     (set-int-jvalue!     jvalues index arg))
-                  ((long)    (set-long-jvalue!    jvalues index arg))
-                  ((float)   (set-float-jvalue!   jvalues index arg))
-                  ((double)  (set-double-jvalue!  jvalues index arg))
-                  ((java.lang.String java.lang.CharSequence java.lang.Object)
-                   (if (string? arg)
-                     (set-object-jvalue! jvalues index (jstring arg)) ;; wont be GCed :(
-                     (set-object-jvalue! jvalues index arg)))
-                  (else
-                    (set-object-jvalue! jvalues index arg))))
-              argument-types
-              args
-              (iota (length argument-types)))
-    jvalues))
+(define (make-jvalue-builder argument-types)
+  (let* ((setters (map (lambda (type index)
+                         (case type
+                           ((boolean) (cut set-boolean-jvalue! <> index <>))
+                           ((byte)    (cut set-byte-jvalue! <> index <>))   
+                           ((char)    (cut set-char-jvalue! <> index <>))   
+                           ((short)   (cut set-short-jvalue! <> index <>))  
+                           ((int)     (cut set-int-jvalue! <> index <>))    
+                           ((long)    (cut set-long-jvalue! <> index <>))   
+                           ((float)   (cut set-float-jvalue! <> index <>))  
+                           ((double)  (cut set-double-jvalue! <> index <>)) 
+                           (else
+                            (cut set-object-jvalue! <> index <>))))
+                       argument-types
+                       (iota (length argument-types)))))
+    (lambda (args)
+      (let ((jvalues (make-jvalue-array (length argument-types))))
+        (for-each (lambda (type-setter! arg)
+                    (if (string? arg)
+                      (type-setter! jvalues (jstring arg)) ;; wont be GCed :(
+                      (type-setter! jvalues arg)))
+                  setters
+                  args)
+        jvalues))))
 
 (define (make-caller argument-types modifiers return-type jmethod)
-  (lambda (args instance)
-    (let* ((jvalues      (build-jvalues argument-types args))
-           (return-value (call-method modifiers instance return-type jmethod jvalues)))
-      (free-jvalue-array jvalues)
-      (check-jexception return-value))))
+  (let ((jvalue-builder (make-jvalue-builder argument-types)))
+    (lambda (args instance)
+      (let* ((jvalues      (jvalue-builder args))
+             (return-value (call-method modifiers instance return-type jmethod jvalues)))
+        (free-jvalue-array jvalues)
+        (check-jexception return-value)))))
 
 (define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
   (let* ((static       (static-signature? modifiers)))
@@ -92,22 +95,23 @@
 (define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
   (let* ((static       (static-signature? modifiers))
          (class-object (find-class/or-error class-type))
-         (jmethod      (method static return-type class-type method-name argument-types)))
+         (jmethod      (method static return-type class-type method-name argument-types))
+         (caller       (make-caller argument-types modifiers return-type jmethod)))
     (extend-procedure
-      (let ((do-call (make-caller argument-types modifiers return-type jmethod)))
-        (if static
-          (lambda args 
-            (do-call args class-object))
-          (lambda (object . args) 
-            (do-call args object))))
-        argument-types)))
+      (if static
+        (lambda args 
+          (caller args class-object))
+        (lambda (object . args) 
+          (caller args object)))
+      argument-types)))
 
 (define (jlambda-constructor-imple class-type argument-types)
   (let ((class-object (find-class/or-error class-type))
-        (jmethod      (method #f 'void class-type '<init> argument-types)))
+        (jmethod      (method #f 'void class-type '<init> argument-types))
+        (jvalue-builder (make-jvalue-builder argument-types)))
     (extend-procedure
       (lambda args
-        (let* ((jvalues      (build-jvalues argument-types args))
+        (let* ((jvalues      (jvalue-builder args))
                (return-value (call-new class-object jmethod jvalues)))
           (free-jvalue-array jvalues)
           (check-jexception return-value)))
@@ -142,19 +146,21 @@
 
 (define (make-field-getter static type jclass jfield)
   (let ((prepare (lambda (v) 
-                   (if (primitive? type) v (prepare-local-jobject v)))))
+                   (if (primitive? type) v (prepare-local-jobject v))))
+        (accessor (field-accessor-for static 'get type)))
     (if static
       (lambda () 
-        (prepare ((field-accessor-for #t 'get type) jclass jfield)))
+        (prepare (accessor jclass jfield)))
       (lambda (object)
-        (prepare ((field-accessor-for #f 'get type) object jfield))))))
+        (prepare (accessor object jfield))))))
 
 (define (make-field-setter static type jclass jfield)
-  (if static
-    (lambda (value)
-      ((field-accessor-for #t 'set type) jclass jfield value))
-    (lambda (object value)
-      ((field-accessor-for #f 'set type) object jfield value))))
+  (let ((accessor (field-accessor-for static 'set type)))
+    (if static
+      (lambda (value)
+        (accessor jclass jfield value))
+      (lambda (object value)
+        (accessor object jfield value)))))
 
 (define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
