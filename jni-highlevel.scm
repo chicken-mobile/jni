@@ -41,22 +41,17 @@
               #f)))
 
         (define-syntax jlambda 
-          (er-macro-transformer
-            (lambda (x r c)
-              (let* ((%let*                 (r 'let*))
-                     (%find-class/or-error  (r 'find-class/or-error))
-                     (%find-field           (r 'find-field))
-                     (%find-methods         (r 'find-methods))
-                     (%if                   (r 'if))
-                     (%null?                (r 'null?))
-                     (class-name            (cadr x))
+          (ir-macro-transformer
+            (lambda (x i c)
+              (let* (
+                     (class-name            (strip-syntax (cadr x)))
                      (rest                  (cddr x)))
                 (if (null? rest)
-                  `(,%find-class/or-error ',class-name)
-                  (let ((method/field (car rest)))
+                  `(find-class/or-error ',class-name)
+                  (let ((method/field (strip-syntax (car rest))))
                     (or (find-field class-name method/field)
                         (find-methods class-name method/field)
-                        (error 'jlambda "invalid jlambda expression")))))))))
+                        (error 'jlambda "invalid jlambda expression" x )))))))))
 
 (module jni-dvm
         ()
