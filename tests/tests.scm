@@ -29,11 +29,6 @@
 
 (jvm-init "tests/test.jar:java/misc-utils.jar")
 
-(begin-for-syntax
-  (import chicken)
-  (unless (jni-env)
-    (jvm-init "tests/test.jar:java/misc-utils.jar")))
-
 (define-syntax test-jstring
   (syntax-rules ()
     ((_ str jstring)

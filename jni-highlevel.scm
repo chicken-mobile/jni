@@ -3,7 +3,7 @@
 <#
 
 (module jni-highlevel
-        (jlambda)
+        (jlambda jvm-init)
         (import scheme chicken)
         (reexport jni-lolevel)
         (import-for-syntax jni-lolevel)
@@ -11,6 +11,15 @@
         (begin-for-syntax
           (import-for-syntax jni-lolevel chicken scheme)
           (require-library jni-lolevel))
+
+        (define-syntax jvm-init
+          (ir-macro-transformer
+            (lambda (x i c)
+              (let ((class-path  (if (null? (cdr x)) "." (cadr x))))
+                (if (not (jni-env))
+                  (jvm-init-lolevel class-path))
+                `(unless (jni-env) 
+                   (jvm-init-lolevel ,class-path))))))
 
         (define-for-syntax (find-Method-parameter-types Method)
           (map class->type (array->list (Method.getParameterTypes Method))))
@@ -43,9 +52,8 @@
         (define-syntax jlambda 
           (ir-macro-transformer
             (lambda (x i c)
-              (let* (
-                     (class-name            (strip-syntax (cadr x)))
-                     (rest                  (cddr x)))
+              (let* ((class-name  (strip-syntax (cadr x)))
+                     (rest        (cddr x)))
                 (if (null? rest)
                   `(find-class/or-error ',class-name)
                   (let ((method/field (strip-syntax (car rest))))

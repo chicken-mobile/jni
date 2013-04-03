@@ -33,7 +33,7 @@
         (define jvm-create
           (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
 
-        (define (jvm-init #!optional (class-path "."))
+        (define (jvm-init-lolevel #!optional (class-path "."))
           (let ((args (make-jvm-init-args))
                 (class-path-option (make-jvm-option)))
 

@@ -23,7 +23,7 @@ Pointer to JNIEnv structure
 ### Procedures and macros
 
 #### jvm-init
-    [procedure] (jvm-init [CLASS-PATH "."])
+    [macro] (jvm-init [CLASS-PATH "."])
 
 Initialize jni when chicken is expected to launch the jvm.
 
