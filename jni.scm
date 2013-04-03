@@ -2,24 +2,30 @@
 #include <jni.h>
 <#
 
-(module jni-highlevel
-        (jlambda jvm-init)
+(module jni
+        (jlambda)
         (import scheme chicken)
         (reexport jni-lolevel)
+
         (import-for-syntax jni-lolevel)
+        (use jni-lolevel)
 
         (begin-for-syntax
           (import-for-syntax jni-lolevel chicken scheme)
           (require-library jni-lolevel))
 
-        (define-syntax jvm-init
-          (ir-macro-transformer
-            (lambda (x i c)
-              (let ((class-path  (if (null? (cdr x)) "." (cadr x))))
-                (if (not (jni-env))
-                  (jvm-init-lolevel class-path))
-                `(unless (jni-env) 
-                   (jvm-init-lolevel ,class-path))))))
+        (cond-expand 
+          (android)
+          (else
+            (export jvm-init)
+            (define-syntax jvm-init
+              (ir-macro-transformer
+                (lambda (x i c)
+                  (let ((class-path  (if (null? (cdr x)) "." (cadr x))))
+                    (if (not (jni-env))
+                      (jvm-init-lolevel class-path))
+                    `(unless (jni-env) 
+                       (jvm-init-lolevel ,class-path))))))))
 
         (define-for-syntax (find-Method-parameter-types Method)
           (map class->type (array->list (Method.getParameterTypes Method))))
@@ -60,17 +66,3 @@
                     (or (find-field class-name method/field)
                         (find-methods class-name method/field)
                         (error 'jlambda "invalid jlambda expression" x )))))))))
-
-(module jni-dvm
-        ()
-        (import scheme chicken)
-        (reexport (except jni-highlevel jvm-get-default-init-args jvm-create jvm-init)))
-
-(module jni-jvm
-        (jvm-get-default-init-args jvm-create jvm-init)
-        (import chicken scheme foreign srfi-1 data-structures extras)
-        (import-for-syntax chicken jni-lolevel)
-        (use lolevel foreigners srfi-13)
-        (reexport jni-highlevel)
-        (use jni-lolevel)) ; end jni-jvm-module
-

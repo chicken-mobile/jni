@@ -1,4 +1,4 @@
-(use jni-jvm lolevel expand-full moremacros srfi-13 test)
+(use jni lolevel expand-full moremacros srfi-13 test)
 (import-for-syntax test)
 
 ;; Foo.java
