@@ -175,7 +175,7 @@
         (make-field-getter static type jclass jfield)
         (make-field-setter static type jclass jfield)
         field-fullname)
-      (error 'field "field not found"))))
+      (error 'field "field not found" field-name))))
 
 ; convenient macro to access jlambda-method-imple
 (define-syntax jlambda-method

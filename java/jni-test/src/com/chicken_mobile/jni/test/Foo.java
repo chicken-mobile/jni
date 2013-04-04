@@ -10,6 +10,8 @@ public class Foo {
 	public int number;
 	@SuppressWarnings("unused")
 	private int secret_number;
+	@SuppressWarnings("unused")
+	private final Bar bar = new Bar(11);
 
 	public Foo() {
 		number = 12;

@@ -79,11 +79,17 @@
                 (test 33 (foo-secret_number o))
                 (set! (foo-secret_number o) 55)
                 (test 55 (foo-secret_number o))))
+
             (test-error "class not found" (jlambda-field () int com.chicken_mobile.jni.test.AFoo secret_number))
             (test #f (exception-check))
             (test-error "field not found" (jlambda-field () int java.lang.String size))
             (test #f (exception-check))
 
+            (let ((foo (new-Foo))
+                  (Foo-bar (jlambda-field (private final) com.chicken_mobile.jni.test.Bar com.chicken_mobile.jni.test.Foo bar))
+                  (Bar-id (jlambda-field #f int com.chicken_mobile.jni.test.Bar id)))
+              (let* ((bar (Foo-bar foo)))
+                (test 11 (Bar-id bar))))
             ); end jlambda-field test group
 
 (test-group "jlambda-method"
