@@ -2,6 +2,8 @@
 
 (use files srfi-1)
 
+(define cross-compiling (feature? 'cross-chicken))
+
 (define (require-envvar var)
   (let ((val (get-environment-variable var)))
     (or val
@@ -44,7 +46,6 @@
 				,',(string-append "-I" (make-pathname java-path "/include/"))
 				. ,(cdr x)))))
 
-(define cross-compiling (feature? 'cross-compiling))
 (if (or (not cross-compiling)
 		(and cross-compiling 
 			 (host-extension)))
