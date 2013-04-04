@@ -50,18 +50,17 @@
 (define import-table (make-parameter #f))
 
 (define (find-class class)
-  (invoke-jni/safe 
-    (lambda () 
-      (if (import-table)
-        (let ((s-class (string->symbol class)))
-          (or (find-class/jni class)
-              (let ((import (assq s-class (import-table))))
-                (and import 
-                     (find-class/jni (mangle-class-name (cdr import)))))
-              (let ((pkgs (cdr (assq '* (import-table)))))
-                (and (not (null? pkgs))
-                     (find-class/by-pkgs find-class/jni s-class pkgs)))))
-        (find-class/jni class)))))
+  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (find-class/jni c))))))
+    (if (import-table)
+      (let ((s-class (string->symbol class)))
+        (or (find-class/safe class)
+            (let ((import (assq s-class (import-table))))
+              (and import 
+                   (find-class/safe (mangle-class-name (cdr import)))))
+            (let ((pkgs (cdr (assq '* (import-table)))))
+              (and (not (null? pkgs))
+                   (find-class/by-pkgs find-class/safe s-class pkgs)))))
+      (find-class/safe class))))
 
 (define (find-class/or-error name)
   (let ((class (find-class (mangle-class-name name))))
@@ -222,9 +221,11 @@
 (define (class->type c)
 	(let* ((class-str (to-string c)))
 		(cond ((string-prefix? "class [" class-str) ; ie: "class [Ljava.lang.reflect.Method;"
-					 (vector (get-type-symbol (string-drop class-str (string-length "class [")))))
+           (vector (get-type-symbol (string-drop class-str (string-length "class [")))))
 					((string-prefix? "class " class-str)
 					 (string->symbol (string-drop class-str (string-length "class "))))
+					((string-prefix? "interface " class-str)
+					 (string->symbol (string-drop class-str (string-length "interface "))))
 					(#t
 					 (string->symbol class-str)))))
 

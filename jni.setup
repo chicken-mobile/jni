@@ -40,7 +40,7 @@
   (ir-macro-transformer
    (lambda (x i c)
      `(compile ,',(string-append "-L" libjvm-path)
-               ,',@(if (host-extension) '(-ljvm) '())
+               -ljvm
                ,',(string-append "-I" (make-pathname java-path "/include/"))
                . ,(cdr x)))))
 

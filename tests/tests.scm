@@ -169,6 +169,20 @@
               (test-jstring "11" (jstring-value-of 11))
               (test-jstring "11" (jstring-value-of2 11)))
 
+            (let ((foo-noSense (jlambda-field (static) String Foo noSense))
+                  (foo-sense (jlambda-field (static) String Foo sense)))
+              (set! (foo-noSense) (foo-sense)))
+
+            (import-table #f) ; reset import-table
+
+            (import-java-ns ((java.lang *)
+                             (com.chicken_mobile.jni.test (Bar Foo))))
+
+            (let ((foo (new-Foo))
+                  (Foo-bar (jlambda-field (private final) Bar Foo bar))
+                  (Bar-id (jlambda-field #f int Bar id)))
+              (let* ((bar (Foo-bar foo)))
+                (test 11 (Bar-id bar))))
             ); end import-java-ns test group
 
 (test-group "exceptions"

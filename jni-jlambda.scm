@@ -165,7 +165,7 @@
 
 (define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
-         (signature      (type-signature type))
+         (signature      (type-signature (if (primitive? type) type (class->type (find-class/or-error type)))))
          (static         (static-signature? modifiers))
          (jclass         (find-class/or-error class-name))
          (jfield         ((if static get-static-field get-field) jclass field-name signature))
