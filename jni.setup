@@ -50,6 +50,7 @@
 		(and cross-compiling 
 			 (host-extension)))
   (begin
+    (file-copy "java/misc-utils.jar" "jni-utils.jar" #t)
     (compile/for-host -s jni-lolevel.scm -J)
     (compile/for-host -s jni-lolevel.import.scm)
     (compile/for-host -s jni.scm -J)
@@ -61,5 +62,5 @@
     (compile -s -Dandroid jni.import.scm)))
 
 (install-extension 'jni
-  '("jni-lolevel.so" "jni-lolevel.import.so" "jni.import.so" "jni.so")
+  '("jni-lolevel.so" "jni-lolevel.import.so" "jni.import.so" "jni.so" "jni-utils.jar")
   '((version "0.1")))

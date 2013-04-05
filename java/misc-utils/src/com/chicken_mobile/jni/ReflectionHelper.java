@@ -19,10 +19,12 @@ public class ReflectionHelper {
 	
 	public static Field findField(Class<?> c, String name) {
 		try {
-			return c.getField(name);
+			return c.getDeclaredField(name);
 		} catch (NoSuchFieldException e) {
+			e.printStackTrace();
 			return null;
 		} catch (SecurityException e) {
+			e.printStackTrace();
 			return null;
 		}
 	}
