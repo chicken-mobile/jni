@@ -38,20 +38,13 @@
               `(jlambda-methods ',(map find-Method-parameter-types Methods))
               #f)))
 
-        (define-for-syntax (get-field-type Field)
-          (let* ((type     (Field.getType Field))
-                 (str-type (to-string type)))
-            (if (string-contains str-type "class")
-              (class->type type)
-              (string->symbol str-type))))
-
         (define-for-syntax (find-field class-name field-name)
           (let* ((class-object (find-class/or-error class-name))
                  (name         (symbol->string field-name))
                  (Field        (find-field/helper class-object name)))
             (if Field
               (let* ((static (static? (Field.getModifiers Field)))
-                     (type   (get-field-type Field)))
+                     (type   (class->type (Field.getType Field)))) 
                 `(jlambda-field ,static ,type ,class-name ,field-name))
               #f)))
 

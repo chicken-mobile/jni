@@ -21,10 +21,8 @@ public class ReflectionHelper {
 		try {
 			return c.getDeclaredField(name);
 		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
 			return null;
 		} catch (SecurityException e) {
-			e.printStackTrace();
 			return null;
 		}
 	}
