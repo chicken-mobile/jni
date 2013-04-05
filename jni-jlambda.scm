@@ -208,18 +208,15 @@
      (find-class/or-error 'name))))
 
 (define-syntax import-java-ns 
-  (er-macro-transformer
-    (lambda (x r c)
-      (let* ((%let*        (r 'let*))
-             (%find-class  (r 'find-class))
-             (%find-class* (r 'find-class*))
-             (imports      (cadr x)))
-        `(,%let* ((old-find-class     ,%find-class)
-                  (old-import-table   (import-table))
-                  (new-import-table   (make-import-table ',imports)))
-                 (import-table (if old-import-table 
-                                 (append old-import-table new-import-table)
-                                 new-import-table)))))))
+  (ir-macro-transformer
+    (lambda (x i c)
+      (let* ((%import-table   (i 'import-table))
+             (imports         (cadr x)))
+        `(let* ((old-import-table   (,%import-table))
+                (new-import-table   (make-import-table ',imports)))
+           (,%import-table (if old-import-table 
+                             (append old-import-table new-import-table)
+                             new-import-table)))))))
 
 (define (jexception-trace exception)
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
