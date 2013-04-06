@@ -134,8 +134,13 @@
     "C_return((*jvm)->GetEnv(jvm, env, version));"))
 
 (define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
-    "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
+  (cond-expand
+   (android
+    (foreign-lambda* int ((java-vm jvm) ((c-pointer "struct JNINativeInterface const **") env))
+      "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))
+   (else
+    (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
+      "C_return((*jvm)->AttachCurrentThread(jvm, env, NULL));"))))
 
 (define jvm-detach-current-thread
   (foreign-lambda* int ((java-vm jvm))
