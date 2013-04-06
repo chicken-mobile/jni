@@ -24,7 +24,8 @@
 		(error 'jni "could not find libjvm" candidates))))
 
 (define libjvm-path
-  (if (host-extension)
+  (if (or (and (feature? 'cross-chicken) (host-extension))
+	  (not (host-extension)))
 	(cond-expand
 	  (x86-64
 		(choose-libjvm-path
@@ -35,8 +36,7 @@
 	  (x86
 		(choose-libjvm-path
 		  "/jre/lib/i386/server/"
-		  "/jre/lib/i386/client/")))
-	(require-envvar "NDK_LIBDIR")))
+		  "/jre/lib/i386/client/")))))
 
 (define-syntax compile/for-host
   (ir-macro-transformer
