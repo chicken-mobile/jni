@@ -28,14 +28,19 @@
                        (jvm-init-lolevel ,class-path))))))))
 
         (define-for-syntax (find-Method-parameter-types Method)
-          (map class->type (array->list (Method.getParameterTypes Method))))
+          (map class->type (reverse (array->list (Method.getParameterTypes Method)))))
+
+        (define-for-syntax (build-method-signature Method)
+          (cons (class->type (Method.getReturnType Method)) (find-Method-parameter-types Method)))
 
         (define-for-syntax (find-methods class-name method-name)
           (let* ((class-object (find-class/or-error class-name))
                  (name         (symbol->string method-name))
                  (Methods      (array->list (find-methods/helper class-object name))))
             (if (not (null? Methods))
-              `(jlambda-methods ',(map find-Method-parameter-types Methods))
+              (let* ((static     (static? (Method.getModifiers (car Methods))))
+                     (signatures (map build-method-signature Methods)))
+                `(jlambda-methods ,static ',class-name ',method-name ',signatures))
               #f)))
 
         (define-for-syntax (find-field class-name field-name)
@@ -49,13 +54,14 @@
               #f)))
 
         (define-syntax jlambda 
-          (ir-macro-transformer
-            (lambda (x i c)
-              (let* ((class-name  (strip-syntax (cadr x)))
-                     (rest        (cddr x)))
+          (er-macro-transformer
+            (lambda (x r c)
+              (let* ((%find-class/or-error (r 'find-class/or-error))
+              			 (class-name           (cadr x))
+                     (rest                 (cddr x)))
                 (if (null? rest)
-                  `(find-class/or-error ',class-name)
-                  (let ((method/field (strip-syntax (car rest))))
+                  `(,%find-class/or-error ',class-name)
+                  (let ((method/field (car rest)))
                     (or (find-field class-name method/field)
                         (find-methods class-name method/field)
-                        (error 'jlambda "invalid jlambda expression" x )))))))))
+                        (error 'jlambda "invalid jlambda expression" x)))))))))
