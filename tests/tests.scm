@@ -327,4 +327,9 @@
               (test 17 (ov1 bar #\c)))
             ); end jlambda test group
 
+(test-group "jimport"
+            (jimport java.lang.String String)
+            (test "class java.lang.String$CaseInsensitiveComparator" (to-string (get-object-class (String-CASE_INSENSITIVE_ORDER))))
+            (test-jstring "1" (String-valueOf 1))
+            ); end jimport test group
 (test-exit)

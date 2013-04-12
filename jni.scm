@@ -3,16 +3,15 @@
 <#
 
 (module jni
-        (jlambda)
-        (import scheme chicken)
+        (jlambda jimport)
+        (import scheme chicken srfi-1)
         (reexport jni-lolevel)
 
         (import-for-syntax jni-lolevel)
         (use jni-lolevel)
 
         (begin-for-syntax
-          (import-for-syntax jni-lolevel chicken scheme)
-          (require-library jni-lolevel))
+          (require-library jni-lolevel srfi-1))
 
         (cond-expand 
           (android)
@@ -64,4 +63,25 @@
                   (let ((method/field (car rest)))
                     (or (find-field class-name method/field)
                         (find-methods class-name method/field)
-                        (error 'jlambda "invalid jlambda expression" x)))))))))
+                        (error 'jlambda "invalid jlambda expression" x))))))))
+
+        (define-for-syntax (find-unique-names elements get-name)
+          (delete-duplicates (map (lambda (e)
+                                    (jstring->string (get-name e))) (array->list elements))))
+
+        (define-for-syntax (make-jlambda-expression class-name alias field/method)
+          (let ((name (string->symbol (string-append alias "-" field/method))))
+            `(define ,name (jlambda ,class-name ,(string->symbol field/method)))))
+
+        (define-syntax jimport 
+          (er-macro-transformer
+            (lambda (x r c)
+              (let* ((class-name   (cadr x))
+                     (alias        (symbol->string (caddr x)))
+                     (class-object (find-class/or-error class-name))
+                     (Methods      (find-unique-names (Class.getMethods class-object) Method.getName))
+                     (Fields       (find-unique-names (Class.getFields class-object)  Field.getName)))
+                (cons 'begin 
+                      (append (map (lambda (method) (make-jlambda-expression class-name alias method)) Methods)
+                              (map (lambda (field) (make-jlambda-expression class-name alias field)) Fields)))))))
+        ) ; end of jni module
