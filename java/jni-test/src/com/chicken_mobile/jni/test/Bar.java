@@ -41,7 +41,7 @@ public class Bar {
 		return 8;
 	}
 	
-	public int ov1(byte i) {
+	public int ov1(long a, int b) {
 		return 9;
 	}
 	
@@ -76,7 +76,7 @@ public class Bar {
 	public int ov1(char c) {
 		return 17;
 	}
-	
+
 	public int ov2(int i) {
 		return 1;
 	}

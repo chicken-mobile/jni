@@ -205,19 +205,33 @@
 
 (include "jni-method-selection.scm")
 
+(define-syntax type:
+  (syntax-rules ()
+    ((_ type value)
+     (cons 'type value))))
+
 ;; signature is (return-type . (arg-type..))
 (define (jlambda-methods modifiers class-name method-name signatures)
   (let* ((methods (generate-methods modifiers class-name method-name signatures))
-         (method-finder (lambda (args)
-                          (let ((method (find-method-match methods args)))
+         (method-finder (lambda (args/with-typehints)
+                          (let ((method (find-method-match methods args/with-typehints))
+                                (args   (map (lambda (arg/with-typehints)
+                                                      (if (pair? arg/with-typehints)
+                                                        (cdr arg/with-typehints)
+                                                        arg/with-typehints)) args/with-typehints)))
                             (if method
-                              (cdr method)
-                              (error 'jlambda-methods (format "cannot find method ~a with args: ~a" method-name args)))))))
+                              (values (cdr method) args)
+                              (error 'jlambda-methods 
+                                     (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
     (if (static-signature? modifiers)
       (lambda args
-        (apply (method-finder args) args))
+        (call-with-values (lambda () (method-finder args))
+                          (lambda (method args)
+                            (apply method args))))
       (lambda (object . args)
-        (apply (method-finder args) (cons object args))))))
+        (call-with-values (lambda () (method-finder args))
+                          (lambda (method args)
+                            (apply method (cons object args))))))))
 
 (define-syntax import-java-ns 
   (ir-macro-transformer
