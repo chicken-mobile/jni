@@ -64,8 +64,8 @@
 ;;
 ;; so we can invoke the previous cases this way:
 ;; 
-;; (foo ('N1 n2))    ; an argument could be a list of the form (TYPE arg)
-;; (bar ('short 1))
+;; (foo (type: N1 n2)) 
+;; (bar (type: short 1))
 
 (define prefered-fixnum-types '(int long float double java.lang.Integer java.lang.Long java.lang.Float java.lang.Double))
 (define prefered-flonum-types '(float double java.lang.Float java.lang.Double))
