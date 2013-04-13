@@ -69,19 +69,27 @@
           (delete-duplicates (map (lambda (e)
                                     (jstring->string (get-name e))) (array->list elements))))
 
-        (define-for-syntax (make-jlambda-expression class-name alias field/method)
-          (let ((name (string->symbol (string-append alias "-" field/method))))
-            `(define ,name (jlambda ,class-name ,(string->symbol field/method)))))
+        (define-for-syntax (make-jlambda-definitions class-name names)
+          (map (lambda (field/method) 
+                 (let ((name (string->symbol field/method)))
+                   `(define ,name (jlambda ,class-name ,(string->symbol field/method))))) names))
 
         (define-syntax jimport 
           (er-macro-transformer
             (lambda (x r c)
-              (let* ((class-name   (cadr x))
-                     (alias        (symbol->string (caddr x)))
+              (let* ((%module      (r 'module))
+                     (%import      (r 'import))
+                     (%begin       (r 'begin))
+                     (class-name   (cadr x))
+                     (specifiers   (cddr x))
                      (class-object (find-class/or-error class-name))
                      (Methods      (find-unique-names (Class.getMethods class-object) Method.getName))
                      (Fields       (find-unique-names (Class.getFields class-object)  Field.getName)))
-                (cons 'begin 
-                      (append (map (lambda (method) (make-jlambda-expression class-name alias method)) Methods)
-                              (map (lambda (field) (make-jlambda-expression class-name alias field)) Fields)))))))
+                `(,%begin (,%module ,class-name
+                                    *
+                                    (,%import scheme chicken srfi-1 jni)
+                                    ,@(make-jlambda-definitions class-name Methods)
+                                    ,@(make-jlambda-definitions class-name Fields))
+                          (,%import ,@(if (null? specifiers) `(,class-name) specifiers)))))))
+
         ) ; end of jni module
