@@ -69,11 +69,16 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
     [macro] (jimport CLASS-NAME [(IMPORT ...)])
 
 Defines a module with all methods and fields in the class, and use the import specifiers to import it. 
-The import specifier syntax is the same as the normal import macro.
+The import specifier syntax is the same as the normal import macro. To avoid repeating the module name, 
+you can use <> as a placeholder.
 
 Example:
-            (jimport java.lang.String)
-            (valueOf 1)
+
+    (jimport java.lang.String)
+    (valueOf 1)
+    
+    (jimport java.lang.String (prefix (only <> valueOf) String-))
+    (String-valueOf 1)
 
 #### jlambda
     [macro] (jlambda CLASS [METHOD/FIELD])
@@ -85,7 +90,8 @@ Example:
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
 
-Example:
+Examples:
+
   (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
     (print (user-lastname user))
     (set! (user-lastname user) "Perez"))
@@ -100,6 +106,7 @@ invocation, this way the jvm is not invoked in expansion time.
     [macro] (jlambda-method MODIFIERS RETURN-TYPE CLASS METHOD-NAME ARGS...) -> lambda
 
 Returns a lambda associated to the java method. Modifiers could by a list of modifiers or #f
+
 Example:
 
     (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence)
@@ -127,6 +134,7 @@ Examples:
 Returns a lambda associated to the class constructor.
 
 Example:
+
     (jlambda-constructor java.lang.Integer int))
 
 #### import-java-ns
@@ -151,6 +159,7 @@ Example:
     [macro] (class CLASS-SYMBOL) -> jclass
 
 Returns the associated jclass. Raise error if the class is not found.
+
 Example:
 
     (class java.lang.String)

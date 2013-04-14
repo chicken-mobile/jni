@@ -74,6 +74,15 @@
                  (let ((name (string->symbol field/method)))
                    `(define ,name (jlambda ,class-name ,(string->symbol field/method))))) names))
 
+        (define-for-syntax (replace-placeholder value ls)
+          (map (lambda (e) 
+                 (cond ((list? e)
+                        (replace-placeholder value e))
+                       ((eq? '<> e)
+                        value)
+                       (else
+                         e))) ls))
+
         (define-syntax jimport 
           (er-macro-transformer
             (lambda (x r c)
@@ -90,6 +99,8 @@
                                     (,%import scheme chicken srfi-1 jni)
                                     ,@(make-jlambda-definitions class-name Methods)
                                     ,@(make-jlambda-definitions class-name Fields))
-                          (,%import ,@(if (null? specifiers) `(,class-name) specifiers)))))))
+                          (,%import ,@(if (null? specifiers) 
+                                        `(,class-name) 
+                                        (replace-placeholder class-name specifiers))))))))
 
         ) ; end of jni module

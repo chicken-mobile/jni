@@ -335,7 +335,11 @@
             (test "class java.lang.String$CaseInsensitiveComparator" (to-string (get-object-class (CASE_INSENSITIVE_ORDER))))
             (test-jstring "1" (valueOf 1))
 
-            (jimport com.chicken_mobile.jni.test.Bar (prefix com.chicken_mobile.jni.test.Bar bar-))
+            (jimport com.chicken_mobile.jni.test.Bar (prefix <> bar-))
             (test 1 (bar-ov1 (new-Bar)))
+
+            (jimport java.lang.String (prefix (only <> valueOf) String-))
+            (test-jstring "1" (String-valueOf 1))
+
             ); end jimport test group
 (test-exit)
