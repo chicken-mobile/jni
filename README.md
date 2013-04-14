@@ -65,6 +65,16 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 
 ### Java to Scheme
 
+#### jlambda-method
+    [macro] (jimport CLASS-NAME [(IMPORT ...)])
+
+Defines a module with all methods and fields in the class, and use the import specifiers to import it. 
+The import specifier syntax is the same as the normal import macro.
+
+Example:
+            (jimport java.lang.String)
+            (valueOf 1)
+
 #### jlambda
     [macro] (jlambda CLASS [METHOD/FIELD])
 
