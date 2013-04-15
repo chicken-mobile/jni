@@ -1,5 +1,5 @@
 #>
-#include <jni.h>
+#include "jni-adapter.h"
 <#
 
 (module jni-lolevel
@@ -35,19 +35,13 @@
               (foreign-lambda jint JNI_GetDefaultJavaVMInitArgs jvm-init-args))
 
             (define jvm-create
-              (foreign-lambda jint JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
+              (foreign-lambda jint jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
 
-            (define (jvm-init-lolevel #!optional (class-path "."))
-              (let ((args (make-jvm-init-args))
-                    (class-path-option (make-jvm-option)))
-
-                (jvm-init-args-version-set! args JNI_VERSION_1_6)
-                (jvm-init-args-options-length-set! args 1)
-                (jvm-init-args-options-set! args class-path-option)
-                (jvm-option-string-set! class-path-option (string-append "-Djava.class.path=" class-path))
-
+            (define (jvm-init-lolevel #!optional (class-path ".") (stack-size "2m"))
+              (let ((class-path-option (string-append "-Djava.class.path=" class-path))
+                    (stack-option      (string-append "-Xss" stack-size)))
                 (let-location ((jvm java-vm)
                                (env jni-env))
-                              (jvm-create (location jvm) (location env) args)
+                              (jvm-create (location jvm) (location env) class-path-option stack-option)
                               (java-vm jvm)
                               (jni-env env)))))))
