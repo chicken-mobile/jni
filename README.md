@@ -95,9 +95,9 @@ Example:
 
 Examples:
 
-  (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
-    (print (user-lastname user))
-    (set! (user-lastname user) "Perez"))
+    (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
+      (print (user-lastname user))
+      (set! (user-lastname user) "Perez"))
 
 #### jlambda-field*
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
