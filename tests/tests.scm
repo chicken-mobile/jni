@@ -295,39 +295,45 @@
             ); end exceptions test group
 
 (test-group "jlambda"
-            ;jlambda class
-            (test-class java.lang.System (jlambda java.lang.System))
+						;jlambda class
+						(test-class java.lang.System (jlambda java.lang.System))
 
-            ;; jlambda field
-            (let ((foo-number (jlambda com.chicken_mobile.jni.test.Foo number))
-                  (o (new-Foo)))
-              (test 12 (foo-number o))
-              (set! (foo-number o) 300)
-              (test 300 (foo-number o)))
+						;; jlambda field
+						(let ((foo-number (jlambda com.chicken_mobile.jni.test.Foo number))
+									(o (new-Foo)))
+							(test 12 (foo-number o))
+							(set! (foo-number o) 300)
+							(test 300 (foo-number o)))
 
-            ;;;invalid 
-            (begin-for-syntax
-              (require-library test)
-              (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
+						;;;invalid 
+						(begin-for-syntax
+							(require-library test)
+							(test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
 
-            (let* ((bar (new-Bar 1))
-                   (ov1 (jlambda com.chicken_mobile.jni.test.Bar ov1)))
-              (test 01 (ov1 bar))
-              (test 02 (ov1 bar "hola"))
-              (test 03 (ov1 bar 3))
-              (test 04 (ov1 bar bar))
-              (test 05 (ov1 bar 1 "hola"))
-              (test 06 (ov1 bar 2 bar))
-              (test 07 (ov1 bar (expt 2 32)))
-              (test 10 (ov1 bar 1.3))
-              (test 11 (ov1 bar ((jlambda-field (static) double java.lang.Double MIN_VALUE))))
-              (test 12 (ov1 bar 1 (expt 2 32))) 
-              (test 13 (ov1 bar 10 10))
-              (test 14 (ov1 bar (new-N1)))
-              (test 15 (ov1 bar (new-N2)))
-              (test 16 (ov1 bar (new-Integer 1)))
-              (test 17 (ov1 bar #\c)))
-            ); end jlambda test group
+						(let* ((bar (new-Bar 1))
+									 (ov1 (jlambda com.chicken_mobile.jni.test.Bar ov1)))
+							(test 01 (ov1 bar))
+							(test 02 (ov1 bar "hola"))
+							(test 03 (ov1 bar 3))
+							(test 04 (ov1 bar bar))
+							(test 05 (ov1 bar 1 "hola"))
+							(test 06 (ov1 bar 2 bar))
+							(test 07 (ov1 bar (expt 2 32)))
+							(test 10 (ov1 bar 1.3))
+							(test 11 (ov1 bar ((jlambda-field (static) double java.lang.Double MIN_VALUE))))
+							(test 12 (ov1 bar 1 (expt 2 32))) 
+							(test 13 (ov1 bar 10 10))
+							(test 14 (ov1 bar (new-N1)))
+							(test 15 (ov1 bar (new-N2)))
+							(test 16 (ov1 bar (new-Integer 1)))
+							(test 17 (ov1 bar #\c)))
+
+						(let ((new-Bar (jlambda com.chicken_mobile.jni.test.Bar new)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar 1)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar " "))))
+
+						); end jlambda test group
 
 (test-group "jimport"
 
@@ -336,7 +342,7 @@
             (test-jstring "1" (valueOf 1))
 
             (jimport com.chicken_mobile.jni.test.Bar (prefix <> bar-))
-            (test 1 (bar-ov1 (new-Bar)))
+            (test 1 (bar-ov1 (bar-new)))
 
             (jimport java.lang.String (prefix (only <> valueOf) String-))
             (test-jstring "1" (String-valueOf 1))

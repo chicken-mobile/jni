@@ -212,7 +212,7 @@
 
 ;; signature is (return-type . (arg-type..))
 (define (jlambda-methods modifiers class-name method-name signatures)
-  (let* ((methods (generate-methods modifiers class-name method-name signatures))
+  (let* ((methods       (generate-methods modifiers class-name method-name signatures))
          (method-finder (lambda (args/with-typehints)
                           (let ((method (find-method-match methods args/with-typehints))
                                 (args   (map (lambda (arg/with-typehints)
@@ -223,7 +223,8 @@
                               (values (cdr method) args)
                               (error 'jlambda-methods 
                                      (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
-    (if (static-signature? modifiers)
+    (if (or (eq? method-name 'new)
+            (static-signature? modifiers))
       (lambda args
         (call-with-values (lambda () (method-finder args))
                           (lambda (method args)

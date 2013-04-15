@@ -68,7 +68,8 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 #### jlambda-method
     [macro] (jimport CLASS-NAME [(IMPORT ...)])
 
-Defines a module with all methods and fields in the class, and use the import specifiers to import it. 
+Defines a module with the content of the class and use the import specifiers to import it. 
+The content of the class contains: class methods and fields  and a special procedure called "new" to invoke the constructor.  
 The import specifier syntax is the same as the normal import macro. To avoid repeating the module name, 
 you can use <> as a placeholder.
 
@@ -79,13 +80,15 @@ Example:
     
     (jimport java.lang.String (prefix (only <> valueOf) String-))
     (String-valueOf 1)
+    (String-new)
 
 #### jlambda
     [macro] (jlambda CLASS [METHOD/FIELD])
 
-- (jlambda CLASS)  => jclass
-- (jlambda field)  => jlambda-field
-- (jlambda method) => jlambda-methods
+- (jlambda CLASS)        => jclass
+- (jlambda CLASS field)  => jlambda-field
+- (jlambda CLASS method) => jlambda-methods
+- (jlambda CLASS new)    => jlambda-methods
 
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)

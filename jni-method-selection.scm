@@ -72,12 +72,16 @@
 
 ;; generate a list of the form ((parameter-signature . jlambda-method) ...)
 (define (generate-methods modifiers class-name method-name signatures)
-	(fold (lambda (signature methods)
-					(let ((return-type (car signature))
-								(args-type   (cdr signature)))
-						(cons (cons args-type (jlambda-method-imple modifiers return-type class-name method-name args-type)) methods)))
-				'()
-				signatures))
+  (fold (lambda (signature methods)
+          (let ((return-type (car signature))
+                (args-type   (cdr signature)))
+            (cons (cons args-type 
+                        (if (eq? method-name 'new)
+                          (jlambda-constructor-imple class-name args-type)
+                          (jlambda-method-imple modifiers return-type class-name method-name args-type))) 
+                  methods)))
+        '()
+        signatures))
 
 ;; check if the args match the type signature
 (define (match-arg-types args types)

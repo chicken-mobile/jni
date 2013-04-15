@@ -1,12 +1,19 @@
 package com.chicken_mobile.jni.test;
 
 
+
 public class Bar {
 	
 	public int id;
+
+	public Bar() {
+	}
 	
 	public Bar(int i) {
 		id = i;
+	}
+
+	public Bar(String s) {
 	}
 	
 	public int ov1() {
@@ -82,6 +89,7 @@ public class Bar {
 	}
 	
 	public String ov2(String s) {
+		
 		return "ov2";
 	}
 }
