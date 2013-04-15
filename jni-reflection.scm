@@ -2,10 +2,15 @@
 
 (define Class.isPrimitive
   (jlambda-method* #f boolean java.lang.Class isPrimitive))
+(define Class.getFields
+  (jlambda-method* #f #(java.lang.reflect.Field) java.lang.Class getFields))
 (define Class.getMethods
   (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getMethods))
 (define Class.getDeclaredMethods
   (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getDeclaredMethods))
+
+(define Field.getName
+  (jlambda-method* #f java.lang.String java.lang.reflect.Field getName))
 
 (define Method.getModifiers
   (jlambda-method* #f int java.lang.reflect.Method getModifiers))
