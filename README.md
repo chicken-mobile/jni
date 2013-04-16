@@ -65,20 +65,39 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 
 ### Java to Scheme
 
+#### jlambda-method
+    [macro] (jimport CLASS-NAME [(IMPORT ...)])
+
+Defines a module with the content of the class and use the import specifiers to import it. 
+The content of the class contains: class methods and fields  and a special procedure called "new" to invoke the constructor.  
+The import specifier syntax is the same as the normal import macro. To avoid repeating the module name, 
+you can use <> as a placeholder.
+
+Example:
+
+    (jimport java.lang.String)
+    (valueOf 1)
+    
+    (jimport java.lang.String (prefix (only <> valueOf) String-))
+    (String-valueOf 1)
+    (String-new)
+
 #### jlambda
     [macro] (jlambda CLASS [METHOD/FIELD])
 
-- (jlambda CLASS)  => jclass
-- (jlambda field)  => jlambda-field
-- (jlambda method) => jlambda-methods
+- (jlambda CLASS)        => jclass
+- (jlambda CLASS field)  => jlambda-field
+- (jlambda CLASS method) => jlambda-methods
+- (jlambda CLASS new)    => jlambda-methods
 
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
 
-Example:
-  (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
-    (print (user-lastname user))
-    (set! (user-lastname user) "Perez"))
+Examples:
+
+    (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
+      (print (user-lastname user))
+      (set! (user-lastname user) "Perez"))
 
 #### jlambda-field*
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
@@ -90,9 +109,27 @@ invocation, this way the jvm is not invoked in expansion time.
     [macro] (jlambda-method MODIFIERS RETURN-TYPE CLASS METHOD-NAME ARGS...) -> lambda
 
 Returns a lambda associated to the java method. Modifiers could by a list of modifiers or #f
+
 Example:
 
     (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence)
+
+#### jlambda-methods
+    [procedure] (jlambda-methods MODIFIERS CLASS-NAME METHOD-NAME ((RETURN-TYPE (ARGS..)) ...)) -> lambda
+
+This procedure will create jlambda-method variants for each signature. When the procedure is invoked will try to 
+resolve the overloaded methods as java will do. If there is not enough information for that, type hints information
+should be added to help the identification.
+
+Examples:
+
+    (let ((ov1 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'bar
+                         '((int . (int)) 
+                           (int . (short))
+                           (int . (java.lang.String))))))
+    (ov1 bar 1 "hola")
+    (ov1 bar 2 )
+    (ov1 bar (type: short 1)))
 
 #### jlambda-constructor
     [macro] (jlambda-constructor CLASS ARGS...) -> lambda
@@ -100,6 +137,7 @@ Example:
 Returns a lambda associated to the class constructor.
 
 Example:
+
     (jlambda-constructor java.lang.Integer int))
 
 #### import-java-ns
@@ -124,6 +162,7 @@ Example:
     [macro] (class CLASS-SYMBOL) -> jclass
 
 Returns the associated jclass. Raise error if the class is not found.
+
 Example:
 
     (class java.lang.String)

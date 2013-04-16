@@ -1,31 +1,7 @@
+;; check test.jar or java/jni-test project to see the test classes used in this file
+
 (use jni lolevel expand-full moremacros srfi-13 test)
 (import-for-syntax test)
-
-;; Foo.java
-;; 
-;;  package com.chicken_mobile.jni.test;
-;;  
-;;  public class Foo {
-;;    
-;;    public static boolean lie = true;
-;;    public static String noSense = "lil oiuy pppq";
-;;    public static String sense = "cogito ergo sum";
-;;    public int number;
-;;    private int secret_number;
-;;  
-;;    public Foo() {
-;;      number = 12;
-;;      secret_number = 8;  //¡¡¡¡¡¡¡¡ oohhh  !!!!!!
-;;    }
-;;      
-;;    public void xxx() {
-;;      throw new ProtocolException("bad protocol");
-;;    }
-;;  
-;;    public String xxx2() {
-;;      throw new RuntimeException("bad protocol");
-;;    }
-;;  }
 
 (jvm-init "tests/test.jar:java/misc-utils.jar")
 
@@ -40,6 +16,10 @@
      (test (string-append "class " (symbol->string 'class)) (to-string expr)))))
     
 (define new-Foo (jlambda-constructor com.chicken_mobile.jni.test.Foo))
+(define new-Bar (jlambda-constructor com.chicken_mobile.jni.test.Bar int))
+(define new-N1 (jlambda-constructor com.chicken_mobile.jni.test.N1))
+(define new-N2 (jlambda-constructor com.chicken_mobile.jni.test.N2))
+(define new-Integer (jlambda-constructor java.lang.Integer int))
 
 (test-group "primitives"
             (test-class com.chicken_mobile.jni.test.Foo (get-object-class (new-Foo))))
@@ -115,6 +95,93 @@
             (test-error "method not found" (jlambda-method (static) boolean java.lang.String hi))
             (test #f (exception-check))
             ); end jlambda-method test group
+
+(test-group "jlambda-methods"
+
+            (let* ((bar (new-Bar 1))
+                   (ov1 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'ov1 
+                                         '((int . ()) 
+                                           (int . (int)) 
+                                           (int . (java.lang.String)) 
+                                           (int . (com.chicken_mobile.jni.test.Bar))
+                                           (int . (int java.lang.String))
+                                           (int . (int com.chicken_mobile.jni.test.Bar))
+                                           (int . (long))
+                                           (int . (short))
+                                           (int . (long int)) 
+                                           (int . (float))
+                                           (int . (double))
+                                           (int . (int long))
+                                           (int . (int int))
+                                           (int . (com.chicken_mobile.jni.test.N1))
+                                           (int . (com.chicken_mobile.jni.test.N2))
+                                           (int . (java.lang.Integer))
+                                           (int . (char))))))
+                (test 01 (ov1 bar))
+                (test 02 (ov1 bar "hola"))
+                (test 03 (ov1 bar 3))
+                (test 04 (ov1 bar bar))
+                (test 05 (ov1 bar 1 "hola"))
+                (test 06 (ov1 bar 2 bar))
+                (test 07 (ov1 bar (expt 2 32)))
+                (test 08 (ov1 bar (type: short 1)))
+                (test 09 (ov1 bar (type: long 1) 1))
+                (test 10 (ov1 bar 1.3))
+                (test 10 (ov1 bar (type: float 1)))
+                (test 11 (ov1 bar ((jlambda-field (static) double java.lang.Double MIN_VALUE))))
+                (test 12 (ov1 bar 1 (expt 2 32))) 
+                (test 13 (ov1 bar 10 10))
+                (test 14 (ov1 bar (new-N1)))
+                (test 14 (ov1 bar (type: com.chicken_mobile.jni.test.N1 (new-N2))))
+                (test 15 (ov1 bar (new-N2)))
+                (test 16 (ov1 bar (new-Integer 1)))
+                (test 17 (ov1 bar #\c)))
+
+            (let* ((bar (new-Bar 1))
+                   (ov1 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'ov1 
+                                         '((int . ()) 
+                                           (int . (java.lang.String)) 
+                                           (int . (com.chicken_mobile.jni.test.Bar))
+                                           (int . (int java.lang.String))
+                                           (int . (int com.chicken_mobile.jni.test.Bar))
+                                           (int . (long))
+                                           (int . (short))
+                                           (int . (float))
+                                           (int . (double))
+                                           (int . (int long))
+                                           (int . (int int))
+                                           (int . (com.chicken_mobile.jni.test.N1))
+                                           (int . (com.chicken_mobile.jni.test.N2))
+                                           (int . (java.lang.Integer))
+                                           (int . (char))))))
+                (test 7 (ov1 bar 3))) ; not defined for int so prefer long
+
+            (let* ((bar (new-Bar 1))
+                   (ov1 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'ov1 
+                                         '((int . ()) 
+                                           (int . (java.lang.String)) 
+                                           (int . (com.chicken_mobile.jni.test.Bar))
+                                           (int . (int java.lang.String))
+                                           (int . (int com.chicken_mobile.jni.test.Bar))
+                                           (int . (short))
+                                           (int . (float))
+                                           (int . (double))
+                                           (int . (int long))
+                                           (int . (int int))
+                                           (int . (com.chicken_mobile.jni.test.N1))
+                                           (int . (com.chicken_mobile.jni.test.N2))
+                                           (int . (java.lang.Integer))
+                                           (int . (char))))))
+                (test 10 (ov1 bar 3))) ; not defined for int or long so prefer float
+
+
+            (let* ((bar (new-Bar 1)) ; testing diff return-types
+                   (ov2 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'ov2 
+                                         '((int . (int)) 
+                                           (java.lang.String . (java.lang.String))))))
+                (test 1 (ov2 bar 3)) 
+                (test-jstring "ov2" (ov2 bar "hi")))
+            ); end jlambda-methods tests
 
 (test-group "jlambda-constructor"
             (define new-Integer-int (jlambda-constructor java.lang.Integer int))
@@ -228,24 +295,57 @@
             ); end exceptions test group
 
 (test-group "jlambda"
-            ;jlambda class
-            (test-class java.lang.System (jlambda java.lang.System))
+						;jlambda class
+						(test-class java.lang.System (jlambda java.lang.System))
 
-            ;; jlambda field
-            (let ((foo-number (jlambda com.chicken_mobile.jni.test.Foo number))
-                  (o (new-Foo)))
-              (test 12 (foo-number o))
-              (set! (foo-number o) 300)
-              (test 300 (foo-number o)))
+						;; jlambda field
+						(let ((foo-number (jlambda com.chicken_mobile.jni.test.Foo number))
+									(o (new-Foo)))
+							(test 12 (foo-number o))
+							(set! (foo-number o) 300)
+							(test 300 (foo-number o)))
 
-            ;;;invalid 
-            (begin-for-syntax
-              (require-library test)
-              (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
+						;;;invalid 
+						(begin-for-syntax
+							(require-library test)
+							(test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
 
-            ;;TODO: temp until jlambda-methods is ready
-            ;(test '((java.nio.charset.Charset) (java.lang.String) (int #(byte) int int) ())
-                  ;(jlambda java.lang.String getBytes))
-            ); end jlambda test group
+						(let* ((bar (new-Bar 1))
+									 (ov1 (jlambda com.chicken_mobile.jni.test.Bar ov1)))
+							(test 01 (ov1 bar))
+							(test 02 (ov1 bar "hola"))
+							(test 03 (ov1 bar 3))
+							(test 04 (ov1 bar bar))
+							(test 05 (ov1 bar 1 "hola"))
+							(test 06 (ov1 bar 2 bar))
+							(test 07 (ov1 bar (expt 2 32)))
+							(test 10 (ov1 bar 1.3))
+							(test 11 (ov1 bar ((jlambda-field (static) double java.lang.Double MIN_VALUE))))
+							(test 12 (ov1 bar 1 (expt 2 32))) 
+							(test 13 (ov1 bar 10 10))
+							(test 14 (ov1 bar (new-N1)))
+							(test 15 (ov1 bar (new-N2)))
+							(test 16 (ov1 bar (new-Integer 1)))
+							(test 17 (ov1 bar #\c)))
 
+						(let ((new-Bar (jlambda com.chicken_mobile.jni.test.Bar new)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar 1)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar)))
+							(test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar " "))))
+
+						); end jlambda test group
+
+(test-group "jimport"
+
+            (jimport java.lang.String)
+            (test "class java.lang.String$CaseInsensitiveComparator" (to-string (get-object-class (CASE_INSENSITIVE_ORDER))))
+            (test-jstring "1" (valueOf 1))
+
+            (jimport com.chicken_mobile.jni.test.Bar (prefix <> bar-))
+            (test 1 (bar-ov1 (bar-new)))
+
+            (jimport java.lang.String (prefix (only <> valueOf) String-))
+            (test-jstring "1" (String-valueOf 1))
+
+            ); end jimport test group
 (test-exit)
