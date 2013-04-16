@@ -118,10 +118,6 @@
       (lambda args (caller args class-object))
       argument-types)))
 
-;;TODO
-(define (jlambda-methods types)
-  (print types))
-
 (define (field-accessor-for static accessor-type type)
 	(if (eq? accessor-type 'get)
 		(case type
@@ -206,6 +202,37 @@
   (syntax-rules ()
     ((_ name)
      (find-class/or-error 'name))))
+
+(include "jni-method-selection.scm")
+
+(define-syntax type:
+  (syntax-rules ()
+    ((_ type value)
+     (cons 'type value))))
+
+;; signature is (return-type . (arg-type..))
+(define (jlambda-methods modifiers class-name method-name signatures)
+  (let* ((methods       (generate-methods modifiers class-name method-name signatures))
+         (method-finder (lambda (args/with-typehints)
+                          (let ((method (find-method-match methods args/with-typehints))
+                                (args   (map (lambda (arg/with-typehints)
+                                                      (if (pair? arg/with-typehints)
+                                                        (cdr arg/with-typehints)
+                                                        arg/with-typehints)) args/with-typehints)))
+                            (if method
+                              (values (cdr method) args)
+                              (error 'jlambda-methods 
+                                     (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
+    (if (or (eq? method-name 'new)
+            (static-signature? modifiers))
+      (lambda args
+        (call-with-values (lambda () (method-finder args))
+                          (lambda (method args)
+                            (apply method args))))
+      (lambda (object . args)
+        (call-with-values (lambda () (method-finder args))
+                          (lambda (method args)
+                            (apply method (cons object args))))))))
 
 (define-syntax import-java-ns 
   (ir-macro-transformer
