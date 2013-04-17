@@ -115,7 +115,7 @@ Example:
     (jlambda-method #f boolean java.lang.String contains java.lang.CharSequence)
 
 #### jlambda-methods
-    [procedure] (jlambda-methods MODIFIERS CLASS-NAME METHOD-NAME ((RETURN-TYPE (ARGS..)) ...)) -> lambda
+    [procedure] (jlambda-methods CLASS-NAME METHOD-NAME ((MODIFIER RETURN-TYPE (ARGS..)) ...)) -> lambda
 
 This procedure will create jlambda-method variants for each signature. When the procedure is invoked will try to 
 resolve the overloaded methods as java will do. If there is not enough information for that, type hints information
@@ -123,10 +123,10 @@ should be added to help the identification.
 
 Examples:
 
-    (let ((ov1 (jlambda-methods #f 'com.chicken_mobile.jni.test.Bar 'bar
-                         '((int . (int)) 
-                           (int . (short))
-                           (int . (java.lang.String))))))
+    (let ((ov1 (jlambda-methods 'com.chicken_mobile.jni.test.Bar 'bar
+                         '((#f int . (int)) 
+                           (#f int . (short))
+                           (#f int . (java.lang.String))))))
     (ov1 bar 1 "hola")
     (ov1 bar 2 )
     (ov1 bar (type: short 1)))

@@ -4,6 +4,8 @@
   (jlambda-method* #f boolean java.lang.Class isPrimitive))
 (define Class.getFields
   (jlambda-method* #f #(java.lang.reflect.Field) java.lang.Class getFields))
+(define Class.getDeclaredFields
+  (jlambda-method* #f #(java.lang.reflect.Field) java.lang.Class getDeclaredFields))
 (define Class.getMethods
   (jlambda-method* #f #(java.lang.reflect.Method) java.lang.Class getMethods))
 (define Class.getConstructors

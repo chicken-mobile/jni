@@ -2,6 +2,6 @@
 
 ((license "BSD License")
  (category lang-exts)
- (needs lolevel foreigners)
+ (needs lolevel foreigners moremacros)
  (author "bevuta IT GmbH (Patrick Brauer)")
  (synopsis "JNI Bindings for Chicken Scheme"))

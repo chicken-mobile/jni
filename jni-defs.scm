@@ -236,6 +236,11 @@
            (string (jstring->string String/instance)))
       (delete-local-ref String/instance) string)))
 
+(define (call-new jclass jmethod jvalues)
+  (if jmethod 
+    (prepare-local-jobject (new-object jclass jmethod jvalues))
+    (error 'call-new "method not found")))
+
 (define-syntax define-method
   (ir-macro-transformer
     (lambda (x i c)

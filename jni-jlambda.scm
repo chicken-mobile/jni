@@ -13,11 +13,6 @@
        method
        (error "Method not found" class-name name))))
 
-(define (call-new jclass jmethod jvalues)
-  (if jmethod 
-    (prepare-local-jobject (new-object jclass jmethod jvalues))
-    (error 'call-new "method not found")))
-
 ;; convenient procedure to delegate invocation for the apropiate call (by modifier and return type)
 (define (get-method-caller modifiers return-type)
     (if (static-signature? modifiers)
@@ -31,8 +26,7 @@
         ((long)    call-static-long-method)    
         ((float)   call-static-float-method)   
         ((double)  call-static-double-method)  
-        (else      (lambda (object jmethod jvalues)
-                     (call-static-object-method object jmethod jvalues))))
+        (else      call-static-object-method))
       (case return-type
         ((void)    call-void-method)    
         ((boolean) call-boolean-method) 
@@ -43,32 +37,27 @@
         ((long)    call-long-method)    
         ((float)   call-float-method)   
         ((double)  call-double-method)  
-        (else      (lambda (object jmethod jvalues)
-                     (call-object-method object jmethod jvalues))))))
+        (else      call-object-method))))
 
 (define (make-jvalue-builder argument-types)
   (let* ((setters (map (lambda (type index)
                          (case type
                            ((boolean) (cut set-boolean-jvalue! <> index <>))
-                           ((byte)    (cut set-byte-jvalue! <> index <>))   
-                           ((char)    (cut set-char-jvalue! <> index <>))   
-                           ((short)   (cut set-short-jvalue! <> index <>))  
-                           ((int)     (cut set-int-jvalue! <> index <>))    
-                           ((long)    (cut set-long-jvalue! <> index <>))   
-                           ((float)   (cut set-float-jvalue! <> index <>))  
-                           ((double)  (cut set-double-jvalue! <> index <>)) 
-                           (else
-                            (cut set-object-jvalue! <> index <>))))
+                           ((byte)    (cut set-byte-jvalue!    <> index <>))   
+                           ((char)    (cut set-char-jvalue!    <> index <>))   
+                           ((short)   (cut set-short-jvalue!   <> index <>))  
+                           ((int)     (cut set-int-jvalue!     <> index <>))    
+                           ((long)    (cut set-long-jvalue!    <> index <>))   
+                           ((float)   (cut set-float-jvalue!   <> index <>))  
+                           ((double)  (cut set-double-jvalue!  <> index <>)) 
+                           (else      (cut set-object-jvalue!  <> index <>))))
                        argument-types
                        (iota (length argument-types)))))
     (lambda (args)
       (let ((jvalues (make-jvalue-array (length argument-types))))
         (for-each (lambda (type-setter! arg)
-                    (if (string? arg)
-                      (type-setter! jvalues (jstring arg)) ;; wont be GCed :(
-                      (type-setter! jvalues arg)))
-                  setters
-                  args)
+                      (type-setter! jvalues (if (string? arg) (jstring arg) arg)))
+                  setters args)
         jvalues))))
 
 (define (make-caller method-caller jvalue-builder jmethod)
@@ -78,45 +67,41 @@
         (free-jvalue-array jvalues)
         (check-jexception return-value))))
 
-(define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
+(define (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)
   (let* ((static         (static-signature? modifiers))
          (jvalue-builder (make-jvalue-builder argument-types))
          (method-caller  (get-method-caller modifiers return-type)))
-    (extend-procedure
-      (let ((do-call (lambda (args instance)
-                       (let* ((jmethod (method static return-type class-type method-name argument-types))
-                              (caller (make-caller method-caller jvalue-builder jmethod)))
-                         (if jmethod
-                           (caller args instance)
-                           (error 'call-method "method not found"))))))
-        (if static
-          (lambda args 
-            (do-call args (find-class/or-error class-type)))
-          (lambda (object . args) 
-            (do-call args object))))
-      argument-types)))
+    (if lazy
+      (lambda (args instance)
+        (let* ((jmethod (method static return-type class-type method-name argument-types))
+               (caller  (make-caller method-caller jvalue-builder jmethod)))
+          (if jmethod
+            (caller args instance)
+            (error 'call-method "method not found"))))
+      (let* ((class-object (find-class/or-error class-type))
+             (jmethod      (method static return-type class-type method-name argument-types)))
+        (make-caller method-caller jvalue-builder jmethod)))))
+
+(define (make-jlambda-method modifiers return-type class-type method-name argument-types lazy)
+  (let* ((caller (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)))
+    (if (static-signature? modifiers)
+      (lambda args 
+        (caller args (find-class/or-error class-type)))
+      (lambda (object . args) 
+        (caller args object)))))
+
+(define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
+  (make-jlambda-method modifiers return-type class-type method-name argument-types #t))
 
 (define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
-  (let* ((static         (static-signature? modifiers))
-         (class-object   (find-class/or-error class-type))
-         (jmethod        (method static return-type class-type method-name argument-types))
-         (jvalue-builder (make-jvalue-builder argument-types))
-         (method-caller  (get-method-caller modifiers return-type))
-         (caller         (make-caller method-caller jvalue-builder jmethod)))
-    (extend-procedure
-      (if static
-        (lambda args (caller args class-object))
-        (lambda (object . args) (caller args object)))
-      argument-types)))
+  (make-jlambda-method modifiers return-type class-type method-name argument-types #f))
 
 (define (jlambda-constructor-imple class-type argument-types)
   (let* ((class-object   (find-class/or-error class-type))
          (jmethod        (method #f 'void class-type '<init> argument-types))
          (jvalue-builder (make-jvalue-builder argument-types))
          (caller         (make-caller call-new jvalue-builder jmethod)))
-    (extend-procedure
-      (lambda args (caller args class-object))
-      argument-types)))
+    (lambda args (caller args class-object))))
 
 (define (field-accessor-for static accessor-type type)
 	(if (eq? accessor-type 'get)
@@ -211,28 +196,22 @@
      (cons 'type value))))
 
 ;; signature is (return-type . (arg-type..))
-(define (jlambda-methods modifiers class-name method-name signatures)
-  (let* ((methods       (generate-methods modifiers class-name method-name signatures))
+(define (jlambda-methods class-name method-name signatures)
+  (let* ((methods       (generate-methods class-name method-name signatures))
          (method-finder (lambda (args/with-typehints)
                           (let ((method (find-method-match methods args/with-typehints))
                                 (args   (map (lambda (arg/with-typehints)
-                                                      (if (pair? arg/with-typehints)
-                                                        (cdr arg/with-typehints)
-                                                        arg/with-typehints)) args/with-typehints)))
+                                               (if (pair? arg/with-typehints)
+                                                 (cdr arg/with-typehints)
+                                                 arg/with-typehints)) args/with-typehints)))
                             (if method
-                              (values (cdr method) args)
+                              (values (cddr method) args)
                               (error 'jlambda-methods 
                                      (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
-    (if (or (eq? method-name 'new)
-            (static-signature? modifiers))
-      (lambda args
-        (call-with-values (lambda () (method-finder args))
-                          (lambda (method args)
-                            (apply method args))))
-      (lambda (object . args)
-        (call-with-values (lambda () (method-finder args))
-                          (lambda (method args)
-                            (apply method (cons object args))))))))
+    (lambda args
+      (call-with-values (lambda () (method-finder args))
+                        (lambda (method args)
+                          (apply method args))))))
 
 (define-syntax import-java-ns 
   (ir-macro-transformer

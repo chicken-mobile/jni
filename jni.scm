@@ -30,16 +30,18 @@
           (map class->type (reverse (array->list ParameterTypes))))
 
         (define-for-syntax (method-signature Method)
-          (cons (class->type (Method.getReturnType Method)) (make-parameter-list (Method.getParameterTypes Method))))
+          (cons* (static? (Method.getModifiers Method))
+                 (class->type (Method.getReturnType Method))
+                 (make-parameter-list (Method.getParameterTypes Method))))
 
         (define-for-syntax (constructor-signature Constructor)
-          (cons 'void (make-parameter-list (Constructor.getParameterTypes Constructor))))
+          (cons* #f 'void (make-parameter-list (Constructor.getParameterTypes Constructor))))
 
         (define-for-syntax (define-constructors class-name)
           (let* ((class-object (find-class/or-error class-name))
                  (Constructors (array->list (Class.getConstructors class-object)))
                  (signatures   (map constructor-signature Constructors)))
-            `(jlambda-methods #f ',class-name 'new ',signatures)))
+            `(jlambda-methods ',class-name 'new ',signatures)))
 
         (define-for-syntax (define-methods class-name method-name)
           (let* ((class-object (find-class/or-error class-name))
@@ -47,7 +49,7 @@
             (if (not (null? Methods))
               (let* ((static     (static? (Method.getModifiers (car Methods))))
                      (signatures (map method-signature Methods)))
-                `(jlambda-methods ,static ',class-name ',method-name ',signatures))
+                `(jlambda-methods ',class-name ',method-name ',signatures))
               #f)))
 
         (define-for-syntax (define-field class-name field-name)
@@ -103,8 +105,8 @@
                      (class-name   (cadr x))
                      (specifiers   (cddr x))
                      (class-object (find-class/or-error class-name))
-                     (Methods      (find-unique-names (Class.getMethods class-object) Method.getName))
-                     (Fields       (find-unique-names (Class.getFields class-object)  Field.getName)))
+                     (Methods      (find-unique-names (Class.getDeclaredMethods class-object) Method.getName))
+                     (Fields       (find-unique-names (Class.getDeclaredFields class-object)  Field.getName)))
                 `(,%begin (,%module ,class-name
                                     *
                                     (,%import scheme chicken jni)

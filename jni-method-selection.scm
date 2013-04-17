@@ -70,56 +70,72 @@
 (define prefered-fixnum-types '(int long float double java.lang.Integer java.lang.Long java.lang.Float java.lang.Double))
 (define prefered-flonum-types '(float double java.lang.Float java.lang.Double))
 
-;; generate a list of the form ((parameter-signature . jlambda-method) ...)
-(define (generate-methods modifiers class-name method-name signatures)
+;; generate a list of the form ((is-static parameter-signature . jlambda-method) ...)
+(define (generate-methods class-name method-name signatures)
   (fold (lambda (signature methods)
-          (let ((return-type (car signature))
-                (args-type   (cdr signature)))
-            (cons (cons args-type 
+          (let ((is-static   (car signature))
+                (return-type (cadr signature))
+                (args-type   (cddr signature)))
+            (cons (cons* is-static 
+                         args-type 
                         (if (eq? method-name 'new)
                           (jlambda-constructor-imple class-name args-type)
-                          (jlambda-method-imple modifiers return-type class-name method-name args-type))) 
+                          (jlambda-method-imple is-static return-type class-name method-name args-type)))
                   methods)))
         '()
         signatures))
 
+(define (find-method-match methods args)
+  (fold (lambda (method best)
+          (if (match-arg-types args (car method) (cadr method))
+            (if best 
+              (best-method method best) 
+              method)
+            best))
+        #f
+        methods))
+
 ;; check if the args match the type signature
-(define (match-arg-types args types)
-  (and (= (length args) (length types))
-       (every (lambda (arg type)
-                (if (pair? arg)
-                  (eq? (car arg) type)
-                  (type-case arg
-                             (boolean (eq? 'boolean type))
-                             (number  
-                               (if (fixnum? arg)
-                                 ;TODO: improve this to avoid callling jlambda-field each time
-                                 (or (and (member type '(java.lang.Integer int))
-                                          (< arg (expt 2 31))
-                                          (>= arg (- (expt 2 31))))
-                                     (and (member type '(java.lang.Long long))
-                                          (< arg (expt 2 63))
-                                          (>= arg (- (expt 2 63))))
-                                     (and (member type '(java.lang.Float float))
-                                          (< arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
-                                          (> arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
-                                     (member type '(java.lang.Double double)))
-                                 (or (and (member type '(java.lang.Float float))
-                                          (fp<= arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
-                                          (fp>= arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
-                                     (member type '(java.lang.Double double)))))
-                             (string
-                               (and-let* ((type-class (find-class (mangle-class-name type))))
-                                 (assignable-from? (find-class "java/lang/String") type-class)))
-                             (jobject
-                               (if (not (primitive? type))
-                                 (let ((type-class (find-class (mangle-class-name type))))
-                                   (and type-class
-                                        (instance-of? arg type-class)))
-                                 #f))
-                             (char (eq? type 'char))
-                             (else (assert #f)))))
-              args types)))
+(define (match-arg-types args is-static types)
+  (let ((args (if (and (not is-static)
+                       (not (null? args)))
+                (cdr args)
+                args)))
+    (and (= (length args) (length types))
+         (every (lambda (arg type)
+                  (if (pair? arg)
+                    (eq? (car arg) type)
+                    (type-case arg
+                               (boolean (eq? 'boolean type))
+                               (number  
+                                 (if (fixnum? arg)
+                                   ;TODO: improve this to avoid callling jlambda-field each time
+                                   (or (and (member type '(java.lang.Integer int))
+                                            (< arg (expt 2 31))
+                                            (>= arg (- (expt 2 31))))
+                                       (and (member type '(java.lang.Long long))
+                                            (< arg (expt 2 63))
+                                            (>= arg (- (expt 2 63))))
+                                       (and (member type '(java.lang.Float float))
+                                            (< arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
+                                            (> arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
+                                       (member type '(java.lang.Double double)))
+                                   (or (and (member type '(java.lang.Float float))
+                                            (fp<= arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
+                                            (fp>= arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
+                                       (member type '(java.lang.Double double)))))
+                               (string
+                                 (and-let* ((type-class (find-class (mangle-class-name type))))
+                                   (assignable-from? (find-class "java/lang/String") type-class)))
+                               (jobject
+                                 (if (not (primitive? type))
+                                   (let ((type-class (find-class (mangle-class-name type))))
+                                     (and type-class
+                                          (instance-of? arg type-class)))
+                                   #f))
+                               (char (eq? type 'char))
+                               (else (assert #f)))))
+                args types))))
 
 (define (integer-compare n1 n2)
   (cond ((= n1 n2)   0)
@@ -146,25 +162,15 @@
            (if (assignable-from? type1-class type2-class) -1 1)))))
 
 (define (best-method m1 m2)
-  (let loop ((args-1 (car m1))
-             (args-2 (car m2))
+  (let loop ((args-1 (cadr m1))
+             (args-2 (cadr m2))
              (w1 0)
              (w2 0))
     (if (null? args-1)
-      (cond ((= w1 w2) (error 'jlambda-method "Ambiguos method information: " m1 m2))
+      (cond ((= w1 w2) (error 'jlambda-method "Ambiguous method information: " m1 m2))
             ((> w1 w2) m1)
             (else      m2))
       (let* ((r  (type-compare (car args-1) (car args-2)))
              (w1 (if (< r 0) (+ w1 1) w1))
              (w2 (if (> r 0) (+ w2 1) w2)))
         (loop (cdr args-1) (cdr args-2) w1 w2)))))
-
-(define (find-method-match methods args)
-  (fold (lambda (method best)
-          (if (match-arg-types args (car method))
-            (if best 
-              (best-method method best) 
-              method)
-            best))
-        #f
-        methods))

@@ -8,7 +8,7 @@ public class ReflectionHelper {
 	
 	public static Method[] findMethods(Class<?> c, String name) {
 		ArrayList<Method> methods = new ArrayList<Method>();
-		for (Method m : c.getMethods()) {
+		for (Method m : c.getDeclaredMethods()) {
 			if (m.getName().equals(name)) {
 				methods.add(m);
 			}
