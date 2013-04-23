@@ -1,5 +1,3 @@
-;; -*- scheme -*-
-
 (use files srfi-1)
 
 (define cross-compiling (feature? 'cross-chicken))
@@ -17,49 +15,50 @@
 
 (define (choose-libjvm-path . jvm-paths)
   (let ((candidates
-		  (map (lambda (jvm-path)
-				 (make-pathname java-path jvm-path))
-			   jvm-paths)))
-	(or (find file-exists? candidates)
-		(error 'jni "could not find libjvm" candidates))))
+	 (map (lambda (jvm-path)
+		(make-pathname java-path jvm-path))
+	      jvm-paths)))
+    (or (find file-exists? candidates)
+	(error 'jni "could not find libjvm" candidates))))
 
 (define libjvm-path
-  (if (host-extension)
-	(cond-expand
-	  (x86-64
-		(choose-libjvm-path
-		  "/jre/lib/amd64/server/"
-		  "/jre/lib/x64/server/"
-		  "/jre/lib/amd64/client/"
-		  "/jre/lib/x64/client/"))
-	  (x86
-		(choose-libjvm-path
-		  "/jre/lib/i386/server/"
-		  "/jre/lib/i386/client/")))
-	(require-envvar "NDK_LIBDIR")))
+  (if (or (and (feature? 'cross-chicken) (host-extension))
+	  (not (host-extension)))
+      (cond-expand
+       (x86-64
+	(choose-libjvm-path
+	 "/jre/lib/amd64/server/"
+	 "/jre/lib/x64/server/"
+	 "/jre/lib/amd64/client/"
+	 "/jre/lib/x64/client/"))
+       (x86
+	(choose-libjvm-path
+	 "/jre/lib/i386/server/"
+	 "/jre/lib/i386/client/")))))
 
 (define-syntax compile/for-host
   (ir-macro-transformer
-	(lambda (x i c)
-	  `(compile ,',(string-append "-L" libjvm-path)
-				-ljvm
-				,',(string-append "-I" (make-pathname java-path "/include/"))
-				. ,(cdr x)))))
+   (lambda (x i c)
+     `(compile ,',(string-append "-L" libjvm-path)
+	       -ljvm
+	       ,',(string-append "-I" (make-pathname java-path "/include/"))
+	       . ,(cdr x)))))
 
 (if (or (not cross-compiling)
-		(and cross-compiling 
-			 (host-extension)))
-  (begin
-    (file-copy "java/misc-utils.jar" "jni-utils.jar" #t)
-    (compile/for-host -s jni-lolevel.scm -J)
-    (compile/for-host -s jni-lolevel.import.scm)
-    (compile/for-host -s jni.scm -J)
-    (compile/for-host -s jni.import.scm))
-  (begin
-    (compile -s -Dandroid jni-lolevel.scm -J)
-    (compile -s -Dandroid jni-lolevel.import.scm)
-    (compile -s -Dandroid jni.scm -J)
-    (compile -s -Dandroid jni.import.scm)))
+	(and cross-compiling 
+	     (host-extension)))
+    (begin
+      (file-copy "java/misc-utils.jar" "jni-utils.jar" #t)
+
+      (compile/for-host -s jni-lolevel.scm -J)
+      (compile/for-host -s jni-lolevel.import.scm)
+      (compile/for-host -s jni.scm -J)
+      (compile/for-host -s jni.import.scm))
+    (begin
+      (compile -s -Dandroid jni-lolevel.scm -J)
+      (compile -s -Dandroid jni-lolevel.import.scm)
+      (compile -s -Dandroid jni.scm -J)
+      (compile -s -Dandroid jni.import.scm)))
 
 (install-extension 'jni
   '("jni-lolevel.so" "jni-lolevel.import.so" "jni.import.so" "jni.so" "jni-utils.jar")
