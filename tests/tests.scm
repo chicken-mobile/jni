@@ -344,6 +344,9 @@
             (jimport com.chicken_mobile.jni.test.Bar (prefix <> bar-))
             (test 1 (bar-ov1 (bar-new)))
 
+            (jimport com.chicken_mobile.jni.test.Handler (prefix <> handler-))
+            (test 1 (handler-send (bar-handler (bar-new)) 0))
+
             (jimport java.lang.String (prefix (only <> valueOf) String-))
             (test-jstring "1" (String-valueOf 1))
 

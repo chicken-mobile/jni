@@ -104,8 +104,11 @@
 (define free-jvalue-array
   (foreign-lambda void free_jvalue_array jvalue))
 
-(define make-array
+(define make-array/jni
   (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
+(define (make-array size jclass jobject)
+  (prepare-local-jobject (make-array/jni size jclass jobject)))
+
 (define array-length
   (jni-env-lambda jsize GetArrayLength jarray))
 (define array-ref

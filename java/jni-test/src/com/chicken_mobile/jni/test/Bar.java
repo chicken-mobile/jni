@@ -1,10 +1,18 @@
 package com.chicken_mobile.jni.test;
 
+import java.io.Serializable;
+
 
 
 public class Bar {
 	
 	public int id;
+	protected Handler handler = new Handler() {
+		@Override
+		public int send(int i) {
+			return 1;
+		}
+	};
 
 	public Bar() {
 	}
@@ -89,7 +97,11 @@ public class Bar {
 	}
 	
 	public String ov2(String s) {
-		
 		return "ov2";
 	}
+	
+	public int ov2(Serializable s) {
+		return 2;
+	}
+	
 }
