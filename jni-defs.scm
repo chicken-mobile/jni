@@ -50,7 +50,7 @@
 (define import-table (make-parameter #f))
 
 (define (find-class class)
-  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (find-class/jni c))))))
+  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (prepare-local-jobject (find-class/jni c)))))))
     (if (import-table)
       (let ((s-class (string->symbol class)))
         (or (find-class/safe class)
