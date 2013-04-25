@@ -7,10 +7,10 @@
 ;;
 
 (define (invoke-jni/safe thunk)
-	(let* ((r      (thunk)))
-		(if (exception-check) 
-			(exception-clear))
-		r))
+  (let* ((r (thunk)))
+    (if (exception-check) 
+      (exception-clear))
+    r))
 
 (define version
   (jni-env-lambda jint GetVersion))
@@ -50,7 +50,7 @@
 (define import-table (make-parameter #f))
 
 (define (find-class class)
-  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (find-class/jni c))))))
+  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (prepare-local-jobject (find-class/jni c)))))))
     (if (import-table)
       (let ((s-class (string->symbol class)))
         (or (find-class/safe class)
@@ -86,26 +86,29 @@
 (define get-static-field/jni
   (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string)))
 (define get-method-id/jni
-	(jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
+  (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
 (define get-static-method-id/jni
-	(jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+  (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
 
 (define (get-field jclass name type)
-	(invoke-jni/safe (lambda () (get-field/jni jclass name type))))
+  (invoke-jni/safe (lambda () (get-field/jni jclass name type))))
 (define (get-static-field jclass name type)
-	(invoke-jni/safe (lambda () (get-static-field/jni jclass name type))))
+  (invoke-jni/safe (lambda () (get-static-field/jni jclass name type))))
 (define (get-method-id jclass name signature)
-	(invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
+  (invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
 (define (get-static-method-id jclass name signature)
-	(invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
+  (invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
 (define free-jvalue-array
   (foreign-lambda void free_jvalue_array jvalue))
 
-(define make-array
+(define make-array/jni
   (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
+(define (make-array size jclass jobject)
+  (prepare-local-jobject (make-array/jni size jclass jobject)))
+
 (define array-length
   (jni-env-lambda jsize GetArrayLength jarray))
 (define array-ref
@@ -205,29 +208,29 @@
           (loop (+ i 1) (cdr lst)))))))
 
 (define (get-type-symbol type-name)
-	(if (string-prefix? "L" type-name)
-		(string->symbol (string-drop (string-drop-right type-name 1) 1)) ; Lclass;
-		(cond ((string=? type-name "Z") 'boolean)
-					((string=? type-name "B") 'byte)
-					((string=? type-name "C") 'char)    
-					((string=? type-name "S") 'short)   
-					((string=? type-name "I") 'int)     
-					((string=? type-name "J") 'long)    
-					((string=? type-name "F") 'float)   
-					((string=? type-name "D") 'double)  
-					((string=? type-name "V") 'void)
-					(#t (error 'get-type-symbol "wrong type" type-name)))))
+  (if (string-prefix? "L" type-name)
+    (string->symbol (string-drop (string-drop-right type-name 1) 1)) ; Lclass;
+    (cond ((string=? type-name "Z") 'boolean)
+          ((string=? type-name "B") 'byte)
+          ((string=? type-name "C") 'char)    
+          ((string=? type-name "S") 'short)   
+          ((string=? type-name "I") 'int)     
+          ((string=? type-name "J") 'long)    
+          ((string=? type-name "F") 'float)   
+          ((string=? type-name "D") 'double)  
+          ((string=? type-name "V") 'void)
+          (#t (error 'get-type-symbol "wrong type" type-name)))))
 
 (define (class->type c)
-	(let* ((class-str (to-string c)))
-		(cond ((string-prefix? "class [" class-str) ; ie: "class [Ljava.lang.reflect.Method;"
+  (let* ((class-str (to-string c)))
+    (cond ((string-prefix? "class [" class-str) ; ie: "class [Ljava.lang.reflect.Method;"
            (vector (get-type-symbol (string-drop class-str (string-length "class [")))))
-					((string-prefix? "class " class-str)
-					 (string->symbol (string-drop class-str (string-length "class "))))
-					((string-prefix? "interface " class-str)
-					 (string->symbol (string-drop class-str (string-length "interface "))))
-					(#t
-					 (string->symbol class-str)))))
+          ((string-prefix? "class " class-str)
+           (string->symbol (string-drop class-str (string-length "class "))))
+          ((string-prefix? "interface " class-str)
+           (string->symbol (string-drop class-str (string-length "interface "))))
+          (#t
+           (string->symbol class-str)))))
 
 (define to-string
   (lambda (object)
@@ -235,6 +238,11 @@
            (String/instance (call-object-method object Object.toString/method #f))
            (string (jstring->string String/instance)))
       (delete-local-ref String/instance) string)))
+
+(define (call-new jclass jmethod jvalues)
+  (if jmethod 
+    (prepare-local-jobject (new-object jclass jmethod jvalues))
+    (error 'call-new "method not found")))
 
 (define-syntax define-method
   (ir-macro-transformer

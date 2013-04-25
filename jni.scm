@@ -3,16 +3,15 @@
 <#
 
 (module jni
-        (jlambda)
-        (import scheme chicken)
+        (jlambda jimport)
+        (import scheme chicken srfi-1)
         (reexport jni-lolevel)
 
         (import-for-syntax jni-lolevel)
         (use jni-lolevel)
 
         (begin-for-syntax
-          (import-for-syntax jni-lolevel chicken scheme)
-          (require-library jni-lolevel))
+          (require-library jni-lolevel srfi-1))
 
         (cond-expand 
           (android)
@@ -27,21 +26,35 @@
                     `(unless (jni-env) 
                        (jvm-init-lolevel ,class-path))))))))
 
-        (define-for-syntax (find-Method-parameter-types Method)
-          (map class->type (array->list (Method.getParameterTypes Method))))
+        (define-for-syntax (make-parameter-list ParameterTypes)
+          (map class->type (reverse (array->list ParameterTypes))))
 
-        (define-for-syntax (find-methods class-name method-name)
+        (define-for-syntax (method-signature Method)
+          (cons* (static? (Method.getModifiers Method))
+                 (class->type (Method.getReturnType Method))
+                 (make-parameter-list (Method.getParameterTypes Method))))
+
+        (define-for-syntax (constructor-signature Constructor)
+          (cons* #f 'void (make-parameter-list (Constructor.getParameterTypes Constructor))))
+
+        (define-for-syntax (define-constructors class-name)
           (let* ((class-object (find-class/or-error class-name))
-                 (name         (symbol->string method-name))
-                 (Methods      (array->list (find-methods/helper class-object name))))
+                 (Constructors (array->list (Class.getConstructors class-object)))
+                 (signatures   (map constructor-signature Constructors)))
+            `(jlambda-methods ',class-name 'new ',signatures)))
+
+        (define-for-syntax (define-methods class-name method-name)
+          (let* ((class-object (find-class/or-error class-name))
+                 (Methods      (array->list (find-methods/helper class-object (symbol->string method-name)))))
             (if (not (null? Methods))
-              `(jlambda-methods ',(map find-Method-parameter-types Methods))
+              (let* ((static     (static? (Method.getModifiers (car Methods))))
+                     (signatures (map method-signature Methods)))
+                `(jlambda-methods ',class-name ',method-name ',signatures))
               #f)))
 
-        (define-for-syntax (find-field class-name field-name)
+        (define-for-syntax (define-field class-name field-name)
           (let* ((class-object (find-class/or-error class-name))
-                 (name         (symbol->string field-name))
-                 (Field        (find-field/helper class-object name)))
+                 (Field        (find-field/helper class-object (symbol->string field-name))))
             (if Field
               (let* ((static (static? (Field.getModifiers Field)))
                      (type   (class->type (Field.getType Field)))) 
@@ -49,13 +62,59 @@
               #f)))
 
         (define-syntax jlambda 
-          (ir-macro-transformer
-            (lambda (x i c)
-              (let* ((class-name  (strip-syntax (cadr x)))
-                     (rest        (cddr x)))
+          (er-macro-transformer
+            (lambda (x r c)
+              (let* ((%find-class/or-error (r 'find-class/or-error))
+              			 (class-name           (cadr x))
+                     (rest                 (cddr x)))
                 (if (null? rest)
-                  `(find-class/or-error ',class-name)
-                  (let ((method/field (strip-syntax (car rest))))
-                    (or (find-field class-name method/field)
-                        (find-methods class-name method/field)
-                        (error 'jlambda "invalid jlambda expression" x )))))))))
+                  `(,%find-class/or-error ',class-name)
+                  (let ((method/field (car rest)))
+                    (if (eq? method/field 'new)
+                      (define-constructors class-name)
+                      (or (define-field    class-name method/field)
+                          (define-methods  class-name method/field)
+                          (error 'jlambda "invalid jlambda expression" x)))))))))
+
+        (define-for-syntax (find-unique-names elements get-name)
+          (delete-duplicates (map (lambda (e)
+                                    (jstring->string (get-name e))) (array->list elements))))
+
+        (define-for-syntax (make-jlambda-definitions class-name names)
+          (map (lambda (field/method) 
+                 (let ((name (string->symbol field/method)))
+                   `(define ,name (jlambda ,class-name ,(string->symbol field/method))))) names))
+
+        (define-for-syntax (replace-placeholder value ls)
+          (map (lambda (e) 
+                 (cond ((list? e)
+                        (replace-placeholder value e))
+                       ((eq? '<> e)
+                        value)
+                       (else
+                         e))) ls))
+
+        (define-syntax jimport 
+          (er-macro-transformer
+            (lambda (x r c)
+              (let* ((%module      (r 'module))
+                     (%import      (r 'import))
+                     (%begin       (r 'begin))
+                     (%define      (r 'define))
+                     (%jlambda     (r 'jlambda))
+                     (class-name   (cadr x))
+                     (specifiers   (cddr x))
+                     (class-object (find-class/or-error class-name))
+                     (Methods      (find-unique-names (Class.getDeclaredMethods class-object) Method.getName))
+                     (Fields       (find-unique-names (Class.getDeclaredFields class-object)  Field.getName)))
+                `(,%begin (,%module ,class-name
+                                    *
+                                    (,%import scheme chicken jni)
+                                    (,%define new (,%jlambda ,class-name new))
+                                    ,@(make-jlambda-definitions class-name Methods)
+                                    ,@(make-jlambda-definitions class-name Fields))
+                          (,%import ,@(if (null? specifiers) 
+                                        `(,class-name) 
+                                        (replace-placeholder class-name specifiers))))))))
+
+        ) ; end of jni module
