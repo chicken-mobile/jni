@@ -154,8 +154,10 @@
 (define monitor-exit
   (jni-env-lambda jint MonitorExit jobject))
 
-(define jstring
+(define jstring/jni
   (jni-env-lambda jstring NewStringUTF c-string))
+(define (jstring str)
+  (prepare-local-jobject (jstring/jni str)))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)

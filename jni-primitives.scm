@@ -112,7 +112,9 @@
 
 (define (prepare-local-jobject jobject)
   (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
-    (set-finalizer! (tag-pointer (new-global-ref jobject) (make-jobject-meta)) delete-global-ref)
+    (let ((global (new-global-ref jobject)))
+      (delete-local-ref jobject)
+      (set-finalizer! (tag-pointer global (make-jobject-meta)) delete-global-ref))
     jobject))
 
 ;; jni jvm bindings
