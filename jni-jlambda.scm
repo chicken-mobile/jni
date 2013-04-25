@@ -56,7 +56,9 @@
     (lambda (args)
       (let ((jvalues (make-jvalue-array (length argument-types))))
         (for-each (lambda (type-setter! arg)
-                      (type-setter! jvalues (if (string? arg) (jstring arg) arg)))
+                      (type-setter! jvalues (if (string? arg) 
+                                              (jstring arg) 
+                                              arg)))
                   setters args)
         jvalues))))
 

@@ -110,6 +110,7 @@
                 `(,%begin (,%module ,class-name
                                     *
                                     (,%import scheme chicken jni)
+                                    (use jni)
                                     (,%define new (,%jlambda ,class-name new))
                                     ,@(make-jlambda-definitions class-name Methods)
                                     ,@(make-jlambda-definitions class-name Fields))
