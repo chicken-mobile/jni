@@ -105,16 +105,15 @@
     (lambda args
 			(let ((arg (car args)))
 				(if (jobject-meta? (pointer-tag arg))
-					(let* ((object-class (get-object-class arg))
+					(let* ((object-class   (get-object-class arg))
 								 (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
-						(delete-local-ref object-class)
 						jobject-string)
 					(apply old args))))))
 
 (define (prepare-local-jobject jobject)
-	(if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
-		(set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-local-ref)
-		jobject))
+  (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
+    (set-finalizer! (tag-pointer (new-global-ref jobject) (make-jobject-meta)) delete-global-ref)
+    jobject))
 
 ;; jni jvm bindings
 (define-foreign-variable JNI_VERSION_1_1 int)
@@ -144,8 +143,12 @@
      (foreign-declare "
 #include <jni.h>
 
+static JavaVM* jvm;
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 {
+  jvm = vm;
+
  CHICKEN_run(C_toplevel);
  return JNI_VERSION_1_6;
 }"))))
