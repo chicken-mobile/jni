@@ -1,4 +1,4 @@
-(use files srfi-1 make)
+(use files srfi-1 make shell)
 
 (define cross-compiling (feature? 'cross-chicken))
 
@@ -50,7 +50,15 @@
 
 
 (when build-for-host
-  (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t))
+  (make (("jni-utils.jar" 
+	  ("java/misc-utils/build.xml"
+	   "java/misc-utils/src/com/chicken_mobile/jni/ExceptionHelper.java"
+	   "java/misc-utils/src/com/chicken_mobile/jni/ReflectionHelper.java")
+	  (run (ant -f "java/misc-utils/build.xml" clean))
+	  (run (ant -f "java/misc-utils/build.xml"))
+	  (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)))
+    '("jni-utils.jar")))
+
 
 (let-syntax ((compile*
 	      (syntax-rules ()
