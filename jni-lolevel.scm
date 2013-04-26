@@ -1,5 +1,9 @@
 #>
+#ifndef __ANDROID__
 #include "jni-adapter.h"
+#else
+#include <jni.h>
+#endif
 <#
 
 (module jni-lolevel
