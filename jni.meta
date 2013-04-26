@@ -2,6 +2,6 @@
 
 ((license "BSD License")
  (category lang-exts)
- (needs lolevel foreigners moremacros numbers make)
+ (needs lolevel foreigners moremacros numbers make shell)
  (author "bevuta IT GmbH (Patrick Brauer)")
  (synopsis "JNI Bindings for Chicken Scheme"))
