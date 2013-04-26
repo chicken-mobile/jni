@@ -68,10 +68,16 @@
       class
       (error 'find-class/or-error "class not found" name))))
 
-(define super-class
+(define super-class/jni
   (jni-env-lambda jclass GetSuperclass jclass))
-(define get-object-class
+(define (super-class jclass)
+  (prepare-local-jobject (super-class/jni jclass)))
+
+(define get-object-class/jni
   (jni-env-lambda jclass GetObjectClass jobject))
+(define (get-object-class jobject)
+  (prepare-local-jobject (get-object-class/jni jobject)))
+
 (define instance-of?
   (jni-env-lambda jboolean IsInstanceOf jobject jclass))
 (define same-object?
@@ -148,8 +154,10 @@
 (define monitor-exit
   (jni-env-lambda jint MonitorExit jobject))
 
-(define jstring
+(define jstring/jni
   (jni-env-lambda jstring NewStringUTF c-string))
+(define (jstring str)
+  (prepare-local-jobject (jstring/jni str)))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
