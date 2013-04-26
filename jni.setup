@@ -1,8 +1,10 @@
-;; -*- scheme -*-
-
-(use files srfi-1)
+(use files srfi-1 make shell)
 
 (define cross-compiling (feature? 'cross-chicken))
+
+(define build-for-host 
+  (or (not cross-compiling)
+      (host-extension)))
 
 (define (require-envvar var)
   (let ((val (get-environment-variable var)))
@@ -17,49 +19,64 @@
 
 (define (choose-libjvm-path . jvm-paths)
   (let ((candidates
-		  (map (lambda (jvm-path)
-				 (make-pathname java-path jvm-path))
-			   jvm-paths)))
-	(or (find file-exists? candidates)
-		(error 'jni "could not find libjvm" candidates))))
+	 (map (lambda (jvm-path)
+		(make-pathname java-path jvm-path))
+	      jvm-paths)))
+    (or (find file-exists? candidates)
+	(error 'jni "could not find libjvm" candidates))))
 
 (define libjvm-path
-  (if (host-extension)
-	(cond-expand
-	  (x86-64
-		(choose-libjvm-path
-		  "/jre/lib/amd64/server/"
-		  "/jre/lib/x64/server/"
-		  "/jre/lib/amd64/client/"
-		  "/jre/lib/x64/client/"))
-	  (x86
-		(choose-libjvm-path
-		  "/jre/lib/i386/server/"
-		  "/jre/lib/i386/client/")))
-	(require-envvar "NDK_LIBDIR")))
+  (if (or (and (feature? 'cross-chicken) (host-extension))
+	  (not (host-extension)))
+      (cond-expand
+       (x86-64
+	(choose-libjvm-path
+	 "/jre/lib/amd64/server/"
+	 "/jre/lib/x64/server/"
+	 "/jre/lib/amd64/client/"
+	 "/jre/lib/x64/client/"))
+       (x86
+	(choose-libjvm-path
+	 "/jre/lib/i386/server/"
+	 "/jre/lib/i386/client/")))))
 
 (define-syntax compile/for-host
   (ir-macro-transformer
-	(lambda (x i c)
-	  `(compile ,',(string-append "-L" libjvm-path)
-				-ljvm
-				,',(string-append "-I" (make-pathname java-path "/include/"))
-				. ,(cdr x)))))
+   (lambda (x i c)
+     `(compile ,',(string-append "-L" libjvm-path)
+	       -ljvm
+	       ,',(string-append "-I" (make-pathname java-path "/include/"))
+	       . ,(cdr x)))))
 
-(if (or (not cross-compiling)
-		(and cross-compiling 
-			 (host-extension)))
-  (begin
-    (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)
-    (compile/for-host -s jni-lolevel.scm -J)
-    (compile/for-host -s jni-lolevel.import.scm)
-    (compile/for-host -s jni.scm -J)
-    (compile/for-host -s jni.import.scm))
-  (begin
-    (compile -s -Dandroid jni-lolevel.scm -J)
-    (compile -s -Dandroid jni-lolevel.import.scm)
-    (compile -s -Dandroid jni.scm -J)
-    (compile -s -Dandroid jni.import.scm)))
+
+(when build-for-host
+  (make (("jni-utils.jar" 
+	  ("java/misc-utils/build.xml"
+	   "java/misc-utils/src/com/chicken_mobile/jni/ExceptionHelper.java"
+	   "java/misc-utils/src/com/chicken_mobile/jni/ReflectionHelper.java")
+	  (run (ant -f "java/misc-utils/build.xml" clean))
+	  (run (ant -f "java/misc-utils/build.xml"))
+	  (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)))
+    '("jni-utils.jar")))
+
+
+(let-syntax ((compile*
+	      (syntax-rules ()
+		((_ args ...)
+		 (if build-for-host
+		     (compile/for-host -s args ...)
+		     (compile -s -Dandroid args ...))))))
+  (make (("jni-lolevel.so" ("jni-lolevel.scm"
+			    "jvalue-tools.c"
+			    "jni-primitives.scm"
+			    "jni-jlambda.scm"
+			    "jni-reflection.scm")
+	  (compile* jni-lolevel.scm -J)
+	  (compile* jni-lolevel.import.scm))
+	 ("jni.so" ("jni.scm" "jni-lolevel.so")
+	  (compile* jni.scm -J)
+	  (compile* jni.import.scm)))
+    '("jni-lolevel.so" "jni.so")))
 
 (install-extension 'jni
   '("jni-lolevel.so" "jni-lolevel.import.so" "jni.import.so" "jni.so" "jni-utils.jar")

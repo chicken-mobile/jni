@@ -100,15 +100,16 @@
 (define (jobject? pointer)
   (and (pointer? pointer)
        (jobject-meta? (pointer-tag pointer))))
-(mutate-procedure ##sys#pointer->string
+(mutate-procedure! ##sys#pointer->string
   (lambda (old)
     (lambda args
       (let ((arg (car args)))
-        (if (jobject-meta? (pointer-tag arg))
-          (let* ((object-class   (get-object-class arg))
-                 (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
-            jobject-string)
-          (apply old args))))))
+	(if (jobject-meta? (pointer-tag arg))
+	    (let* ((object-class (get-object-class arg))
+		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
+	      (delete-local-ref object-class)
+	      jobject-string)
+	    (apply old args))))))
 
 (define (prepare-local-jobject jobject)
   (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
