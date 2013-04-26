@@ -201,7 +201,7 @@
 (define (jlambda-methods class-name method-name signatures)
   (let* ((methods       (generate-methods class-name method-name signatures))
          (method-finder (lambda (args/with-typehints)
-                          (let ((method (find-method-match methods args/with-typehints))
+                          (let ((method (find-method-match method-name methods args/with-typehints))
                                 (args   (map (lambda (arg/with-typehints)
                                                (if (pair? arg/with-typehints)
                                                  (cdr arg/with-typehints)

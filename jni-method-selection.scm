@@ -85,9 +85,9 @@
         '()
         signatures))
 
-(define (find-method-match methods args)
+(define (find-method-match method-name methods args)
   (fold (lambda (method best)
-          (if (match-arg-types args (car method) (cadr method))
+          (if (match-arg-types method-name args (car method) (cadr method))
             (if best 
               (best-method method best) 
               method)
@@ -95,12 +95,16 @@
         #f
         methods))
 
+(define (get-matching-args method-name is-static args)
+  (if (or (null? args)
+          (eq? method-name 'new)
+          is-static)
+    args
+    (cdr args)))
+
 ;; check if the args match the type signature
-(define (match-arg-types args is-static types)
-  (let ((args (if (and (not is-static)
-                       (not (null? args)))
-                (cdr args)
-                args)))
+(define (match-arg-types method-name args is-static types)
+  (let ((args (get-matching-args method-name is-static args)))
     (and (= (length args) (length types))
          (every (lambda (arg type)
                   (if (pair? arg)
