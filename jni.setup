@@ -60,6 +60,10 @@
     '("jni-utils.jar")))
 
 
+;;;XXX temporary fix for stale binaries in target variant when doing cross-build
+(when (feature? 'cross-chicken)
+  (for-each delete-file (glob "*.so")))
+
 (let-syntax ((compile*
 	      (syntax-rules ()
 		((_ args ...)
