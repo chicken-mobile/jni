@@ -230,9 +230,10 @@
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
     (jstring->string (m exception))))
 
-(define (jexception-message exception)
+(define jexception-message 
   (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
-    (jstring->string (m exception))))
+    (lambda (exception)
+      (jstring->string (m exception)))))
 
 (define (jexception-type exception)
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
