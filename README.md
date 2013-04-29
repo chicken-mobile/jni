@@ -90,6 +90,15 @@ Example:
 - (jlambda CLASS method) => jlambda-methods
 - (jlambda CLASS new)    => jlambda-methods
 
+#### jlambda-constant
+    [macro] (jlambda-constant TYPE CLASS FIELD) => lambda
+
+Returns a static java constant getter procedure. This macro doesn't requiere a jni-env available until getter invokation. Also, the result is cached so the value is retrieved from java just once.
+
+Examples:
+
+(define FLOAT_MAX_VALUE (jlambda-constant float java.lang.Float MAX_VALUE))
+
 #### jlambda-field
     [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
 

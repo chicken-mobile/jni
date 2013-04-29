@@ -146,6 +146,20 @@
       (lambda (object value)
         (accessor object jfield value)))))
 
+;; getter for static constant: the result is cached, and doesn't requiere a jni-env until getter invokation
+(define (jlambda-constant-imple type class-name field-name)
+  (let* ((field-name     (symbol->string field-name))
+         (field-fullname (string-append (symbol->string class-name) "." field-name))
+         (value          'empty))
+    (lambda () 
+      (if (eq? value 'empty)
+        (let* ((signature      (type-signature (if (primitive? type) type (class->type (find-class/or-error type)))))
+               (jclass         (find-class/or-error class-name))
+               (jfield         (get-static-field jclass field-name signature))
+               (new-value      ((make-field-getter #t type jclass jfield))))
+          (set! value new-value)))
+      value)))
+
 (define (jlambda-field-imple modifiers type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
          (signature      (type-signature (if (primitive? type) type (class->type (find-class/or-error type)))))
@@ -183,6 +197,12 @@
   (syntax-rules ()
     ((_ modifiers type class-name field-name)
      (jlambda-field-imple 'modifiers 'type 'class-name 'field-name))))
+
+; convenient macro to access jlambda-constant-imple
+(define-syntax jlambda-constant
+  (syntax-rules ()
+    ((_ type class-name field-name)
+     (jlambda-constant-imple 'type 'class-name 'field-name))))
 
 ; convenient macro to access find-class/or-error
 (define-syntax class
@@ -226,18 +246,20 @@
                              (append old-import-table new-import-table)
                              new-import-table)))))))
 
-(define (jexception-trace exception)
+(define jexception-trace
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
-    (jstring->string (m exception))))
+    (lambda (exception)
+      (jstring->string (m exception)))))
 
 (define jexception-message 
   (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
-(define (jexception-type exception)
+(define jexception-type
   (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
-    (jstring->string (m exception))))
+    (lambda (exception)
+      (jstring->string (m exception)))))
 
 (define (make-condition exception)
   (let ((trace   (jexception-trace exception))

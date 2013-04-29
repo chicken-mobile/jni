@@ -102,6 +102,13 @@
     args
     (cdr args)))
 
+(define FLOAT_MAX_VALUE (jlambda-constant float java.lang.Float MAX_VALUE))
+(define FLOAT_MIN_VALUE (jlambda-constant float java.lang.Float MIN_VALUE))
+(define INT_MAX_VALUE   (jlambda-constant int   java.lang.Integer MAX_VALUE))
+(define INT_MIN_VALUE   (jlambda-constant int   java.lang.Integer MIN_VALUE))
+(define LONG_MAX_VALUE  (jlambda-constant long  java.lang.Long    MAX_VALUE))
+(define LONG_MIN_VALUE  (jlambda-constant long  java.lang.Long    MIN_VALUE))
+
 ;; check if the args match the type signature
 (define (match-arg-types method-name args is-static types)
   (let ((args (get-matching-args method-name is-static args)))
@@ -113,20 +120,19 @@
                                (boolean (eq? 'boolean type))
                                (number  
                                  (if (fixnum? arg)
-                                   ;TODO: improve this to avoid callling jlambda-field each time
                                    (or (and (member type '(java.lang.Integer int))
-                                            (< arg (expt 2 31))
-                                            (>= arg (- (expt 2 31))))
+                                            (< arg (INT_MAX_VALUE))
+                                            (>= arg (INT_MIN_VALUE)))
                                        (and (member type '(java.lang.Long long))
-                                            (< arg (expt 2 63))
-                                            (>= arg (- (expt 2 63))))
+                                            (< arg (LONG_MAX_VALUE))
+                                            (>= arg (LONG_MIN_VALUE)))
                                        (and (member type '(java.lang.Float float))
-                                            (< arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
-                                            (> arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
+                                            (< arg (FLOAT_MAX_VALUE))
+                                            (> arg (FLOAT_MIN_VALUE)))
                                        (member type '(java.lang.Double double)))
                                    (or (and (member type '(java.lang.Float float))
-                                            (fp<= arg ((jlambda-field (static) float java.lang.Float MAX_VALUE))) 
-                                            (fp>= arg ((jlambda-field (static) float java.lang.Float MIN_VALUE))))
+                                            (fp<= arg (FLOAT_MAX_VALUE))
+                                            (fp>= arg (FLOAT_MIN_VALUE)))
                                        (member type '(java.lang.Double double)))))
                                (string
                                  (and-let* ((type-class (find-class (mangle-class-name type))))
