@@ -15,10 +15,10 @@
     ((_ class expr)
      (test (string-append "class " (symbol->string 'class)) (to-string expr)))))
     
-(define new-Foo (jlambda-constructor com.chicken_mobile.jni.test.Foo))
-(define new-Bar (jlambda-constructor com.chicken_mobile.jni.test.Bar int))
-(define new-N1 (jlambda-constructor com.chicken_mobile.jni.test.N1))
-(define new-N2 (jlambda-constructor com.chicken_mobile.jni.test.N2))
+(define new-Foo     (jlambda-constructor com.chicken_mobile.jni.test.Foo))
+(define new-Bar     (jlambda-constructor com.chicken_mobile.jni.test.Bar int))
+(define new-N1      (jlambda-constructor com.chicken_mobile.jni.test.N1))
+(define new-N2      (jlambda-constructor com.chicken_mobile.jni.test.N2))
 (define new-Integer (jlambda-constructor java.lang.Integer int))
 
 (test-group "primitives"

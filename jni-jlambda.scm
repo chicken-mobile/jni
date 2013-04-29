@@ -69,34 +69,29 @@
         (free-jvalue-array jvalues)
         (check-jexception return-value))))
 
-(define (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)
+(define (assert-method-exists modifiers return-type class-type method-name argument-types)
+  (let* ((static   (static-signature? modifiers))
+         (jmethod  (method static return-type class-type method-name argument-types)))
+    (assert jmethod)))
+
+(define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
+  (if (jni-env)
+    (assert-method-exists modifiers return-type class-type method-name argument-types))
   (let* ((static         (static-signature? modifiers))
          (jvalue-builder (make-jvalue-builder argument-types))
-         (method-caller  (get-method-caller modifiers return-type)))
-    (if lazy
-      (lambda (args instance)
-        (let* ((jmethod (method static return-type class-type method-name argument-types))
-               (caller  (make-caller method-caller jvalue-builder jmethod)))
-          (if jmethod
-            (caller args instance)
-            (error 'call-method "method not found"))))
-      (let* ((class-object (find-class/or-error class-type))
-             (jmethod      (method static return-type class-type method-name argument-types)))
-        (make-caller method-caller jvalue-builder jmethod)))))
-
-(define (make-jlambda-method modifiers return-type class-type method-name argument-types lazy)
-  (let* ((caller (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)))
+         (method-caller  (get-method-caller modifiers return-type))
+         (jmethod        #f)
+         (caller         (lambda (args instance)
+                           (if (not jmethod)
+                             (set! jmethod (method static return-type class-type method-name argument-types)))
+                           (if jmethod
+                             ((make-caller method-caller jvalue-builder jmethod) args instance)
+                             (error 'call-method "method not found")))))
     (if (static-signature? modifiers)
       (lambda args 
         (caller args (find-class/or-error class-type)))
       (lambda (object . args) 
         (caller args object)))))
-
-(define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
-  (make-jlambda-method modifiers return-type class-type method-name argument-types #t))
-
-(define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
-  (make-jlambda-method modifiers return-type class-type method-name argument-types #f))
 
 (define (jlambda-constructor-imple class-type argument-types)
   (let* ((class-object   (find-class/or-error class-type))
@@ -180,12 +175,6 @@
     ((_ modifiers return-type class-type method-name argument-types ...)
      (jlambda-method-imple 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
 
-; convenient macro to access jlambda-method-imple*
-(define-syntax jlambda-method*
-  (syntax-rules ()
-    ((_ modifiers return-type class-type method-name argument-types ...)
-     (jlambda-method-imple* 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
-
 ; convenient macro to access jlambda-constructor-imple
 (define-syntax jlambda-constructor
   (syntax-rules ()
@@ -247,17 +236,17 @@
                              new-import-table)))))))
 
 (define jexception-trace
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
+  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
 (define jexception-message 
-  (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
+  (let ((m (jlambda-method #f java.lang.String java.lang.Exception getMessage)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
 (define jexception-type
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
+  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
