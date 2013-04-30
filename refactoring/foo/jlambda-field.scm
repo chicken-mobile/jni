@@ -42,7 +42,7 @@
     (case type
       ((boolean byte char short int long float double)
        (symbol-append action sep type '-field))
-      (else action sep 'object-field))))
+      (else (symbol-append action sep 'object-field)))))
 
 (define-for-syntax (%make-field-getter-with-setter modifier class-object return-type field)
   `(make-getter-with-setter-variant (quote ,modifier) ,class-object ,field
