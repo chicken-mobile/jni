@@ -1,6 +1,7 @@
 (use jni-lolevel)
 (import-for-syntax jni-lolevel matchable)
 (include "field-id.scm")
+(include "class.scm")
 
 (define (make-getter-with-setter-variant modifier class-object field getter setter)
   (if (eq? modifier 'static) 
@@ -62,3 +63,25 @@
 	  `(let ((,%class-object ,class-object))
 	     (let ((,%field (%field-id ,modifier ,%class-object ,return-type ,field-name)))
 	       ,(%make-field-getter-with-setter modifier %class-object return-type %field)))))))))
+
+(define-for-syntax (field-spec modifier spec)
+  (match spec
+    ((proc-name (return-type field-name))
+     `(,modifier ,return-type ,field-name ,proc-name))
+    ((return-type field-name)
+     `(,modifier ,return-type ,field-name ,field-name))))
+
+(define-syntax jlambda-field-define*
+  (syntax-rules ()
+    ((_ class-object (modifier return-type field-name  proc-name) ...)
+     (define-values (proc-name ...) 
+       (values (jlambda-field modifier class-object return-type field-name) ...)))))
+
+(define-syntax jlambda-field-define
+  (ir-macro-transformer
+   (lambda (x i c)
+     (match x
+       ((_ class-object (static-fields ...) (nonstatic-fields ...))
+	`(jlambda-field-define* ,class-object
+				  ,@(map (cut field-spec 'static    <>)    static-fields)
+				  ,@(map (cut field-spec 'nonstatic <>) nonstatic-fields)))))))
