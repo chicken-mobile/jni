@@ -7,6 +7,9 @@ import java.io.Serializable;
 public class Bar {
 	
 	public int id;
+	
+	public static int CONSTANT = 36;
+	
 	protected Handler handler = new Handler() {
 		@Override
 		public int send(int i) {

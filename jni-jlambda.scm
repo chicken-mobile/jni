@@ -111,7 +111,10 @@
       ((long)    (if static get-static-long-field    get-long-field))
       ((float)   (if static get-static-float-field   get-float-field))
       ((double)  (if static get-static-double-field  get-double-field))
-      (else      (if static get-static-object-field  get-object-field)))
+      (else      
+        (if static 
+          (lambda (jclass jfield) (prepare-local-jobject (get-static-object-field jclass jfield)))
+          (lambda (object jfield) (prepare-local-jobject (get-object-field object jfield))))))
     (case type
       ((boolean) (if static set-static-boolean-field set-boolean-field))
       ((byte)    (if static set-static-byte-field    set-byte-field))
@@ -123,23 +126,11 @@
       ((double)  (if static set-static-double-field  set-double-field))
       (else      (if static set-static-object-field  set-object-field)))))
 
-(define (make-field-getter static type jclass jfield)
-  (let ((prepare (lambda (v) 
-                   (if (primitive? type) v (prepare-local-jobject v))))
-        (accessor (field-accessor-for static 'get type)))
-    (if static
-      (lambda () 
-        (prepare (accessor jclass jfield)))
-      (lambda (object)
-        (prepare (accessor object jfield))))))
-
-(define (make-field-setter static type jclass jfield)
-  (let ((accessor (field-accessor-for static 'set type)))
-    (if static
-      (lambda (value)
-        (accessor jclass jfield value))
-      (lambda (object value)
-        (accessor object jfield value)))))
+(define (make-field-accessor static accessor-type type jclass jfield)
+  (let ((accessor (field-accessor-for static accessor-type type)))
+    (if (eq? accessor-type 'get)
+      (if static (cut accessor jclass jfield) (cut accessor <> jfield))
+      (if static (cut accessor jclass jfield <>) (cut accessor <> jfield <>)))))
 
 ;; getter for static constant: the result is cached, and doesn't requiere a jni-env until getter invokation
 (define (jlambda-constant-imple type class-name field-name)
@@ -151,7 +142,7 @@
         (let* ((signature      (type-signature (if (primitive? type) type (class->type (find-class/or-error type)))))
                (jclass         (find-class/or-error class-name))
                (jfield         (get-static-field jclass field-name signature))
-               (new-value      ((make-field-getter #t type jclass jfield))))
+               (new-value      ((field-accessor-for #t 'get type) jclass jfield)))
           (set! value new-value)))
       value)))
 
@@ -164,8 +155,8 @@
          (field-fullname (string-append (symbol->string class-name) "." field-name)))
     (if jfield
       (getter-with-setter 
-        (make-field-getter static type jclass jfield)
-        (make-field-setter static type jclass jfield)
+        (make-field-accessor static 'get type jclass jfield)
+        (make-field-accessor static 'set type jclass jfield)
         field-fullname)
       (error 'field "field not found" field-name))))
 

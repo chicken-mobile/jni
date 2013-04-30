@@ -72,6 +72,17 @@
                 (test 11 (Bar-id bar))))
             ); end jlambda-field test group
 
+(test-group "jlambda-constant"
+            (define CONSTANT (jlambda-constant int com.chicken_mobile.jni.test.Bar CONSTANT))
+            (define constant-field (jlambda-field (static) int com.chicken_mobile.jni.test.Bar CONSTANT))
+
+            (test 36 (CONSTANT))
+            (set! (constant-field) 1)
+            (test 1 (constant-field))
+            (test 36 (CONSTANT))
+
+            ); end jlambda-constant test group
+
 (test-group "jlambda-method"
             ;test #(..) signature, if not defined raises an error
             (jlambda-method #f #(java.lang.reflect.Method) java.lang.Class getMethods)
