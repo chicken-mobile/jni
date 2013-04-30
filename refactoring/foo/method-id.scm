@@ -1,6 +1,6 @@
-(use jni-lolevel)
+(use jni-lolevel matchable)
 (import-for-syntax chicken jni-lolevel matchable)
-(include "types.scm")
+(include "class.scm")
 
 
 (define (get-method-id/error* variant args)
@@ -20,8 +20,8 @@
 	   (or (and safe? get-static-method-id) get-static-method-id/error))
       (or (and safe? get-method-id) get-method-id/error)))
 
-(define (method-id* modifier class-object return-type method-name . arg-types)
-  ((method-id-variant modifier) class-object method-name (type-signature arg-types return-type)))
+(define (method-id* modifier class-object return-type method-name arg-types)
+  ((method-id-variant modifier) class-object method-name (expand-type arg-types return-type)))
 
 
 (define-for-syntax (%method-id-variant modifier #!optional (safe? #f))
