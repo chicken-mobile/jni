@@ -1,7 +1,6 @@
 (use jni-lolevel)
 (import-for-syntax jni-lolevel matchable)
 (include "field-id.scm")
-(include "class.scm")
 
 (define (make-getter-with-setter-variant modifier class-object field getter setter)
   (if (eq? modifier 'static) 
@@ -60,9 +59,8 @@
 	      (%class-object (i 'class-object))
 	      (%field        (i 'field)))
 
-	  `(let ((,%class-object ,class-object))
-	     (let ((,%field (%field-id ,modifier ,%class-object ,return-type ,field-name)))
-	       ,(%make-field-getter-with-setter modifier %class-object return-type %field)))))))))
+	  `(let ((,%field (%field-id ,modifier ,class-object ,return-type ,field-name)))
+	    ,(%make-field-getter-with-setter modifier class-object return-type %field))))))))
 
 (define-for-syntax (field-spec modifier spec)
   (match spec

@@ -1,5 +1,3 @@
-(include "jlambda-field.scm")
-
 ;; jni-method-selection.scm : utilities functions to mock java overloading rules for methods
 ;; 
 ;; -this functions are used by jlambda-methods
@@ -98,11 +96,15 @@
 (define (get-matching-args method-name is-static args)
   (if (or (null? args) (eq? method-name 'new) is-static) args (cdr args)))
 
-(jlambda-field-define (%class java.lang.Float)
+(define Float   (%class java.lang.Float))
+(define Integer (%class java.lang.Integer))
+(define Long    (%class java.lang.Long))
+
+(jlambda-field-define Float
   ((FLOAT_MAX_VALUE (float MAX_VALUE)) (FLOAT_MIN_VALUE (float MIN_VALUE))) ())
-(jlambda-field-define (%class java.lang.Integer)
+(jlambda-field-define Integer
   ((INT_MAX_VALUE   (int   MAX_VALUE)) (INT_MIN_VALUE   (int   MIN_VALUE))) ())
-(jlambda-field-define (%class java.lang.Long)
+(jlambda-field-define Long
   ((LONG_MAX_VALUE  (long  MAX_VALUE)) (LONG_MIN_VALUE  (long  MIN_VALUE))) ())
 
 ;; check if the args match the type signature

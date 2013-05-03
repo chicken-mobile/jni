@@ -1,7 +1,3 @@
-(use jni-lolevel lolevel moremacros)
-(jvm-init)
-(include "class.scm")
-(include "jlambda-method.scm")
 (include "jlambda-methods-selection.scm")
 
 (define (make-method-finder method-name methods)
@@ -12,7 +8,9 @@
 			     (cdr arg/with-typehints) arg/with-typehints)) 
 		       args/with-typehints)))
       (if method
-	  (values method args)
+	  (begin
+	    (print method)
+	    (values method args))
 	  (error 'jlambda-methods
 		 (format "cannot find method ~a with args: ~a" method-name args/with-typehints))))))
 
@@ -43,8 +41,3 @@
 		(method-finder (make-method-finder ,(->string (strip-syntax method-name)) methods)))
 	   (extend-procedure (jlambda-methods-dispatcher method-finder)
 			     (list ',modifier ,class-object ',return-type ,(->string method-name)))))))))
-
-
-(define testo
-  (jlambda-methods static (class java.lang.String) java.lang.String valueOf 
-		   ((int) (long) (java.lang.Object))))

@@ -2,7 +2,7 @@
 (import-for-syntax jni-lolevel matchable)
 (include "method-id.scm")
 (include "jvalue.scm")
-(include "types.scm")
+
 
 (define (call-proc-variant modifier return-type)
     (if (eq? modifier 'static)
@@ -70,7 +70,7 @@
 	  `(let ((method (%method-id ,modifier ,class-object ,return-type ,method-name ,@arg-types))
 		 (jvalue-array (make-jvalue-array ,(length arg-types)))
 		 (target ,class-object))
-	     (lambda ,(jlambda-args (i modifier) arg-names)
+	     (lambda ,(jlambda-args (strip-syntax modifier) arg-names)
 	       (%make-jvalue-builder jvalue-array ,arg-types ,arg-names)
 	       (,%call-variant target method jvalue-array)))))))))
 
@@ -94,6 +94,6 @@
    (lambda (x i c)
      (match x
        ((_ class-object (static-methods ...) (nonstatic-methods ...))
-	`(jlambda-method-define** ,class-object
-				  ,@(map (cut method-spec 'static    <>)    static-methods)
-				  ,@(map (cut method-spec 'nonstatic <>) nonstatic-methods)))))))
+	`(jlambda-method-define* ,class-object
+				 ,@(map (cut method-spec 'static    <>)    static-methods)
+				 ,@(map (cut method-spec 'nonstatic <>) nonstatic-methods)))))))

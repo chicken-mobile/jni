@@ -1,6 +1,5 @@
 (use jni-lolevel)
 (import-for-syntax chicken jni-lolevel)
-(include "types.scm")
 
 (define (get-field-id/error* variant args)
   (or (or (apply variant args) (and (exception-check) (not (exception-clear))))
