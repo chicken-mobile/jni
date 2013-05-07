@@ -1,5 +1,9 @@
 #>
+#ifndef __ANDROID__
+#include "jni-adapter.h"
+#else
 #include <jni.h>
+#endif
 #include "jvalue-tools.c"
 <#
 
@@ -141,6 +145,11 @@
   (jni-env-lambda jobject NewGlobalRef jobject))
 (define delete-global-ref
   (jni-env-lambda void DeleteGlobalRef jobject))
+(define push-local-frame
+  (jni-env-lambda int PushLocalFrame int))
+(define pop-local-frame
+  (jni-env-lambda jobject PopLocalFrame jobject))
+
 
 ;; Exceptions
 (define exception-check
@@ -213,8 +222,27 @@
     (let-location ((jvm (c-pointer java-vm))
 		   (env (c-pointer jni-env)))
       (jvm-create (location jvm) (location env) args)
+
       (java-vm jvm)
       (jni-env env))))
+
+(define jvm-create
+  (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
+
+(define (jvm-init #!optional (class-path ".") (stack-size "25m"))
+  (let ((class-path-option (string-append "-Djava.class.path=" class-path))
+	(stack-option      (string-append "-Xss" stack-size)))
+    (let-location ((jvm java-vm)
+		   (env jni-env))
+      (jvm-create (location jvm) (location env) class-path-option stack-option)
+      (java-vm jvm)
+      (jni-env env))))
+
+(define jvm-attach-current-thread
+  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
+    "C_return( (*(JavaVM*)jvm)->AttachCurrentThread(jvm, &env, NULL));"))
+
+
 
 ;; Helper
 (define jstring->string
@@ -229,19 +257,11 @@
         (release-chars jstring chars)
         str))))
 
-(define (array->list array-object)
+(define (jstring->string! jstring)
+  (let ((result (jstring->string jstring)))
+    (delete-local-ref jstring) result))
 
-  (do ((idx 0 (+ idx 1))
-       (object-list '() (cons (array-ref array-object idx) object-list)))
-      ((<= (array-length array-object) idx) object-list)))
 
-(define (list->array class lst)
-  (let ((arr (make-array (length lst) class #f)))
-    (let loop ((i 0) (lst lst))
-      (if (null? lst) arr
-	  (begin
-	    (array-set! arr i (car lst))
-	    (loop (+ i 1) (cdr lst)))))))
 
 ;; Debug
 (define to-string

@@ -11,8 +11,10 @@
 	  (begin
 	    (print method)
 	    (values method args))
-	  (error 'jlambda-methods
-		 (format "cannot find method ~a with args: ~a" method-name args/with-typehints))))))
+	  (begin
+	    (exception-clear) ;; hmm ?
+	    (error 'jlambda-methods
+		   (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
 
 (define (jlambda-methods-dispatcher method-finder)
   (lambda args
@@ -29,10 +31,10 @@
 (define-syntax jlambda-methods-list
   (syntax-rules ()
     ((_ modifier class-object return-type method-name ((arg-type ...) ...))
-     (list (extend-procedure (jlambda-method modifier class-object return-type method-name arg-type ...)
+     (list (extend-procedure (jlambda-non-overloaded-method modifier class-object return-type method-name arg-type ...)
 			     `(modifier ,class-object return-type method-name arg-type ...)) ...))))
 
-(define-syntax jlambda-methods
+(define-syntax jlambda-overloaded-method
   (ir-macro-transformer
    (lambda (x i c)
      (match x

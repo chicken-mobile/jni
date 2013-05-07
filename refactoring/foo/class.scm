@@ -1,5 +1,3 @@
-(use jni-lolevel)
-(import-for-syntax jni-lolevel)
 (include "signature.scm")
 
 (define (find-class/error name)

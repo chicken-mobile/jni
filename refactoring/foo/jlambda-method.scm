@@ -60,16 +60,17 @@
   (or (and (eq? modifier 'static) arg-names) (cons 'target arg-names)))
 
 
-(define-syntax jlambda-method
+(define-syntax jlambda-non-overloaded-method
   (ir-macro-transformer
    (lambda (x i c)
      (match x
        ((_ modifier class-object return-type method-name arg-types ...)
 	(let ((arg-names (%arg-types->arg-names arg-types))
 	      (%call-variant (%call-proc-variant (strip-syntax modifier) (strip-syntax return-type))))
-	  `(let ((method (%method-id ,modifier ,class-object ,return-type ,method-name ,@arg-types))
-		 (jvalue-array (make-jvalue-array ,(length arg-types)))
-		 (target ,class-object))
+	  `(let ((method (method-id ,modifier ,class-object ,return-type ,method-name ,@arg-types))
+		 (jvalue-array (set-finalizer! (make-jvalue-array ,(length arg-types)) free-jvalue-array))
+		 (target ,class-object))    
+
 	     (lambda ,(jlambda-args (strip-syntax modifier) arg-names)
 	       (%make-jvalue-builder jvalue-array ,arg-types ,arg-names)
 	       (,%call-variant target method jvalue-array)))))))))
@@ -87,7 +88,7 @@
   (syntax-rules ()
     ((_ class-object (modifier return-type method-name arg-type ... proc-name) ...)
      (define-values (proc-name ...) 
-       (values (jlambda-method modifier class-object return-type method-name arg-type ...) ...)))))
+       (values (jlambda-non-overloaded-method modifier class-object return-type method-name arg-type ...) ...)))))
 
 (define-syntax jlambda-method-define
   (ir-macro-transformer

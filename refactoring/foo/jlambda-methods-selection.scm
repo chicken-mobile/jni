@@ -70,28 +70,14 @@
 (define prefered-fixnum-types '(int long float double java.lang.Integer java.lang.Long java.lang.Float java.lang.Double))
 (define prefered-flonum-types '(float double java.lang.Float java.lang.Double))
 
-;; generate a list of the form ((is-static parameter-signature . jlambda-method) ...)
-(define (generate-methods class-name method-name signatures)
-  (fold (lambda (signature methods)
-          (let ((is-static   (car signature))
-                (return-type (cadr signature))
-                (args-type   (cddr signature)))
-            (cons (cons* is-static 
-                         args-type 
-                        (if (eq? method-name 'new)
-                          (jlambda-constructor-imple class-name args-type)
-                          (jlambda-method-imple is-static return-type class-name method-name args-type)))
-                  methods)))
-        '()
-        signatures))
-
 (define (find-method-match methods args)
   (fold 
    (lambda (method best)
      (match (procedure-data method)
        ((modifier class-object return-type method-name arg-types ...)
 	(if (match-arg-types method-name args (eq? modifier 'static) arg-types)
-	    (if best (best-method method best) method) best)))) #f methods))
+	    (if best (best-method method best) 
+		method) best)))) #f methods))
 
 (define (get-matching-args method-name is-static args)
   (if (or (null? args) (eq? method-name 'new) is-static) args (cdr args)))
@@ -133,13 +119,12 @@
                                             (fp>= arg (FLOAT_MIN_VALUE)))
                                        (member type '(java.lang.Double double)))))
                                (string
-                                 (and-let* ((type-class (find-class (mangle-class-name type))))
-                                   (assignable-from? (find-class "java/lang/String") type-class)))
+                                 (and-let* ((type-class (class* type)))
+                                   (assignable-from? (class* "java/lang/String") type-class)))
                                (jobject
                                  (if (not (primitive? type))
-                                   (let ((type-class (find-class (mangle-class-name type))))
-                                     (and type-class
-                                          (instance-of? arg type-class)))
+                                   (let ((type-class (class* type)))
+                                     (and type-class (instance-of? arg type-class)))
                                    #f))
                                (char (eq? type 'char))
                                (else (assert #f)))))
@@ -164,8 +149,8 @@
          (integer-compare (list-index (cut eq? <> type1) prefered-flonum-types)
                           (list-index (cut eq? <> type2) prefered-flonum-types)))
         (#t
-         (let ((type1-class (find-class (mangle-class-name type1)))
-               (type2-class (find-class (mangle-class-name type2))))
+         (let ((type1-class (class* type1))
+               (type2-class (class* type2)))
            (assert (and type1-class type2-class))
            (if (assignable-from? type1-class type2-class) -1 1)))))
 
