@@ -15,10 +15,10 @@
     ((_ class expr)
      (test (string-append "class " (symbol->string 'class)) (to-string expr)))))
     
-(define new-Foo (jlambda-constructor com.chicken_mobile.jni.test.Foo))
-(define new-Bar (jlambda-constructor com.chicken_mobile.jni.test.Bar int))
-(define new-N1 (jlambda-constructor com.chicken_mobile.jni.test.N1))
-(define new-N2 (jlambda-constructor com.chicken_mobile.jni.test.N2))
+(define new-Foo     (jlambda-constructor com.chicken_mobile.jni.test.Foo))
+(define new-Bar     (jlambda-constructor com.chicken_mobile.jni.test.Bar int))
+(define new-N1      (jlambda-constructor com.chicken_mobile.jni.test.N1))
+(define new-N2      (jlambda-constructor com.chicken_mobile.jni.test.N2))
 (define new-Integer (jlambda-constructor java.lang.Integer int))
 
 (test-group "primitives"
@@ -71,6 +71,17 @@
               (let* ((bar (Foo-bar foo)))
                 (test 11 (Bar-id bar))))
             ); end jlambda-field test group
+
+(test-group "jlambda-constant"
+            (define CONSTANT (jlambda-constant int com.chicken_mobile.jni.test.Bar CONSTANT))
+            (define constant-field (jlambda-field (static) int com.chicken_mobile.jni.test.Bar CONSTANT))
+
+            (test 36 (CONSTANT))
+            (set! (constant-field) 1)
+            (test 1 (constant-field))
+            (test 36 (CONSTANT))
+
+            ); end jlambda-constant test group
 
 (test-group "jlambda-method"
             ;test #(..) signature, if not defined raises an error

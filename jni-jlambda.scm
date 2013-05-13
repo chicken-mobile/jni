@@ -69,34 +69,29 @@
         (free-jvalue-array jvalues)
         (check-jexception return-value))))
 
-(define (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)
+(define (assert-method-exists modifiers return-type class-type method-name argument-types)
+  (let* ((static   (static-signature? modifiers))
+         (jmethod  (method static return-type class-type method-name argument-types)))
+    (assert jmethod)))
+
+(define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
+  (if (jni-env)
+    (assert-method-exists modifiers return-type class-type method-name argument-types))
   (let* ((static         (static-signature? modifiers))
          (jvalue-builder (make-jvalue-builder argument-types))
-         (method-caller  (get-method-caller modifiers return-type)))
-    (if lazy
-      (lambda (args instance)
-        (let* ((jmethod (method static return-type class-type method-name argument-types))
-               (caller  (make-caller method-caller jvalue-builder jmethod)))
-          (if jmethod
-            (caller args instance)
-            (error 'call-method "method not found"))))
-      (let* ((class-object (find-class/or-error class-type))
-             (jmethod      (method static return-type class-type method-name argument-types)))
-        (make-caller method-caller jvalue-builder jmethod)))))
-
-(define (make-jlambda-method modifiers return-type class-type method-name argument-types lazy)
-  (let* ((caller (make-jlambda-method-caller modifiers return-type class-type method-name argument-types lazy)))
+         (method-caller  (get-method-caller modifiers return-type))
+         (jmethod        #f)
+         (caller         (lambda (args instance)
+                           (if (not jmethod)
+                             (set! jmethod (method static return-type class-type method-name argument-types)))
+                           (if jmethod
+                             ((make-caller method-caller jvalue-builder jmethod) args instance)
+                             (error 'call-method "method not found")))))
     (if (static-signature? modifiers)
       (lambda args 
         (caller args (find-class/or-error class-type)))
       (lambda (object . args) 
         (caller args object)))))
-
-(define (jlambda-method-imple* modifiers return-type class-type method-name argument-types)
-  (make-jlambda-method modifiers return-type class-type method-name argument-types #t))
-
-(define (jlambda-method-imple modifiers return-type class-type method-name argument-types)
-  (make-jlambda-method modifiers return-type class-type method-name argument-types #f))
 
 (define (jlambda-constructor-imple class-type argument-types)
   (let* ((class-object   (find-class/or-error class-type))
@@ -116,7 +111,10 @@
       ((long)    (if static get-static-long-field    get-long-field))
       ((float)   (if static get-static-float-field   get-float-field))
       ((double)  (if static get-static-double-field  get-double-field))
-      (else      (if static get-static-object-field  get-object-field)))
+      (else      
+        (if static 
+          (lambda (jclass jfield) (prepare-local-jobject (get-static-object-field jclass jfield)))
+          (lambda (object jfield) (prepare-local-jobject (get-object-field object jfield))))))
     (case type
       ((boolean) (if static set-static-boolean-field set-boolean-field))
       ((byte)    (if static set-static-byte-field    set-byte-field))
@@ -128,23 +126,11 @@
       ((double)  (if static set-static-double-field  set-double-field))
       (else      (if static set-static-object-field  set-object-field)))))
 
-(define (make-field-getter static type jclass jfield)
-  (let ((prepare (lambda (v) 
-                   (if (primitive? type) v (prepare-local-jobject v))))
-        (accessor (field-accessor-for static 'get type)))
-    (if static
-      (lambda () 
-        (prepare (accessor jclass jfield)))
-      (lambda (object)
-        (prepare (accessor object jfield))))))
-
-(define (make-field-setter static type jclass jfield)
-  (let ((accessor (field-accessor-for static 'set type)))
-    (if static
-      (lambda (value)
-        (accessor jclass jfield value))
-      (lambda (object value)
-        (accessor object jfield value)))))
+(define (make-field-accessor static accessor-type type jclass jfield)
+  (let ((accessor (field-accessor-for static accessor-type type)))
+    (if (eq? accessor-type 'get)
+      (if static (cut accessor jclass jfield) (cut accessor <> jfield))
+      (if static (cut accessor jclass jfield <>) (cut accessor <> jfield <>)))))
 
 ;; getter for static constant: the result is cached, and doesn't requiere a jni-env until getter invokation
 (define (jlambda-constant-imple type class-name field-name)
@@ -156,7 +142,7 @@
         (let* ((signature      (type-signature (if (primitive? type) type (class->type (find-class/or-error type)))))
                (jclass         (find-class/or-error class-name))
                (jfield         (get-static-field jclass field-name signature))
-               (new-value      ((make-field-getter #t type jclass jfield))))
+               (new-value      ((field-accessor-for #t 'get type) jclass jfield)))
           (set! value new-value)))
       value)))
 
@@ -169,8 +155,8 @@
          (field-fullname (string-append (symbol->string class-name) "." field-name)))
     (if jfield
       (getter-with-setter 
-        (make-field-getter static type jclass jfield)
-        (make-field-setter static type jclass jfield)
+        (make-field-accessor static 'get type jclass jfield)
+        (make-field-accessor static 'set type jclass jfield)
         field-fullname)
       (error 'field "field not found" field-name))))
 
@@ -179,12 +165,6 @@
   (syntax-rules ()
     ((_ modifiers return-type class-type method-name argument-types ...)
      (jlambda-method-imple 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
-
-; convenient macro to access jlambda-method-imple*
-(define-syntax jlambda-method*
-  (syntax-rules ()
-    ((_ modifiers return-type class-type method-name argument-types ...)
-     (jlambda-method-imple* 'modifiers 'return-type 'class-type 'method-name '(argument-types ...)))))
 
 ; convenient macro to access jlambda-constructor-imple
 (define-syntax jlambda-constructor
@@ -247,17 +227,17 @@
                              new-import-table)))))))
 
 (define jexception-trace
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
+  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
 (define jexception-message 
-  (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
+  (let ((m (jlambda-method #f java.lang.String java.lang.Exception getMessage)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
 (define jexception-type
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
+  (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
     (lambda (exception)
       (jstring->string (m exception)))))
 

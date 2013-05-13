@@ -8,3 +8,6 @@ tests/tests
 java/misc-utils/bin/
 java/jni-test/bin/
 Makefile
+ex.scm
+*.jar
+jni.import.scm

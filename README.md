@@ -65,7 +65,7 @@ Detaches the current thread from a Java VM. All Java monitors held by this threa
 
 ### Java to Scheme
 
-#### jlambda-method
+#### jimport
     [macro] (jimport CLASS-NAME [(IMPORT ...)])
 
 Defines a module with the content of the class and use the import specifiers to import it. 
@@ -107,12 +107,6 @@ Examples:
     (let ((user-lastname (jlambda-field () java.lang.String com.testapp.User lastname))) 
       (print (user-lastname user))
       (set! (user-lastname user) "Perez"))
-
-#### jlambda-field*
-    [macro] (jlambda-field MODIFIERS TYPE CLASS FIELD)
-
-Same as jlambda-field macro, but avoid class and field checking until the
-invocation, this way the jvm is not invoked in expansion time.
 
 #### jlambda-method
     [macro] (jlambda-method MODIFIERS RETURN-TYPE CLASS METHOD-NAME ARGS...) -> lambda
