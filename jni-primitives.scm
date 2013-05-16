@@ -105,7 +105,7 @@
     (lambda args
       (let ((arg (car args)))
 	(if (jobject-meta? (pointer-tag arg))
-	    (let* ((object-class (get-object-class arg))
+	    (let* ((object-class (get-object-class/jni arg))
 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
 	      (delete-local-ref object-class)
 	      jobject-string)

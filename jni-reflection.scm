@@ -40,6 +40,14 @@
   (jlambda-method (static) java.lang.reflect.Field 
                   com.chicken_mobile.jni.ReflectionHelper findField java.lang.Class java.lang.String))
 
+(define find-methods-by-name/helper 
+  (jlambda-method (static) #(java.lang.reflect.Method)
+                  com.chicken_mobile.jni.ReflectionHelper findMethodsByName java.lang.Class java.lang.String))
+
 (define find-methods/helper 
   (jlambda-method (static) #(java.lang.reflect.Method)
-                  com.chicken_mobile.jni.ReflectionHelper findMethods java.lang.Class java.lang.String))
+                  com.chicken_mobile.jni.ReflectionHelper findMethods java.lang.Class))
+
+(define find-fields/helper 
+  (jlambda-method (static) #(java.lang.reflect.Field)
+                  com.chicken_mobile.jni.ReflectionHelper findFields java.lang.Class))
