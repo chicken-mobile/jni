@@ -70,18 +70,24 @@
 (define prefered-fixnum-types '(int long float double java.lang.Integer java.lang.Long java.lang.Float java.lang.Double))
 (define prefered-flonum-types '(float double java.lang.Float java.lang.Double))
 
+(define (generate-method is-static return-type class-name method-name args-type)
+  (if (eq? method-name 'new)
+    (jlambda-constructor-imple class-name args-type)
+    (call/cc (lambda (k)
+               (with-exception-handler (lambda (e) (k #f))
+                                       (lambda () 
+                                         (jlambda-method-imple is-static return-type class-name method-name args-type)))))))
+
 ;; generate a list of the form ((is-static parameter-signature . jlambda-method) ...)
 (define (generate-methods class-name method-name signatures)
   (fold (lambda (signature methods)
-          (let ((is-static   (car signature))
-                (return-type (cadr signature))
-                (args-type   (cddr signature)))
-            (cons (cons* is-static 
-                         args-type 
-                        (if (eq? method-name 'new)
-                          (jlambda-constructor-imple class-name args-type)
-                          (jlambda-method-imple is-static return-type class-name method-name args-type)))
-                  methods)))
+          (let* ((is-static   (car signature))
+                 (return-type (cadr signature))
+                 (args-type   (cddr signature))
+                 (method      (generate-method is-static return-type class-name method-name args-type)))
+            (if method
+              (cons (cons* is-static args-type method) methods)
+              methods)))
         '()
         signatures))
 

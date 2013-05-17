@@ -58,8 +58,11 @@
             (if Field
               (let* ((static (static? (Field.getModifiers Field)))
                      (type   (class->type (Field.getType Field)))) 
-                `(jlambda-field ,static ,type ,class-name ,field-name))
-              #f)))
+                `(call/cc (lambda (k)
+                            (with-exception-handler (lambda (e) (k #f))
+                                                    (lambda () 
+                                                      (jlambda-field ,static ,type ,class-name ,field-name))))))
+                #f)))
 
         (define-syntax jlambda 
           (er-macro-transformer

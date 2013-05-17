@@ -370,6 +370,7 @@
 
             (jimport java.util.concurrent.ConcurrentLinkedQueue (prefix <> Queue-))
             (jimport java.lang.Integer (prefix <> Integer-))
+            (jimport java.lang.Character (prefix <> Integer-))
 
             ); end jimport test group
 
