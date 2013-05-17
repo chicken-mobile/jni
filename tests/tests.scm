@@ -344,6 +344,9 @@
               (test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar)))
               (test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar " "))))
 
+            (begin-for-syntax
+              (require-library test)
+              (test-error (jlambda com.chicken_mobile.jni.test.Foo secret_number))) ;is private
             ); end jlambda test group
 
 (test-group "jimport"
