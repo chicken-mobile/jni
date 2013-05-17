@@ -43,8 +43,10 @@ public class ReflectionHelper {
 	
 	public static Field findField(Class<?> c, String name) {
 		try {
-			return c.getDeclaredField(name);
-		} catch (NoSuchFieldException e) {
+			for (Field f : ReflectionHelper.findFields(c)) {
+				if (f.getName().equals(name))
+					return f;
+			}
 			return null;
 		} catch (SecurityException e) {
 			return null;
