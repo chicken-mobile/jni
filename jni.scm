@@ -45,7 +45,7 @@
 
         (define-for-syntax (define-methods class-name method-name)
           (let* ((class-object (find-class/or-error class-name))
-                 (Methods      (array->list (find-methods-by-name/helper class-object (symbol->string method-name)))))
+                 (Methods      (array->list (find-methods/helper class-object (symbol->string method-name)))))
             (if (not (null? Methods))
               (let* ((static     (static? (Method.getModifiers (car Methods))))
                      (signatures (map method-signature Methods)))
@@ -104,11 +104,10 @@
                      (%jlambda     (r 'jlambda))
                      (class-name   (cadr x))
                      (specifiers   (cddr x))
-                     (module-name  (r class-name))
                      (class-object (find-class/or-error class-name))
-                     (Methods      (find-unique-names (find-methods/helper class-object) Method.getName))
-                     (Fields       (find-unique-names (find-fields/helper  class-object) Field.getName)))
-                `(,%begin (,%module ,module-name
+                     (Methods      (find-unique-names (Class.getDeclaredMethods class-object) Method.getName))
+                     (Fields       (find-unique-names (Class.getDeclaredFields class-object)  Field.getName)))
+                `(,%begin (,%module ,class-name
                                     *
                                     (,%import scheme chicken jni)
                                     (use jni)

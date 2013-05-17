@@ -45,19 +45,19 @@
    (lambda (x i c)
      `(compile ,',(string-append "-L" libjvm-path)
 	       -ljvm
-	       ,',(string-append "-I" (make-pathname java-path "/include/"))
+	       ,',(string-append "-I" (make-pathname java-path "/include"))
+	       ,',(string-append "-I" (make-pathname java-path "/include/linux"))
 	       . ,(cdr x)))))
 
 
-(when build-for-host
-  (make (("jni-utils.jar" 
-	  ("java/misc-utils/build.xml"
-	   "java/misc-utils/src/com/chicken_mobile/jni/ExceptionHelper.java"
-	   "java/misc-utils/src/com/chicken_mobile/jni/ReflectionHelper.java")
-	  (run (ant -f "java/misc-utils/build.xml" clean))
-	  (run (ant -f "java/misc-utils/build.xml"))
-	  (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)))
-    '("jni-utils.jar")))
+(make (("jni-utils.jar" 
+	("java/misc-utils/build.xml"
+	 "java/misc-utils/src/com/chicken_mobile/jni/ExceptionHelper.java"
+	 "java/misc-utils/src/com/chicken_mobile/jni/ReflectionHelper.java")
+	(run (ant -f "java/misc-utils/build.xml" clean))
+	(run (ant -f "java/misc-utils/build.xml"))
+	(file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)))
+  '("jni-utils.jar"))
 
 
 ;;;XXX temporary fix for stale binaries in target variant when doing cross-build

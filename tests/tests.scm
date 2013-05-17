@@ -361,9 +361,6 @@
             (jimport java.lang.String (prefix (only <> valueOf) String-))
             (test-jstring "1" (String-valueOf 1))
 
-            (jimport com.chicken_mobile.jni.test.N2 (prefix <> N2-))
-            (test 1 (N2-h)) ;;defined in superclass
-            (test 2 (N2-j))
             ); end jimport test group
 
 (test-exit)
