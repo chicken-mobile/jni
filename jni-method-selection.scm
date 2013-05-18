@@ -73,10 +73,7 @@
 (define (generate-method is-static return-type class-name method-name args-type)
   (if (eq? method-name 'new)
     (jlambda-constructor-imple class-name args-type)
-    (call/cc (lambda (k)
-               (with-exception-handler (lambda (e) (k #f))
-                                       (lambda () 
-                                         (jlambda-method-imple is-static return-type class-name method-name args-type)))))))
+    (catch (lambda () (jlambda-method-imple is-static return-type class-name method-name args-type)) #f)))
 
 ;; generate a list of the form ((is-static parameter-signature . jlambda-method) ...)
 (define (generate-methods class-name method-name signatures)

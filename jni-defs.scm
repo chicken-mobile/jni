@@ -240,6 +240,11 @@
           (#t
            (string->symbol class-str)))))
 
+(define (catch thunk on-error)
+  (call/cc (lambda (k)
+             (with-exception-handler (lambda (e) (k on-error))
+                                     thunk))))
+
 (define to-string
   (lambda (object)
     (let* ((Object.toString/method (get-method-id (find-class/or-error 'java.lang.Object) "toString" "()Ljava/lang/String;"))
