@@ -72,6 +72,7 @@
 		     (compile -s -Dandroid args ...))))))
   (make (("jni-lolevel.so" ("jni-lolevel.scm"
 			    "jvalue-tools.c"
+			    "jni-utils.jar"
 			    "jni-primitives.scm"
 			    "jni-jlambda.scm"
 			    "jni-reflection.scm")
