@@ -21,10 +21,10 @@
     `(,(or (and safe? 'find-class) 'find-class/error) ,class-name)))
 
 (define-syntax %class
-  (er-macro-transformer
+  (ir-macro-transformer
    (lambda (x i c) (%find-class (cadr x) #t))))
 (define-syntax class
-  (er-macro-transformer
+  (ir-macro-transformer
    (lambda (x i c) (%find-class (cadr x) #f))))
 
 

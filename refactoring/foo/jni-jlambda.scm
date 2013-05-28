@@ -1,10 +1,9 @@
 (module jni-jlambda
 *
-(import chicken scheme matchable extras data-structures
-	jni2-lolevel jni-types jni-reflection)
-(import-for-syntax jni2-lolevel matchable jni-reflection jni-array)
+(import chicken scheme matchable extras data-structures)
+(import-for-syntax matchable jni2-lolevel jni-signatures jni-types jni-array jni-reflection)
 (begin-for-syntax
- (require-library jni2-lolevel jni-reflection jni-array))
+ (require-library jni2-lolevel jni-signatures jni-types jni-array jni-reflection))
 
 (define-for-syntax (parameter-types->arg-types parameter-types-list)
   (reverse

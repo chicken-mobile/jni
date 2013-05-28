@@ -3,11 +3,11 @@
 (import scheme data-structures jni2-lolevel jni-types jni-array jni-jlambda-method)
 
 (define Class
-  (find-class (mangle-class-name 'java.lang.Class)))
+  (class java.lang.Class))
 (define Method
-  (class* 'java.lang.reflect.Method))
+  (class java.lang.reflect.Method))
 (define Field
-  (class* 'java.lang.reflect.Field))
+  (class java.lang.reflect.Field))
 
 (jlambda-method-define Class
   ()

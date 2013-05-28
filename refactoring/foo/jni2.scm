@@ -1,27 +1,13 @@
-(import jni2-lolevel)
-
-(include "jni-signatures.scm")
-(include "jni-types.scm")
-(include "jni-array.scm")
-(include "jni-field-id.scm")
-(include "jni-method-id.scm")
-(include "jni-jvalues.scm")
-(include "jni-jlambda-method.scm")
-(include "jni-jlambda-field.scm")
-
-(include "jni-reflection.scm")
-(include "jni-exceptions.scm")
-(include "jni-jlambda-methods-selection.scm")
-(include "jni-jlambda-methods.scm")
-(include "jni-jlambda.scm")
-
 (module jni2
+
 (object-hash-code)
-(import chicken scheme foreigners jni2-lolevel lolevel)
+(import chicken scheme foreigners)
 (use lolevel)
-(import jni-signatures jni-types jni-array jni-field-id jni-method-id
-	jni-jvalues jni-exceptions jni-jlambda-method jni-jlambda-field
-	jni-reflection jni-jlambda-methods jni-jlambda)
+
+(import jni2-lolevel
+ jni-signatures jni-types jni-array jni-field-id jni-method-id
+ jni-jvalues jni-jlambda-method jni-jlambda-field
+ jni-reflection jni-jlambda-methods jni-jlambda)
 
 (define object-hash-code
   (jlambda java.lang.Object hashCode))
@@ -41,6 +27,6 @@
 
 (reexport jni2-lolevel
  jni-signatures jni-types jni-array jni-field-id jni-method-id
- jni-jvalues jni-exceptions jni-jlambda-method jni-jlambda-field
+ jni-jvalues jni-jlambda-method jni-jlambda-field
  jni-reflection jni-jlambda-methods-selection jni-jlambda-methods jni-jlambda))
 

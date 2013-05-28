@@ -1,7 +1,9 @@
 (module jni-field-id
 *
-(import chicken scheme extras matchable jni2-lolevel jni-types)
-(import-for-syntax chicken matchable)
+(import chicken scheme extras matchable jni2-lolevel jni-signatures)
+(import-for-syntax chicken matchable jni-signatures)
+(begin-for-syntax
+ (require-library jni-signatures))
 
 (define (get-field-id/error* variant args)
   (or (or (apply variant args) (and (exception-check) (not (exception-clear))))
