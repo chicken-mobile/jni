@@ -1,11 +1,13 @@
-(use jni-lolevel)
-(import-for-syntax jni-lolevel matchable)
-(include "method-id.scm")
-(include "jvalue.scm")
+(module jni-jlambda-method
+*
+(import chicken scheme matchable jni2-lolevel jni-types jni-method-id jni-jvalues jni-signatures)
+(import-for-syntax matchable jni-signatures jni-method-id)
 
+(begin-for-syntax
+ (require-library jni-method-id))
 
 (define (call-proc-variant modifier return-type)
-    (if (eq? modifier 'static)
+  (if (eq? modifier 'static)
       (case return-type
         ((void)    call-static-void-method)    
         ((boolean) call-static-boolean-method) 
@@ -47,7 +49,7 @@
 
 (define-for-syntax (%call-proc-variant modifier return-type)
   (symbol-append (if (eq? 'nonstatic modifier) 'call- 'call-static-)
-   (type->native-type return-type) '-method))
+		 (type->native-type return-type) '-method))
 
 (define-for-syntax (%arg-type->arg-name type)
   (cond ((symbol? type) (symbol-append type))
@@ -98,3 +100,4 @@
 	`(jlambda-method-define* ,class-object
 				 ,@(map (cut method-spec 'static    <>)    static-methods)
 				 ,@(map (cut method-spec 'nonstatic <>) nonstatic-methods)))))))
+)

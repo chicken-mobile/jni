@@ -1,25 +1,19 @@
 #>
-#ifndef __ANDROID__
-#include "jni-adapter.h"
-#else
 #include <jni.h>
-#endif
+#include "jni-adapter.h"
 #include "jvalue-tools.c"
 <#
 
 (module jni2-lolevel
 *
-(import scheme chicken foreign srfi-13 data-structures)
-(use foreigners lolevel)
-(include "jni-def-macros.scm")
-
+(import scheme chicken foreign foreigners lolevel srfi-1 srfi-13 data-structures)
+(use lolevel)
 ;; foreign types
 (define-foreign-type java-vm    (c-pointer "JavaVM"))
 (define-foreign-type jni-env    (c-pointer "JNIEnv"))
 (define-foreign-type jobject    (c-pointer "struct _jobject"))
 (define-foreign-type jmethod-id (c-pointer "struct _jmethodID"))
 (define-foreign-type jfield-id  (c-pointer "struct _jfieldID"))
-
 (define-foreign-type jvalue (c-pointer (union "jvalue")))
 
 (define-foreign-type jclass  jobject)
@@ -28,7 +22,17 @@
 (define-foreign-type jobject-array jarray)
 (define-foreign-type jthrowable jobject)
 
+(define-foreign-enum-type (ref-type int)
+  (ref-type->int int->ref-type)
+  ((invalid ref-type/invalid) JNIInvalidRefType)
+  ((local ref-type/local) JNILocalRefType)
+  ((global ref-type/global) JNIGlobalRefType)
+  ((weak ref-type/weak) JNIWeakGlobalRefType))
 
+(define invalid-ref
+  ref-type/invalid)
+
+(include "jni-def-macros.scm")
 (define-call-procs Void void)
 (define-type-procs)
 (define-get-field-procs)
@@ -149,7 +153,8 @@
   (jni-env-lambda int PushLocalFrame int))
 (define pop-local-frame
   (jni-env-lambda jobject PopLocalFrame jobject))
-
+(define jobject-ref-type
+  (jni-env-lambda ref-type GetObjectRefType jobject))
 
 ;; Exceptions
 (define exception-check
@@ -167,84 +172,29 @@
 (define monitor-exit
   (jni-env-lambda int MonitorExit jobject))
 
-;; JVM
-;; (define jvm-destroy
-;;   (foreign-struct-lambda int DestroyJavaVM java-vm))
-;; (define jvm-env
-;;   (foreign-struct-lambda int GetEnv java-vm (c-pointer (c-pointer void)) int))
+
+(define jvm-create
+  (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
+
+(define (jvm-init #!optional (class-path ".") (stack-size "10m"))
+  (let ((class-path-option (string-append "-Djava.class.path=" class-path))
+	(stack-option      (string-append "-Xss" stack-size)))
+    (let-location ((jvm java-vm)
+		   (env jni-env))
+      (jvm-create (location jvm) (location env) class-path-option stack-option)
+      (java-vm jvm)
+      (jni-env env))))
+
 ;; (define jvm-attach-current-thread
-;;   (cond-expand
-;;    (android (foreign-struct-lambda int AttachCurrentThread java-vm (c-pointer "struct JNINativeInterface const **")))
-;;    (else    (foreign-struct-lambda int AttachCurrentThread java-vm (c-pointer (c-pointer void))))))
-;; (define jvm-dettach-current-thread
-;;   (foreign-struct-lambda int DettachCurrentThread java-vm (c-pointer (c-pointer void))))
-
-
-;; (define-foreign-variable JNI_VERSION_1_1 int)
-;; (define-foreign-variable JNI_VERSION_1_2 int)
-;; (define-foreign-variable JNI_VERSION_1_4 int)
-;; (define-foreign-variable JNI_VERSION_1_6 int)
-
-
-;; (define-foreign-record-type (jvm-option "JavaVMOption")
-;;   (constructor: make-jvm-option)
-;;   (destructor: free-jvm-option)
-;;   (c-string  optionString jvm-option-string jvm-option-string-set!)
-;;   ((c-pointer void) extraInfo jvm-option-info jvm-option-info-set!))
-
-;; (define-foreign-record-type (jvm-init-args "JavaVMInitArgs")
-;;   (constructor: make-jvm-init-args)
-;;   (destructor: free-jvm-init-args)
-;;   (int version jvm-init-args-version jvm-init-args-version-set!)
-;;   (int nOptions jvm-init-args-options-length jvm-init-args-options-length-set!)
-;;   (jvm-option options jvm-init-args-options jvm-init-args-options-set!)
-;;   (bool ignoreUnrecognized jvm-init-args-options-ignore-unrecognized 
-;; 	jvm-init-args-options-ignore-unrecognized-set!))
-
-;; (define jvm-get-default-init-args
-;;   (foreign-lambda int JNI_GetDefaultJavaVMInitArgs jvm-init-args))
-
-;; (define jvm-create
-;;   (foreign-lambda int JNI_CreateJavaVM (c-pointer java-vm) (c-pointer (c-pointer void)) jvm-init-args))
-
-;; (define (jvm-init #!optional (class-path "."))
-;;   (let ((args (make-jvm-init-args))
-;; 	;;      (class-path-option (make-jvm-option))
-;; 	(stack-size-option (make-jvm-option)))
-
-;;     (jvm-init-args-version-set! args JNI_VERSION_1_6)
-;;     (jvm-get-default-init-args args)
-;;     (jvm-init-args-options-length-set! args 1)
-;;     (jvm-init-args-options-set! args stack-size-option)
-;;     ;;  (jvm-option-string-set! class-path-option (string-append "-Djava.class.path=" class-path))
-;;     (jvm-option-string-set! stack-size-option (string-append "-Xss10M" ))
-
-;;     (let-location ((jvm (c-pointer java-vm))
-;; 		   (env (c-pointer jni-env)))
-;;       (jvm-create (location jvm) (location env) args)
-
-;;       (java-vm jvm)
-;;       (jni-env env))))
-
-;; (define jvm-create
-;;   (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
-
-;; (define (jvm-init #!optional (class-path ".") (stack-size "25m"))
-;;   (let ((class-path-option (string-append "-Djava.class.path=" class-path))
-;; 	(stack-option      (string-append "-Xss" stack-size)))
-;;     (let-location ((jvm java-vm)
-;; 		   (env jni-env))
-;;       (jvm-create (location jvm) (location env) class-path-option stack-option)
-;;       (java-vm jvm)
-;;       (jni-env env))))
-
-(define jvm-attach-current-thread
-  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
-    "C_return( (*(JavaVM*)jvm)->AttachCurrentThread(jvm, &env, NULL));"))
+;;   (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
+;;     "C_return( (*(JavaVM*)jvm)->AttachCurrentThread(jvm, &env, NULL));"))
 
 
 
 ;; Helper
+(define jstring
+  (jni-env-lambda jstring NewStringUTF c-string))
+
 (define jstring->string
   (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
         (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
@@ -270,4 +220,29 @@
            (String/instance (call-object-method object Object.toString/method #f))
            (string (jstring->string String/instance)))
       (delete-local-ref String/instance) string)))
+
+;; (mutate-procedure! ##sys#pointer->string
+;;   (lambda (old)
+;;     (lambda args
+;;       (let ((arg (car args)))
+;; 	(if (jobject-meta? (pointer-tag arg))
+;; 	    (let* ((object-class (object-class arg))
+;; 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
+;; 	      (delete-local-ref object-class)
+;; 	      jobject-string)
+;; 	    (apply old args))))))
+
+;; (mutate-procedure! ##sys#pointer->string
+;;   (lambda (old)
+;;     (lambda args
+;;       (let ((arg (car args)))
+;; 	(if (eq? (jobject-ref-type arg) ref-type/invalid)
+;; 	    (apply old args)
+;; 	    (let* ((object-class (object-class arg))
+;; 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
+;; 	      (delete-local-ref object-class)
+;; 	      jobject-string))))))
+
+(jvm-init "./")
+
 )

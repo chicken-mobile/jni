@@ -246,29 +246,28 @@
                              (append old-import-table new-import-table)
                              new-import-table)))))))
 
-(define jexception-trace
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper traceAsString java.lang.Exception)))
-    (lambda (exception)
-      (jstring->string (m exception)))))
+;; (define jexception-trace
+;;   (let ((m (jlambdajava.lang.Exception getLocalizedMessage)))
+;;     (lambda (exception)
+;;       (jstring->string (m exception)))))
 
 (define jexception-message 
   (let ((m (jlambda-method* #f java.lang.String java.lang.Exception getMessage)))
     (lambda (exception)
       (jstring->string (m exception)))))
 
-(define jexception-type
-  (let ((m (jlambda-method* (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
-    (lambda (exception)
-      (jstring->string (m exception)))))
+(define (jexception-type exception)
+  (to-string (get-object-class exception)))
 
 (define (make-condition exception)
-  (let ((trace   (jexception-trace exception))
+  (let (#;(trace   (jexception-trace exception))
         (message (jexception-message exception))
         (type    (string->symbol (jexception-type exception))))
       (exception-clear)
       (make-composite-condition
         (make-property-condition 'exn)
-        (make-property-condition 'java 'trace trace 'message message 'type type)
+        (make-property-condition 'java 'message message 'type type)
+	;;(make-property-condition 'java 'type type)
         (make-property-condition type))))
 
 (define java-exception? 

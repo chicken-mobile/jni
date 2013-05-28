@@ -1,11 +1,13 @@
-(use jni-lolevel)
-(import-for-syntax chicken jni-lolevel)
+(module jni-field-id
+*
+(import chicken scheme extras matchable jni2-lolevel jni-types)
+(import-for-syntax chicken matchable)
 
 (define (get-field-id/error* variant args)
   (or (or (apply variant args) (and (exception-check) (not (exception-clear))))
       (match args ((class-object field-name type)
-        (error (format "~A with type \"~A\" not found for ~A :(" 
-		       field-name type (to-string class-object)))))))
+		   (error (format "~A with type \"~A\" not found for ~A :(" 
+				  field-name type (to-string class-object)))))))
 
 (define (get-field-id/error #!rest args)
   (get-field-id/error* get-field-id args))
@@ -39,3 +41,4 @@
 (define-syntax field-id
   (er-macro-transformer
    (lambda (x i c) (%field-id* x #f))))
+)

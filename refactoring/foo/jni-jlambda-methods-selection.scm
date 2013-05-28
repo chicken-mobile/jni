@@ -67,6 +67,14 @@
 ;; (foo (type: N1 n2)) 
 ;; (bar (type: short 1))
 
+(module jni-jlambda-methods-selection
+*
+(import chicken scheme lolevel srfi-1 moremacros matchable 
+	jni2-lolevel jni-types jni-jlambda-field)
+
+(define (primitive? type)
+  (member type '(void boolean byte char short int long float double)))
+
 (define prefered-fixnum-types '(int long float double java.lang.Integer java.lang.Long java.lang.Float java.lang.Double))
 (define prefered-flonum-types '(float double java.lang.Float java.lang.Double))
 
@@ -87,11 +95,11 @@
 (define Long    (%class java.lang.Long))
 
 (jlambda-field-define Float
-  ((FLOAT_MAX_VALUE (float MAX_VALUE)) (FLOAT_MIN_VALUE (float MIN_VALUE))) ())
+   ((FLOAT_MAX_VALUE (float MAX_VALUE)) (FLOAT_MIN_VALUE (float MIN_VALUE))) ())
 (jlambda-field-define Integer
-  ((INT_MAX_VALUE   (int   MAX_VALUE)) (INT_MIN_VALUE   (int   MIN_VALUE))) ())
+   ((INT_MAX_VALUE   (int   MAX_VALUE)) (INT_MIN_VALUE   (int   MIN_VALUE))) ())
 (jlambda-field-define Long
-  ((LONG_MAX_VALUE  (long  MAX_VALUE)) (LONG_MIN_VALUE  (long  MIN_VALUE))) ())
+   ((LONG_MAX_VALUE  (long  MAX_VALUE)) (LONG_MIN_VALUE  (long  MIN_VALUE))) ())
 
 ;; check if the args match the type signature
 (define (match-arg-types method-name args is-static types)
@@ -99,35 +107,35 @@
     (and (= (length args) (length types))
          (every (lambda (arg type)
                   (if (pair? arg)
-                    (eq? (car arg) type)
-                    (type-case arg
-                               (boolean (eq? 'boolean type))
-                               (number  
-                                 (if (fixnum? arg)
-                                   (or (and (member type '(java.lang.Integer int))
-                                            (< arg (INT_MAX_VALUE))
-                                            (>= arg (INT_MIN_VALUE)))
-                                       (and (member type '(java.lang.Long long))
-                                            (< arg (LONG_MAX_VALUE))
-                                            (>= arg (LONG_MIN_VALUE)))
-                                       (and (member type '(java.lang.Float float))
-                                            (< arg (FLOAT_MAX_VALUE))
-                                            (> arg (FLOAT_MIN_VALUE)))
-                                       (member type '(java.lang.Double double)))
-                                   (or (and (member type '(java.lang.Float float))
-                                            (fp<= arg (FLOAT_MAX_VALUE))
-                                            (fp>= arg (FLOAT_MIN_VALUE)))
-                                       (member type '(java.lang.Double double)))))
-                               (string
-                                 (and-let* ((type-class (class* type)))
-                                   (assignable-from? (class* "java/lang/String") type-class)))
-                               (jobject
-                                 (if (not (primitive? type))
-                                   (let ((type-class (class* type)))
-                                     (and type-class (instance-of? arg type-class)))
-                                   #f))
-                               (char (eq? type 'char))
-                               (else (assert #f)))))
+		      (eq? (car arg) type)
+		      (type-case arg
+				 (boolean (eq? 'boolean type))
+				 (number  
+				  (if (fixnum? arg)
+				      (or (and (member type '(java.lang.Integer int))
+					       (< arg (INT_MAX_VALUE))
+					       (>= arg (INT_MIN_VALUE)))
+					  (and (member type '(java.lang.Long long))
+					       (< arg (LONG_MAX_VALUE))
+					       (>= arg (LONG_MIN_VALUE)))
+					  (and (member type '(java.lang.Float float))
+					       (< arg (FLOAT_MAX_VALUE))
+					       (> arg (FLOAT_MIN_VALUE)))
+					  (member type '(java.lang.Double double)))
+				      (or (and (member type '(java.lang.Float float))
+					       (fp<= arg (FLOAT_MAX_VALUE))
+					       (fp>= arg (FLOAT_MIN_VALUE)))
+					  (member type '(java.lang.Double double)))))
+				 (string
+				  (and-let* ((type-class (class* type)))
+				    (assignable-from? (find-class "java/lang/String") type-class)))
+				 (pointer
+				  (if (not (primitive? type))
+				      (let ((type-class (class* type)))
+					(and type-class (instance-of? arg type-class)))
+				      #f))
+				 (char (eq? type 'char))
+				 (else (assert #f)))))
                 args types))))
 
 (define (integer-compare n1 n2)
@@ -171,3 +179,4 @@
 		 (w1 (if (< r 0) (+ w1 1) w1))
 		 (w2 (if (> r 0) (+ w2 1) w2)))
 	    (loop (cdr args-1) (cdr args-2) w1 w2))))))
+)

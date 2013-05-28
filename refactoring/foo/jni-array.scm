@@ -1,3 +1,7 @@
+(module jni-array
+*
+(import chicken scheme jni2-lolevel)
+
 (define (array-fold procedure knil array)
   (let ((l (array-length array)))
     (let loop ((knil knil) (idx 0))
@@ -27,7 +31,7 @@
 	 (begin (delete-local-ref element) result))) '() array))
 
 (define (array->list array)
-  (array-map prepare-local-jobject array))
+  (array-map cons array))
 
 
 (define (list->array class lst)
@@ -37,3 +41,4 @@
 	  (begin
 	    (array-set! arr i (car lst))
 	    (loop (+ i 1) (cdr lst)))))))
+)

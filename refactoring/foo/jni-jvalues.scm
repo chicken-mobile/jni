@@ -1,5 +1,9 @@
-(use jni-lolevel srfi-1)
-(import-for-syntax jni-lolevel matchable srfi-1)
+(module jni-jvalues
+*
+(import chicken scheme srfi-1 matchable jni2-lolevel)
+(import-for-syntax matchable srfi-1)
+(begin-for-syntax
+ (require-library srfi-1))
 
 (define (make-jvalue-builder jvalues argument-types)
   (let ((setters 
@@ -13,6 +17,10 @@
 		  ((long)    (cut set-long-jvalue!    jvalues index <>))   
 		  ((float)   (cut set-float-jvalue!   jvalues index <>))  
 		  ((double)  (cut set-double-jvalue!  jvalues index <>)) 
+		  #;
+		  ((java.lang.String java.lang.CharSequence)
+		   (lambda (value)
+		     (set-double-jvalue! jvalues index (jstring value)))) 
 		  (else      (cut set-object-jvalue!  jvalues index <>))))
 	      argument-types (iota (length argument-types)))))
     (lambda args (for-each apply setters args))))
@@ -47,3 +55,4 @@
 	   ,@(map (cut set-jvalue* <> jvalue-array <> <>)
 		  (map i (types->native-types (strip-syntax argument-types)))
 		  (iota (length argument-types)) argument-names)))))))
+)

@@ -1,4 +1,7 @@
-(include "jlambda-methods-selection.scm")
+(module jni-jlambda-methods
+*
+(import chicken scheme extras lolevel matchable
+	jni2-lolevel jni-jlambda-method jni-reflection jni-jlambda-methods-selection)
 
 (define (make-method-finder method-name methods)
   (lambda (args/with-typehints)
@@ -8,25 +11,19 @@
 			     (cdr arg/with-typehints) arg/with-typehints)) 
 		       args/with-typehints)))
       (if method
-	  (begin
-	    (print method)
-	    (values method args))
-	  (begin
-	    (exception-clear) ;; hmm ?
-	    (error 'jlambda-methods
-		   (format "cannot find method ~a with args: ~a" method-name args/with-typehints)))))))
+	  (values method args)
+	  (error 'jlambda-methods
+		 (format "cannot find method ~a with args: ~a" method-name args/with-typehints))))))
 
 (define (jlambda-methods-dispatcher method-finder)
   (lambda args
     (call-with-values (lambda () (method-finder args))
       (lambda (method args)
+	(match (procedure-data method)
+	  ((modifier class-object return-type method-name arg-types ...)
+	   (print (format "jni-jlambda-methods: dispatching to: ~A ~A ~A ~A~S"
+			  (class-name class-object) modifier return-type method-name arg-types))))
 	(apply method args)))))
-
-(define (jlambda-methods class-name method-name signatures)
-  (let* ((methods       (generate-methods class-name method-name signatures))
-         (method-finder (make-method-finder method-name methods)))
-    (jlambda-methods-dispatcher method-finder)))
-
 
 (define-syntax jlambda-methods-list
   (syntax-rules ()
@@ -43,3 +40,4 @@
 		(method-finder (make-method-finder ,(->string (strip-syntax method-name)) methods)))
 	   (extend-procedure (jlambda-methods-dispatcher method-finder)
 			     (list ',modifier ,class-object ',return-type ,(->string method-name)))))))))
+)

@@ -1,13 +1,13 @@
-(use jni-lolevel matchable)
-(import-for-syntax chicken jni-lolevel matchable)
-(include "class.scm")
-
+(module jni-method-id
+*
+(import chicken scheme extras matchable jni2-lolevel jni-types jni-signatures)
+(import-for-syntax matchable jni-signatures)
 
 (define (get-method-id/error* variant args)
   (or (or (apply variant args) (and (exception-check) (not (exception-clear))))
       (match args ((class-object method-name signature)
-        (error (format "~A~A not found for ~A :(" 
-		       method-name signature (to-string class-object)))))))
+		   (error (format "~A~A not found for ~A :(" 
+				  method-name signature (to-string class-object)))))))
 
 (define (get-method-id/error #!rest args)
   (get-method-id/error* get-method-id args))
@@ -33,7 +33,8 @@
   (match (strip-syntax spec)
     ((_ modifier class-object return-type method-name arg-types ...)
      (let ((name  (->string (strip-syntax method-name))))
-       `(,(%method-id-variant modifier safe?) ,class-object ,name (type-signature ,arg-types ,return-type))))))
+       (print (format "jni-method-id: linked method-id: ~A ~A ~A ~A~A" class-object modifier return-type method-name arg-types))
+       `(,(%method-id-variant modifier safe?) ,class-object ,name ,(expand-type arg-types return-type))))))
 
 (define-syntax %method-id
   (ir-macro-transformer
@@ -42,3 +43,4 @@
   (ir-macro-transformer
    (lambda (x i c) (%method-id* x #f))))
 
+)
