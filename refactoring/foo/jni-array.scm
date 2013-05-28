@@ -1,6 +1,7 @@
 (module jni-array
 *
-(import chicken scheme jni2-lolevel)
+(import chicken scheme)
+(use jni2-lolevel)
 
 (define (array-fold procedure knil array)
   (let ((l (array-length array)))

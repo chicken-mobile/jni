@@ -1,6 +1,7 @@
 (module jni-field-id
 *
-(import chicken scheme extras matchable jni2-lolevel jni-signatures)
+(import chicken scheme extras matchable)
+(use jni2-lolevel jni-signatures)
 (import-for-syntax chicken matchable jni-signatures)
 (begin-for-syntax
  (require-library jni-signatures))
@@ -38,9 +39,9 @@
        `(,(%field-id-variant modifier safe?) ,class-object ,name ,(expand-type return-type))))))
 
 (define-syntax %field-id
-  (er-macro-transformer
+  (ir-macro-transformer
    (lambda (x i c) (%field-id* x #t))))
 (define-syntax field-id
-  (er-macro-transformer
+  (ir-macro-transformer
    (lambda (x i c) (%field-id* x #f))))
 )

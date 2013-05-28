@@ -1,10 +1,8 @@
 (module jni-jlambda-method
 *
-(import chicken scheme matchable jni2-lolevel jni-types jni-method-id jni-jvalues jni-signatures)
-(import-for-syntax matchable jni-signatures jni-method-id)
-
-(begin-for-syntax
- (require-library jni-method-id))
+(import chicken scheme matchable)
+(use jni2-lolevel jni-types jni-method-id jni-jvalues jni-signatures)
+(import-for-syntax matchable jni-signatures)
 
 (define (call-proc-variant modifier return-type)
   (if (eq? modifier 'static)

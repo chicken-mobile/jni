@@ -1,6 +1,7 @@
 (module jni-types
 *
-(import chicken scheme extras data-structures jni2-lolevel jni-signatures)
+(import chicken scheme extras data-structures)
+(use jni2-lolevel jni-signatures)
 (import-for-syntax jni-signatures)
 (begin-for-syntax
  (require-library jni-signatures))

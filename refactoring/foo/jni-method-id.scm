@@ -1,6 +1,7 @@
 (module jni-method-id
 *
-(import chicken scheme extras matchable jni2-lolevel jni-types jni-signatures)
+(import chicken scheme extras matchable)
+(use jni2-lolevel jni-types jni-signatures)
 (import-for-syntax matchable jni-signatures)
 
 (define (get-method-id/error* variant args)

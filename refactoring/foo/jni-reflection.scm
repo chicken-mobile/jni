@@ -1,6 +1,7 @@
 (module jni-reflection
 *
-(import scheme data-structures jni2-lolevel jni-types jni-array jni-jlambda-method)
+(import chicken scheme data-structures)
+(use jni2-lolevel jni-types jni-array jni-jlambda-method)
 
 (define Class
   (class java.lang.Class))
@@ -57,5 +58,16 @@
   (compose jstring->string class-simple-name))
 (define class-name
   (compose jstring->string class-name))
+
+(define (parameter-types->arg-types parameter-types-list)
+  (reverse
+   (map (lambda (parameter-types)
+	  (array-map (lambda (type)
+		       (let ((result
+			      (if (class-array? type)
+				  `#(,(string->symbol (class-name (class-component-type type))))
+				  (string->symbol (class-name type)))))
+			 (delete-local-ref type) result)) parameter-types)) 
+	parameter-types-list)))
 )
 

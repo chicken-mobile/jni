@@ -6,8 +6,9 @@
 
 (module jni2-lolevel
 *
-(import scheme chicken foreign foreigners lolevel srfi-1 srfi-13 data-structures)
+(import scheme chicken foreign foreigners srfi-1 srfi-13 data-structures)
 (use lolevel)
+
 ;; foreign types
 (define-foreign-type java-vm    (c-pointer "JavaVM"))
 (define-foreign-type jni-env    (c-pointer "JNIEnv"))
@@ -118,7 +119,7 @@
 (define field-id->Field
   (jni-env-lambda jobject ToReflectedField jclass jfield-id bool))
 (define Field->field-id
-  (jni-env-lambda jobject FromReflectedField jobject))
+  (jni-env-lambda jfield-id FromReflectedField jobject))
 
 ;; Methods
 (define get-method-id
@@ -128,7 +129,7 @@
 (define method-id->Method
   (jni-env-lambda jobject ToReflectedMethod jclass jmethod-id bool))
 (define Method->method-id
-  (jni-env-lambda jobject FromReflectedMethod jobject))
+  (jni-env-lambda c-pointer FromReflectedMethod jobject))
 
 ;; Arrays
 (define make-array
@@ -176,18 +177,19 @@
 (define jvm-create
   (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
 
-(define (jvm-init #!optional (class-path ".") (stack-size "10m"))
+(define (jvm-init #!optional (class-path ".") (stack-size "20m"))
   (let ((class-path-option (string-append "-Djava.class.path=" class-path))
 	(stack-option      (string-append "-Xss" stack-size)))
     (let-location ((jvm java-vm)
 		   (env jni-env))
       (jvm-create (location jvm) (location env) class-path-option stack-option)
+
       (java-vm jvm)
       (jni-env env))))
 
-;; (define jvm-attach-current-thread
-;;   (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
-;;     "C_return( (*(JavaVM*)jvm)->AttachCurrentThread(jvm, &env, NULL));"))
+(define jvm-attach-current-thread
+  (foreign-lambda* int ((java-vm jvm) ((c-pointer (c-pointer void)) env))
+    "C_return( (*(JavaVM*)jvm)->AttachCurrentThread(jvm, env, NULL));"))
 
 
 
@@ -221,28 +223,7 @@
            (string (jstring->string String/instance)))
       (delete-local-ref String/instance) string)))
 
-;; (mutate-procedure! ##sys#pointer->string
-;;   (lambda (old)
-;;     (lambda args
-;;       (let ((arg (car args)))
-;; 	(if (jobject-meta? (pointer-tag arg))
-;; 	    (let* ((object-class (object-class arg))
-;; 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
-;; 	      (delete-local-ref object-class)
-;; 	      jobject-string)
-;; 	    (apply old args))))))
-
-;; (mutate-procedure! ##sys#pointer->string
-;;   (lambda (old)
-;;     (lambda args
-;;       (let ((arg (car args)))
-;; 	(if (eq? (jobject-ref-type arg) ref-type/invalid)
-;; 	    (apply old args)
-;; 	    (let* ((object-class (object-class arg))
-;; 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
-;; 	      (delete-local-ref object-class)
-;; 	      jobject-string))))))
-
-(jvm-init "./")
+(unless (jni-env)
+  (jvm-init "./"))
 
 )

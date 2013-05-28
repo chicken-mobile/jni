@@ -1,20 +1,11 @@
 (module jni-jlambda
 *
 (import chicken scheme matchable extras data-structures)
-(import-for-syntax matchable jni2-lolevel jni-signatures jni-types jni-array jni-reflection)
+(import-for-syntax matchable jni2-lolevel jni-signatures jni-types jni-array jni-reflection 
+		   jni-jlambda-methods jni-jlambda-field)
 (begin-for-syntax
- (require-library jni2-lolevel jni-signatures jni-types jni-array jni-reflection))
-
-(define-for-syntax (parameter-types->arg-types parameter-types-list)
-  (reverse
-   (map (lambda (parameter-types)
-	  (array-map (lambda (type)
-		       (let ((result
-			      (if (class-array? type)
-				  `#(,(string->symbol (class-name (class-component-type type))))
-				  (string->symbol (class-name type)))))
-			 (delete-local-ref type) result)) parameter-types)) 
-	parameter-types-list)))
+ (require-library jni2-lolevel jni-signatures jni-types jni-array jni-reflection 
+		  jni-jlambda-methods jni-jlambda-field))
 
 (define-for-syntax (method-modifier-symbol method)
   (or (and (static? (method-modifiers method)) 'static) 'nonstatic))
@@ -29,28 +20,33 @@
 	 (parameter-types-list (map method-parameter-types method-match))
 	 (arg-types       (parameter-types->arg-types parameter-types-list)))
     (map delete-local-ref parameter-types-list)
-    `(jlambda-method ,modifier ,class-object ,return-type ,identifier ,arg-types)))
+    `(%jlambda-method ,modifier ,class-object ,return-type ,identifier ,arg-types)))
 
 (define-for-syntax (field-match->jlamba-field field-match class-object)
   (let* ((first-field     (car field-match))
 	 (modifier        (field-modifier-symbol first-field))
-	 (return-type     (string->symbol (class-name (field-type first-field))))
+	 (return-type     (parameter-types->arg-types (list (field-type first-field))))
 	 (identifier      (string->symbol (jstring->string (field-name first-field)))))
-    `(jlambda-field ,modifier ,class-object ,return-type ,identifier)))
+    `(%jlambda-field ,modifier ,class-object ,return-type ,identifier)))
 
 
-(define-syntax jlambda-method
+(define-syntax %jlambda-method
   (syntax-rules ()
     ((_ modifier class-object return-type method-name ((arg-types ...)))
      (jlambda-non-overloaded-method modifier class-object return-type method-name arg-types ...))
     ((_ modifier class-object return-type method-name ((arg-types ...) ...))
      (jlambda-overloaded-method     modifier class-object return-type method-name ((arg-types ...) ...)))))
 
+(define-syntax %jlambda-field
+  (syntax-rules ()
+    ((_ modifier class-object return-type field-name)
+     (jlambda-field modifier class-object return-type field-name))))
+
 
 (define-syntax jlambda
   (er-macro-transformer
    (lambda (x i c)
-     (match (strip-syntax x)
+     (match x
        ((_ class-name identifier)
 	(let* ((class-object (class* (mangle-class-name class-name)))
 	       
@@ -74,11 +70,11 @@
 			       (delete-local-ref class-object)
 			       (exception-clear)
 			       (error (format "no matching method/field found for ~A on ~A" identifier class-name)))))))
-
-	    (let ((result `(let ((,(i class-name) (class ,class-name)))
+	    
+	    (let ((result `(let ((,(i 'foo) (class ,class-name)))
 			     ,(if (null? matching-methods)
-				  (field-match->jlamba-field match (i class-name))
-				  (method-match->jlamba-method match (i class-name))))))
+				  (field-match->jlamba-field match (i 'foo))
+				  (method-match->jlamba-method match (i 'foo))))))
 
 	      (delete-local-ref class-object)
 	      (delete-local-ref all-methods)

@@ -1,7 +1,8 @@
 (module jni-jlambda-methods
 *
-(import chicken scheme extras lolevel matchable
-	jni2-lolevel jni-jlambda-method jni-reflection jni-jlambda-methods-selection)
+(import chicken scheme extras matchable)
+(use lolevel jni2-lolevel jni-types jni-jlambda-method  jni-jlambda-methods-selection jni-reflection)
+(import-for-syntax matchable)
 
 (define (make-method-finder method-name methods)
   (lambda (args/with-typehints)

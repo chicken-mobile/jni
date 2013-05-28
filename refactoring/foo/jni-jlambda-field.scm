@@ -1,7 +1,8 @@
 (module jni-jlambda-field
 *
-(import chicken scheme matchable jni2-lolevel jni-field-id)
-(import-for-syntax chicken matchable jni-field-id)
+(import chicken scheme matchable)
+(use jni2-lolevel jni-field-id)
+(import-for-syntax matchable)
 
 (define (make-getter-with-setter-variant modifier class-object field getter setter)
   (if (eq? modifier 'static) 
@@ -61,7 +62,7 @@
 	      (return-type (strip-syntax return-type))
 	      (%field        (i 'field)))
 
-	  `(let ((,%field (%field-id ,modifier ,class-object ,return-type ,field-name)))
+	  `(let ((,%field (field-id ,modifier ,class-object ,return-type ,field-name)))
 	     ,(%make-field-getter-with-setter modifier class-object return-type %field))))))))
 
 (define-for-syntax (field-spec modifier spec)
@@ -78,7 +79,7 @@
        (values (jlambda-field modifier class-object return-type field-name) ...)))))
 
 (define-syntax jlambda-field-define
-  (ir-macro-transformer
+  (er-macro-transformer
    (lambda (x i c)
      (match x
        ((_ class-object (static-fields ...) (nonstatic-fields ...))

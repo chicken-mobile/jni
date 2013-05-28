@@ -69,8 +69,8 @@
 
 (module jni-jlambda-methods-selection
 *
-(import chicken scheme lolevel srfi-1 moremacros matchable 
-	jni2-lolevel jni-types jni-jlambda-field)
+(import chicken scheme srfi-1 moremacros matchable)
+(use lolevel jni2-lolevel jni-jlambda-field jni-types)
 
 (define (primitive? type)
   (member type '(void boolean byte char short int long float double)))

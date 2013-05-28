@@ -1,6 +1,7 @@
 (module jni-jvalues
 *
-(import chicken scheme srfi-1 matchable jni2-lolevel)
+(import chicken scheme srfi-1 matchable)
+(use jni2-lolevel)
 (import-for-syntax matchable srfi-1)
 (begin-for-syntax
  (require-library srfi-1))

@@ -1,9 +1,7 @@
 (module jni-exceptions
 *
-(import chicken scheme jni-types jni-jlambda-method jni2-lolevel jni-reflection)
-(import-for-syntax jni-types)
-(begin-for-syntax
- (require-library jni-types))
+(import chicken scheme)
+(use jni-types jni-jlambda-method jni2-lolevel jni-reflection)
 
 (define Exception (class java.lang.Exception))
 
