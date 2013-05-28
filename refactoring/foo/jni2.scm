@@ -29,16 +29,15 @@
 (mutate-procedure! ##sys#pointer->string
   (lambda (old)
     (lambda args
-      (let ((arg (car args)))
-	(if (eq? (jobject-ref-type arg) 0)
+      (let* ((arg (car args))
+	     (ref-type (jobject-ref-type arg)))
+	(if (eq? ref-type 0)
 	    (apply old args)
 	    (let* ((class-object (object-class arg))
-		   (jobject-string (format "#<jref 0x~X [~A@~X]>" 
-					   (pointer->address arg) (class-name class-object) (object-hash-code arg))))
+		   (jobject-string (format "#<~A-jref 0x~X #<~A@~X>>"
+					   ref-type (pointer->address arg) (class-name class-object) (object-hash-code arg))))
 	      (delete-local-ref class-object)
 	      jobject-string))))))
-
-
 
 (reexport jni2-lolevel
  jni-signatures jni-types jni-array jni-field-id jni-method-id
