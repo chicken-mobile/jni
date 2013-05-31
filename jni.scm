@@ -58,13 +58,16 @@
           (let* ((%lambda         (r 'lambda))
                  (%catch          (r 'catch))
                  (%jlambda-field  (r 'jlambda-field))
+                 (%error          (r 'error))
                  (class-object    (find-class/or-error class-name))
                  (Field           (find-field/helper class-object (symbol->string field-name))))
             (if Field
               (let* ((static (static? (Field.getModifiers Field)))
                      (type   (class->type (Field.getType Field)))) 
                 `(,%catch (,%lambda () 
-                                    (,%jlambda-field ,static ,type ,class-name ,field-name)) #f))
+                                    (,%jlambda-field ,static ,type ,class-name ,field-name))
+                          (,%lambda args 
+                                    (,%error "field not found" ,(symbol->string class-name) ,(symbol->string field-name)))))
                 #f)))
 
         (define-syntax jlambda 
