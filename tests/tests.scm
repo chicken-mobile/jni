@@ -3,7 +3,7 @@
 (use jni lolevel expand-full moremacros srfi-13 test)
 (import-for-syntax test)
 
-(jvm-init "tests/test.jar:java/misc-utils/misc-utils.jar")
+(jvm-init "jars/test.jar:jars/jni-utils.jar")
 
 (define-syntax test-jstring
   (syntax-rules ()

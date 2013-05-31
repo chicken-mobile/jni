@@ -2,9 +2,9 @@
 (import-for-syntax jni chicken scheme)
 
 (begin-for-syntax
-  (jvm-init-lolevel "tests/test-expansiontime.jar:java/misc-utils/misc-utils.jar"))
+  (jvm-init-lolevel "jars/test-expansiontime.jar:jars/jni-utils.jar"))
 
-(jvm-init-lolevel "tests/test-runtime.jar:java/misc-utils/misc-utils.jar")
+(jvm-init-lolevel "jars/test-runtime.jar:jars/jni-utils.jar")
 
 (jimport com.chicken_mobile.test.Unestable (prefix <> Unestable-))
 

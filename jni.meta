@@ -3,5 +3,6 @@
 ((license "BSD License")
  (category lang-exts)
  (needs lolevel foreigners moremacros numbers make shell)
+ (test-depends lolevel expand-full moremacros srfi-13 test)
  (author "bevuta IT GmbH (Patrick Brauer)")
  (synopsis "JNI Bindings for Chicken Scheme"))
