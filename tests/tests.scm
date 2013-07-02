@@ -97,6 +97,7 @@
               (jlambda-method (public)  boolean java.lang.String contains java.lang.CharSequence))
 
             (let ((eleven (jstring-value-of 11)))
+              (test #t (jobject? eleven))
               (test-jstring "11" eleven)
               (test #t (jstring-contains eleven (jstring-value-of 1)))
               (test #t (jstring-contains2 eleven (jstring-value-of 1))))

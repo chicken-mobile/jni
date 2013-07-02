@@ -26,7 +26,8 @@
         ((long)    call-static-long-method)    
         ((float)   call-static-float-method)   
         ((double)  call-static-double-method)  
-        (else      call-static-object-method))
+        (else      (lambda (instance jmethod jvalues)
+                     (prepare-local-jobject (call-static-object-method instance jmethod jvalues)))))
       (case return-type
         ((void)    call-void-method)    
         ((boolean) call-boolean-method) 
@@ -37,7 +38,8 @@
         ((long)    call-long-method)    
         ((float)   call-float-method)   
         ((double)  call-double-method)  
-        (else      call-object-method))))
+        (else      (lambda (instance jmethod jvalues)
+                     (prepare-local-jobject (call-object-method instance jmethod jvalues)))))))
 
 (define (make-jvalue-builder argument-types)
   (let* ((setters (map (lambda (type index)
