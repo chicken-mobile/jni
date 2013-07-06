@@ -5,7 +5,7 @@
 ;; types:
 (define-foreign-type java-vm (c-pointer "JavaVM"))
 (define-foreign-type jni-env (c-pointer "JNIEnv"))
-(define-foreign-type jint int)
+(define-foreign-type jint integer)
 (define-foreign-type jobject (c-pointer "struct _jobject"))
 (define-foreign-type jclass jobject)
 (define-foreign-type jstring jobject)
