@@ -1,0 +1,81 @@
+(use files srfi-1 posix system)
+
+(define (require-envvar var)
+  (let ((val (get-environment-variable var)))
+    (or val
+        (with-output-to-port (current-error-port)
+          (lambda ()
+            (printf "\n\n=== Please, set the ~a environment variable. ===\n\n" var)))
+        (exit 1))))
+
+(define java-path
+  (require-envvar "JAVA_HOME"))
+
+(define (choose-libjvm-path . jvm-paths)
+  (let ((candidates
+	 (map (lambda (jvm-path)
+		(make-pathname java-path jvm-path))
+	      jvm-paths)))
+    (or (find file-exists? candidates)
+	(error 'jni "could not find libjvm" candidates))))
+
+(define libjvm-path
+  (choose-libjvm-path
+	 "/jre/lib/amd64/server/"
+	 "/jre/lib/x64/server/"
+	 "/jre/lib/amd64/client/"
+	 "/jre/lib/x64/client/"))
+
+(define-system jni3
+  (compiled-scheme-file "jni-lolevel.scm" 
+			options:  `(,(string-append "-I" (make-pathname java-path "/include/"))
+				    ,(string-append "-I" (current-directory))
+				    ,(string-append "-L" libjvm-path)				    
+				    ,(string-append "-Wl,-rpath=" libjvm-path) "-ljvm"))
+  
+  (scheme-file "jni-signatures.scm")
+  (scheme-file "jni-jvalues.scm" 
+	       depends: '("jni-lolevel.scm"))
+  (scheme-file "jni-array.scm"   
+	       depends: '("jni-lolevel.scm"))
+  (scheme-file "jni-types.scm"   
+	       depends: '("jni-lolevel.scm"
+			  "jni-signatures.scm"))
+  (scheme-file "jni-field-id.scm" 
+	       depends: '("jni-lolevel.scm" 
+			  "jni-signatures.scm"))
+  (scheme-file "jni-method-id.scm" 
+	       depends: '("jni-types.scm" 
+			  "jni-signatures.scm"))  
+  (scheme-file "jni-jlambda-field.scm" 
+	       depends: '("jni-field-id.scm"))
+  (scheme-file "jni-jlambda-method.scm" 
+	       depends: '("jni-jvalues.scm" 
+			  "jni-method-id.scm"))
+  (scheme-file "jni-jlambda-methods-selection.scm" 
+	       depends: '("jni-jlambda-field.scm"))
+  (scheme-file "jni-jlambda-methods.scm"
+  	       depends: '("jni-lolevel.scm" 
+			  "jni-types.scm"
+  			  "jni-jlambda-method.scm"
+			  "jni-jlambda-methods-selection.scm"))
+  (scheme-file "jni-reflection.scm"
+  	       depends: '("jni-lolevel.scm" 
+			  "jni-types.scm" 
+			  "jni-array.scm"
+  			  "jni-jlambda-methods.scm"))
+  (scheme-file "jni-jimport.scm"
+  	       depends: '("jni-lolevel.scm"
+			  "jni-types.scm" 
+			  "jni-array.scm"
+  			  "jni-reflection.scm"))
+  (scheme-file "jni-jlambda.scm"
+  	       depends: '("jni-lolevel.scm" 
+			  "jni-signatures.scm" 
+			  "jni-types.scm" 
+  			  "jni-array.scm" 
+			  "jni-jlambda-methods.scm" 
+			  "jni-reflection.scm"))
+
+  )
+ 
