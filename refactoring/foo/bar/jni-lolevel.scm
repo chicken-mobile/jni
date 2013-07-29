@@ -174,17 +174,17 @@
   (syntax-rules ()
     ((_)
      (foreign-declare "
-#include <jni.h>
+      #include <jni.h>
 
-static JavaVM* jvm;
+      static JavaVM* jvm;
 
-JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
-{
- jvm = vm;
+      JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
+      {
+       jvm = vm;
 
-     CHICKEN_run(C_toplevel);
-     return JNI_VERSION_1_6;
-     }"))))
+      CHICKEN_run(C_toplevel);
+      return JNI_VERSION_1_6;
+      }"))))
 
 (define-for-syntax (mangle-method-name name)
   (string->symbol
