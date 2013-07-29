@@ -1,5 +1,5 @@
 (module jni-reflection
-(Class 
+(Class
  class-primitive? class-array? class-interface? class-local? class-member? class-synthetic?
  class-superclass class-interfaces class-classes class-component-type
  class-modifiers class-name class-simple-name class-package
@@ -7,15 +7,15 @@
  class-field class-fields class-declared-field class-declared-fields
  class-constructor class-constructors class-declared-constructor class-declared-constructors
 
-Constructor
+ Constructor
  constructor-modifiers constructor-parameter-types
  constructor-declaring-class constructor-exception-types
 
-Method 
+ Method
  method-modifiers method-name method-declaring-class
  method-return-type method-parameter-types method-exception-types
 
-Field
+ Field
  field-modifiers field-name field-declaring-class field-type)
 
 (import chicken scheme matchable)
@@ -110,4 +110,5 @@ Field
 
 
 )
+
 
