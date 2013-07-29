@@ -1,10 +1,10 @@
 (module jni-jvalues
 (make-jvalue-builder %make-jvalue-builder set-jvalue!)
-(import chicken scheme extras srfi-1 matchable jni-lolevel)
-(use jni-lolevel)
-(import-for-syntax matchable srfi-1)
+(import chicken scheme)
+(use extras srfi-1 matchable jni-lolevel)
 (begin-for-syntax
  (require-library srfi-1))
+(import-for-syntax matchable srfi-1)
 
 (define (make-jvalue-builder jvalues argument-types)
   (let ((setters 

@@ -1,6 +1,6 @@
 (module jni-array
 (array-fold array-fold* array-map array-map* array-find array-filter array->list list->array)
-(import chicken scheme jni-lolevel)
+(import chicken scheme)
 (use jni-lolevel)
 (attach-thread)
 

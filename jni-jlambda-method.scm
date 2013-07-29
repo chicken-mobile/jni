@@ -2,8 +2,8 @@
 
 (jlambda-non-overloaded-method* jlambda-non-overloaded-method jlambda-method-define)
 
-(import chicken scheme matchable lolevel)
-(use jni-lolevel jni-types jni-jvalues jni-method-id jni-jvalues jni-signatures)
+(import chicken scheme matchable)
+(use lolevel jni-lolevel jni-types jni-jvalues jni-method-id jni-jvalues jni-signatures)
 (begin-for-syntax 
  (require-library jni-lolevel jni-signatures))
 (import-for-syntax matchable chicken extras jni-lolevel jni-signatures)

@@ -1,4 +1,4 @@
-(use files srfi-1)
+(use files srfi-1 make)
 
 (define cross-compiling?
   (feature? 'cross-chicken))
@@ -49,72 +49,132 @@
   (let ((platform (symbol->string (software-version))))
     (make-pathname java-path (make-pathname "include" platform))))
 
-(define host-compile-options
+(define compile-options
   (list "-ljvm"
         (string-append "-L" libjvm-path)
         (string-append "-Wl,-rpath=" libjvm-path)
         (string-append "-C -I" java-include-path)
         (string-append "-C -I" java-platform-include-path)))
 
-(define-syntax compile-for-host
-  (ir-macro-transformer
-   (lambda (x i c)
-     `(compile ,@host-compile-options  . ,(cdr x)))))
+(define (compile-jni-module mod)
+  (compile ,@compile-options -s ,(make-pathname #f mod "scm") -J)
+  (compile ,@compile-options -s ,(make-pathname #f mod "import.scm")))
 
-(compile-for-host -s "jni-lolevel.scm" -J)
-(compile-for-host -s "jni-lolevel.import.scm")
+(make (("jni-lolevel.so" ("jvalue-tools.c"
+                          "jni-adapter.h"
+                          "jni-lolevel.scm")
+	(compile-jni-module "jni-lolevel"))
 
-(compile-for-host -s "jni-signatures.scm" -J)
-(compile-for-host -s "jni-signatures.import.scm")
+       ("jni-signatures.so" ("jni-signatures.scm")
+        (compile-jni-module "jni-signatures"))
 
-(compile-for-host -s "jni-callbacks.scm" -J)
-(compile-for-host -s "jni-callbacks.import.scm")
-
-(compile-for-host -s "jni-types.scm" -J)
-(compile-for-host -s "jni-types.import.scm")
-
-(compile-for-host -s "jni-jvalues.scm" -J)
-(compile-for-host -s "jni-jvalues.import.scm")
-
-(compile-for-host -s "jni-array.scm" -J)
-(compile-for-host -s "jni-array.import.scm")
-
-(compile-for-host -s "jni-field-id.scm" -J)
-(compile-for-host -s "jni-field-id.import.scm")
-
-(compile-for-host -s "jni-method-id.scm" -J)
-(compile-for-host -s "jni-method-id.import.scm")
-
-(compile-for-host -s "jni-jlambda-field.scm" -J)
-(compile-for-host -s "jni-jlambda-field.import.scm")
-
-(compile-for-host -s "jni-jlambda-method.scm" -J)
-(compile-for-host -s "jni-jlambda-method.import.scm")
-
-(compile-for-host -s "jni-jlambda-methods-selection.scm" -J)
-(compile-for-host -s "jni-jlambda-methods-selection.import.scm")
-
-(compile-for-host -s "jni-jlambda-methods.scm" -J)
-(compile-for-host -s "jni-jlambda-methods.import.scm")
-
-(compile-for-host -s "jni-reflection.scm" -J)
-(compile-for-host -s "jni-reflection.import.scm")
-
-(compile-for-host -s "jni-jimport.scm" -J)
-(compile-for-host -s "jni-jimport.import.scm")
-
-(compile-for-host -s "jni-jlambda.scm" -J)
-(compile-for-host -s "jni-jlambda.import.scm")
-
-(compile-for-host -s "jni.scm" -J)
-(compile-for-host -s "jni.import.scm")
+       ;; ("jni-callbacks.so" ("jni-lolevel.so"
+       ;;                      "jni-callbacks.scm")
+       ;;  (compile-jni-module "jni-callbacks"))
+       
+       ("jni-types.so" ("jni-lolevel.so"
+                        "jni-signatures.so"
+                        "jni-types.scm")
+        (compile-jni-module "jni-types"))
+       
+       ("jni-jvalues.so" ("jni-lolevel.so"
+                          "jni-jvalues.scm")
+        (compile-jni-module "jni-jvalues"))
+       
+       ("jni-array.so" ("jni-lolevel.so"
+                        "jni-array.scm")
+        (compile-jni-module "jni-array"))
+       
+       ("jni-field-id.so" ("jni-lolevel.so"
+                           "jni-signatures.so"
+                           "jni-field-id.scm")
+        (compile-jni-module "jni-field-id"))
+       
+       ("jni-method-id.so" ("jni-lolevel.so"
+                            "jni-types.so"
+                            "jni-signatures.so"
+                            "jni-method-id.scm")
+        (compile-jni-module "jni-method-id"))
+       
+       ("jni-jlambda-field.so" ("jni-lolevel.so"
+                                "jni-field-id.so"
+                                "jni-jlambda-field.scm")
+        (compile-jni-module "jni-jlambda-field"))
+       
+       ("jni-jlambda-method.so" ("jni-lolevel.so"
+                                 "jni-types.so"
+                                 "jni-jvalues.so"
+                                 "jni-method-id.so"
+                                 "jni-jvalues.so"
+                                 "jni-signatures.so"
+                                 "jni-jlambda-method.scm")
+        (compile-jni-module "jni-jlambda-method"))
+       
+       ("jni-jlambda-methods-selection.so" ("jni-lolevel.so"
+                                            "jni-types.so"
+                                            "jni-jlambda-field.so"
+                                            "jni-jlambda-methods-selection.scm")
+        (compile-jni-module "jni-jlambda-methods-selection"))
+       
+       ("jni-jlambda-methods.so" ("jni-lolevel.so"
+                                  "jni-jlambda-method.so"
+                                  "jni-jlambda-methods-selection.so"
+                                  "jni-jlambda-methods.scm")
+        (compile-jni-module "jni-jlambda-methods"))
+       
+       ("jni-reflection.so" ("jni-lolevel.so"
+                             "jni-types.so"
+                             "jni-array.so"
+                             "jni-jlambda-methods.so"
+                             "jni-reflection.scm")
+        (compile-jni-module "jni-reflection"))
+       
+       ("jni-jimport.so" ("jni-lolevel.so"
+                          "jni-types.so"
+                          "jni-array.so"
+                          "jni-reflection.so"
+                          "jni-jlambda-methods.so"
+                          "jni-jimport.scm")
+        (compile-jni-module "jni-jimport"))
+       
+       ("jni-jlambda.so" ("jni-lolevel.so"
+                          "jni-signatures.so"
+                          "jni-types.so"
+                          "jni-array.so"
+                          "jni-jlambda-methods.so"
+                          "jni-reflection.so"
+                          "jni-jlambda.scm")
+        (compile-jni-module "jni-jlambda"))
+       
+       ("jni.so" ("jni-lolevel.so"
+                  "jni-types.so"
+                  "jni-jlambda-methods.so"
+                  "jni-reflection.so"
+                  "jni.scm")
+        (compile-jni-module "jni")))
+  '("jni-lolevel.so"
+    "jni-signatures.so"
+    ;; "jni-callbacks.so"
+    "jni-types.so"
+    "jni-jvalues.so"
+    "jni-array.so"
+    "jni-field-id.so"
+    "jni-method-id.so"
+    "jni-jlambda-field.so"
+    "jni-jlambda-method.so"
+    "jni-jlambda-methods-selection.so"
+    "jni-jlambda-methods.so"
+    "jni-reflection.so"
+    "jni-jimport.so"
+    "jni-jlambda.so"
+    "jni.so"))
 
 (install-extension
  'jni
  '("jni-lolevel.so" "jni-lolevel.import.so"
 
    "jni-signatures.so"  "jni-signatures.import.so"
-   "jni-callbacks.so" "jni-callbacks.import.so"
+   ;; "jni-callbacks.so" "jni-callbacks.import.so"
    "jni-types.so" "jni-types.import.so"
    "jni-jvalues.so" "jni-jvalues.import.so"
    "jni-array.so"  "jni-array.import.so"
@@ -127,7 +187,7 @@
    "jni-jlambda-methods-selection.so" "jni-jlambda-methods-selection.import.so"
    "jni-jlambda-methods.so" "jni-jlambda-methods.import.so"
 
-   "jni-reflection.scm" "jni-reflection.import.so"
+   "jni-reflection.so" "jni-reflection.import.so"
    "jni-jimport.so" "jni-jimport.import.so"
    "jni-jlambda.so" "jni-jlambda.import.so"
 

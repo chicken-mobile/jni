@@ -1,11 +1,9 @@
 (module jni-method-id
 (method-id* method-id %method-id get-method-id/error get-static-method-id/error)
-(import chicken scheme extras data-structures matchable jni-lolevel jni-types jni-signatures)
-
-(import-for-syntax matchable jni-signatures)
+(import chicken scheme matchable)
+(use extras data-structures jni-lolevel jni-types jni-signatures)
 (begin-for-syntax (require-library jni-signatures))
-
-(use jni-lolevel jni-types jni-signatures)
+(import-for-syntax matchable jni-signatures)
 (attach-thread)
 
 (define (get-method-id/error* variant args)

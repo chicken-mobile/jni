@@ -1,8 +1,8 @@
 (module jni-types
 (find-class/error class* %class class)
 
-(import chicken scheme extras data-structures jni-lolevel jni-signatures)
-(use jni-lolevel jni-signatures)
+(import chicken scheme)
+(use extras data-structures jni-lolevel jni-signatures)
 (attach-thread)
 
 (import-for-syntax jni-signatures)

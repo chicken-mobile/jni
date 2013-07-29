@@ -1,7 +1,7 @@
 (module jni-field-id
 (field-id* field-id %field-id get-field-id/error get-static-field-id/error)
-(import chicken scheme extras matchable jni-lolevel jni-signatures)
-(use jni-lolevel jni-signatures)
+(import chicken scheme matchable)
+(use extras jni-lolevel jni-signatures)
 (attach-thread)
 
 (import-for-syntax chicken matchable jni-signatures)

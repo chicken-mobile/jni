@@ -4,9 +4,9 @@
 (use lolevel jni-lolevel jni-jlambda-method jni-jlambda-methods-selection)
 (attach-thread)
 
-(import-for-syntax lolevel jni-lolevel jni-jlambda-method jni-jlambda-methods-selection)
 (begin-for-syntax
  (require-library lolevel jni-lolevel jni-jlambda-method jni-jlambda-methods-selection))
+(import-for-syntax lolevel jni-lolevel jni-jlambda-method jni-jlambda-methods-selection)
 
 (define (make-method-finder method-name methods)
   (lambda (args/with-typehints)
