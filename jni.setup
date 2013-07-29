@@ -1,10 +1,7 @@
-(use files srfi-1 make shell)
+(use files srfi-1)
 
-(define cross-compiling (feature? 'cross-chicken))
-
-(define build-for-host 
-  (or (not cross-compiling)
-      (host-extension)))
+(define cross-compiling?
+  (feature? 'cross-chicken))
 
 (define (require-envvar var)
   (let ((val (get-environment-variable var)))
@@ -19,70 +16,120 @@
 
 (define (choose-libjvm-path . jvm-paths)
   (let ((candidates
-	 (map (lambda (jvm-path)
-		(make-pathname java-path jvm-path))
-	      jvm-paths)))
+         (map (lambda (jvm-path)
+                (make-pathname java-path jvm-path))
+              jvm-paths)))
     (or (find file-exists? candidates)
-	(error 'jni "could not find libjvm" candidates))))
+        (error 'jni "could not find libjvm" candidates))))
 
 (define libjvm-path
-  (if (or (and (feature? 'cross-chicken) (host-extension))
-	  (not (host-extension)))
+  (if (or (and cross-compiling? (host-extension))
+          (not (host-extension)))
       (cond-expand
        (x86-64
-	(choose-libjvm-path
-	 "/jre/lib/amd64/server/"
-	 "/jre/lib/x64/server/"
-	 "/jre/lib/amd64/client/"
-	 "/jre/lib/x64/client/"))
+        (choose-libjvm-path
+         "/jre/lib/amd64/server"
+         "/jre/lib/x64/server"
+         "/jre/lib/amd64/client"
+         "/jre/lib/x64/client"))
        (x86
-	(choose-libjvm-path
-	 "/jre/lib/i386/server/"
-	 "/jre/lib/i386/client/")))))
+        (choose-libjvm-path
+         "/jre/lib/i386/server"
+         "/jre/lib/i386/client")))
+      ;; TBD
+      #f))
 
-(define-syntax compile/for-host
+(define java-include-path
+  (make-pathname java-path "include"))
+
+(define java-platform-include-path
+  ;; TODO: (software-version) is not quite the right thing here but
+  ;; works for linux at least. Needs investigation for other
+  ;; platforms.
+  (let ((platform (symbol->string (software-version))))
+    (make-pathname java-path (make-pathname "include" platform))))
+
+(define host-compile-options
+  (list "-ljvm"
+        (string-append "-L" libjvm-path)
+        (string-append "-Wl,-rpath=" libjvm-path)
+        (string-append "-C -I" java-include-path)
+        (string-append "-C -I" java-platform-include-path)))
+
+(define-syntax compile-for-host
   (ir-macro-transformer
    (lambda (x i c)
-     `(compile ,',(string-append "-L" libjvm-path)
-	       ,',(string-append "-Wl,-rpath=" libjvm-path)
-	       -ljvm
-	       ,',(string-append "-I" (make-pathname java-path "/include/"))
-	       . ,(cdr x)))))
+     `(compile ,@host-compile-options  . ,(cdr x)))))
 
+(compile-for-host -s "jni-lolevel.scm" -J)
+(compile-for-host -s "jni-lolevel.import.scm")
 
-(when build-for-host
-  (make (("jni-utils.jar" 
-	  ("java/misc-utils/build.xml"
-	   "java/misc-utils/src/com/chicken_mobile/jni/ExceptionHelper.java"
-	   "java/misc-utils/src/com/chicken_mobile/jni/ReflectionHelper.java")
-	  (run (ant -f "java/misc-utils/build.xml" clean))
-	  (run (ant -f "java/misc-utils/build.xml"))
-	  (file-copy "java/misc-utils/misc-utils.jar" "jni-utils.jar" #t)))
-    '("jni-utils.jar")))
+(compile-for-host -s "jni-signatures.scm" -J)
+(compile-for-host -s "jni-signatures.import.scm")
 
+(compile-for-host -s "jni-callbacks.scm" -J)
+(compile-for-host -s "jni-callbacks.import.scm")
 
-;;;XXX temporary fix for stale binaries in target variant when doing cross-build
-(when (feature? 'cross-chicken)
-  (for-each delete-file (glob "*.so")))
+(compile-for-host -s "jni-types.scm" -J)
+(compile-for-host -s "jni-types.import.scm")
 
-(let-syntax ((compile*
-	      (syntax-rules ()
-		((_ args ...)
-		 (if build-for-host
-		     (compile/for-host -s args ...)
-		     (compile -s -Dandroid args ...))))))
-  (make (("jni-lolevel.so" ("jni-lolevel.scm"
-			    "jvalue-tools.c"
-			    "jni-primitives.scm"
-			    "jni-jlambda.scm"
-			    "jni-reflection.scm")
-	  (compile* jni-lolevel.scm -J)
-	  (compile* jni-lolevel.import.scm))
-	 ("jni.so" ("jni.scm" "jni-lolevel.so")
-	  (compile* jni.scm -J)
-	  (compile* jni.import.scm)))
-    '("jni-lolevel.so" "jni.so")))
+(compile-for-host -s "jni-jvalues.scm" -J)
+(compile-for-host -s "jni-jvalues.import.scm")
 
-(install-extension 'jni
-  '("jni-lolevel.so" "jni-lolevel.import.so" "jni.import.so" "jni.so" "jni-utils.jar")
-  '((version "0.1")))
+(compile-for-host -s "jni-array.scm" -J)
+(compile-for-host -s "jni-array.import.scm")
+
+(compile-for-host -s "jni-field-id.scm" -J)
+(compile-for-host -s "jni-field-id.import.scm")
+
+(compile-for-host -s "jni-method-id.scm" -J)
+(compile-for-host -s "jni-method-id.import.scm")
+
+(compile-for-host -s "jni-jlambda-field.scm" -J)
+(compile-for-host -s "jni-jlambda-field.import.scm")
+
+(compile-for-host -s "jni-jlambda-method.scm" -J)
+(compile-for-host -s "jni-jlambda-method.import.scm")
+
+(compile-for-host -s "jni-jlambda-methods-selection.scm" -J)
+(compile-for-host -s "jni-jlambda-methods-selection.import.scm")
+
+(compile-for-host -s "jni-jlambda-methods.scm" -J)
+(compile-for-host -s "jni-jlambda-methods.import.scm")
+
+(compile-for-host -s "jni-reflection.scm" -J)
+(compile-for-host -s "jni-reflection.import.scm")
+
+(compile-for-host -s "jni-jimport.scm" -J)
+(compile-for-host -s "jni-jimport.import.scm")
+
+(compile-for-host -s "jni-jlambda.scm" -J)
+(compile-for-host -s "jni-jlambda.import.scm")
+
+(compile-for-host -s "jni.scm" -J)
+(compile-for-host -s "jni.import.scm")
+
+(install-extension
+ 'jni
+ '("jni-lolevel.so" "jni-lolevel.import.so"
+
+   "jni-signatures.so"  "jni-signatures.import.so"
+   "jni-callbacks.so" "jni-callbacks.import.so"
+   "jni-types.so" "jni-types.import.so"
+   "jni-jvalues.so" "jni-jvalues.import.so"
+   "jni-array.so"  "jni-array.import.so"
+
+   "jni-field-id.so"  "jni-field-id.import.so"
+   "jni-method-id.so"  "jni-method-id.import.so"
+
+   "jni-jlambda-field.so" "jni-jlambda-field.import.so"
+   "jni-jlambda-method.so" "jni-jlambda-method.import.so"
+   "jni-jlambda-methods-selection.so" "jni-jlambda-methods-selection.import.so"
+   "jni-jlambda-methods.so" "jni-jlambda-methods.import.so"
+
+   "jni-reflection.scm" "jni-reflection.import.so"
+   "jni-jimport.so" "jni-jimport.import.so"
+   "jni-jlambda.so" "jni-jlambda.import.so"
+
+   "jni.so" "jni.import.so")
+ '((version "0.3.0")))

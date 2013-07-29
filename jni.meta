@@ -1,7 +1,6 @@
 ;; -*- scheme -*-
-
 ((license "BSD License")
  (category lang-exts)
- (needs lolevel foreigners moremacros numbers make shell)
+ (needs foreigners fmt)
  (author "bevuta IT GmbH (Patrick Brauer)")
  (synopsis "JNI Bindings for Chicken Scheme"))

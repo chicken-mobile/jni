@@ -1,3 +1,4 @@
+
 ;; macros for automatic generation of type variants procedures:
 ;; - define-type-procs: iterate over types an generate call-procs and jvalue-procs
 ;;   - define-call-procs: generate call procedures by type, ie: call-void-method
@@ -36,22 +37,22 @@
                      (,%env-lambda ,s-type ,static-jni-proc-name jobject jmethod-id jvalue)))))))
 
 (define-syntax define-jvalue-procs
-	(er-macro-transformer
-		(lambda (x r c)
-			(let* ((%begin  (r 'begin))
-						 (%export (r 'export))
-						 (%define (r 'define))
-						 (%foreign-lambda (r 'foreign-lambda))
+  (er-macro-transformer
+   (lambda (x r c)
+     (let* ((%begin  (r 'begin))
+	    (%export (r 'export))
+	    (%define (r 'define))
+	    (%foreign-lambda (r 'foreign-lambda))
 
-						 (type (string->symbol (string-downcase (symbol->string (cadr x)))))
-						 (s-type (caddr x))
-						 (type-string (symbol->string type))
-						 (set-proc-name  (string->symbol (format "set-~A-jvalue!" type-string)))
-						 (c-set-proc-name (string->symbol (format "set_~A_jvalue" type-string))))
+	    (type (string->symbol (string-downcase (symbol->string (cadr x)))))
+	    (s-type (caddr x))
+	    (type-string (symbol->string type))
+	    (set-proc-name  (string->symbol (format "set-~A-jvalue!" type-string)))
+	    (c-set-proc-name (string->symbol (format "set_~A_jvalue" type-string))))
 
-				`(,%begin
-					 (,%define ,set-proc-name
-										 (,%foreign-lambda jvalue ,c-set-proc-name jvalue int ,s-type)))))))
+       `(,%begin
+	 (,%define ,set-proc-name
+		   (,%foreign-lambda jvalue ,c-set-proc-name jvalue int ,s-type)))))))
 
 (define-syntax define-type-procs
   (er-macro-transformer
@@ -119,7 +120,7 @@
                           (,%export ,accessor-name)
                           (,%define (,accessor-name object field-name)
                                     (let* ((object-class object)
-                                           (field-id (get-field object-class field-name ,type-sig)))
+                                           (field-id (get-field-id object-class field-name ,type-sig)))
                                       (,%lambda value
                                                 (if (null? value)
                                                   (,proc-get-name object field-id)
@@ -150,3 +151,51 @@
                         (append exports       (list `(export ,accessor-name)
                                                     `(export ,test-name)))
                         (cdr modifiers)))))))))
+
+(define-syntax jni-env-lambda
+  (er-macro-transformer
+   (lambda (x r c)
+     (let* ((return    (cadr x))
+            (name      (symbol->string (caddr x)))
+            (name-sym  (caddr x))
+            (arg-types (cdddr x))
+            (arg-names (map (lambda (i)
+                              (string-append "a" (number->string i)))
+                            (iota (length arg-types))))
+            (arg-syms  (map string->symbol arg-names))
+            (args      (map list arg-types arg-syms)))
+       `(,(r 'let)
+         ((,name-sym (,(r 'foreign-lambda*) ,return ((jni-env env) . ,args)
+                      ,(string-append
+                        (if (c return 'void)
+                            "(*env)->"
+                            "C_return((*env)->") name "("
+                        (string-intersperse (cons "env" arg-names) ", ")
+                        (if (c return 'void)
+                            ");"
+                            "));")))))
+         (,(r 'lambda) ,arg-syms (,name-sym (,(r 'jni-env)) . ,arg-syms)))))))
+
+(define-for-syntax jni-types '(Void Object Boolean Byte Char Short Int Long Float Double))
+(define-for-syntax jni-jtypes '(void  jobject   bool     byte  char  short  int  long   float  double))
+(define-for-syntax jni-type-sigs '(V L Z B C S I J F D))
+
+(define-for-syntax type-sigs '(V     L         Z        B     C     S      I    J      F      D))
+(define-for-syntax types     '(Void  Object    Boolean  Byte  Char  Short  Int  Long   Float  Double))
+(define-for-syntax s-types   '(void  jobject   bool     byte  char  short  int  long   float  double))
+(define-for-syntax c-types   '(void  jobject bool     byte  char  short  int  long   float  double))
+
+;; modifiers:
+(define-for-syntax modifiers
+  '((public       .    1)
+    (private      .    2)
+    (protected    .    4) 
+    (static       .    8)
+    (final        .   16)
+    (synchronized .   32)
+    (volatile     .   64)
+    (transient    .  128)
+    (native       .  256)
+    (interface    .  512)
+    (abstract     . 1024)
+    (strict       . 2048)))
