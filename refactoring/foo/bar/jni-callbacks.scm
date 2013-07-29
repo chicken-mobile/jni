@@ -2,12 +2,21 @@
 (define-callback)
 (import scheme chicken)
 
-(import-for-syntax matchable chicken extras srfi-1 data-structures)
-(begin-for-syntax (require-library srfi-1 data-structures))
+(begin-for-syntax
+ (require-library srfi-1
+                  data-structures
+                  fmt
+                  fmt-c
+                  jni-lolevel))
 
-(import-for-syntax fmt fmt-c )
-(begin-for-syntax (require-library fmt fmt-c)
-		  (use (only jni-lolevel mangle-method-name)))
+(import-for-syntax matchable
+                   chicken
+                   extras
+                   srfi-1
+                   data-structures
+                   fmt
+                   fmt-c
+                   (only jni-lolevel mangle-method-name))
 
 (define-for-syntax declare-callback
   (match-lambda* 
