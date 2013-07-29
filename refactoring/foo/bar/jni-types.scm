@@ -12,7 +12,7 @@
   (let ((class-object (find-class name)))
     (if (or class-object (and (exception-check) (not (exception-clear))))
 	class-object
-	(error 'find-class (format "no class named \"~A\" found :(" name)))))
+	(error 'find-class "class not found" name))))
 
 (define (class* class-name)
   (find-class/error (or (and (or (symbol? class-name) (vector? class-name))
