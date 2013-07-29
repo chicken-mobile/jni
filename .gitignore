@@ -1,10 +1,5 @@
 *.so
 *.log
-jni-dvm.import.scm  
-jni-jvm.import.scm  
-jni-lolevel.import.scm
-jni-highlevel.import.scm
-tests/tests
-java/misc-utils/bin/
-java/jni-test/bin/
-Makefile
+*.o
+*.import.*
+*.class
