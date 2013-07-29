@@ -1,7 +1,9 @@
 (module jni-jlambda-field
+
 (jlambda-field* jlambda-field jlambda-field-define jlambda-field-define*
 		make-getter-with-setter-variant)
-(import chicken scheme matchable jni-lolevel jni-field-id)
+
+(import chicken scheme matchable)
 (use jni-lolevel jni-field-id)
 (attach-thread)
 

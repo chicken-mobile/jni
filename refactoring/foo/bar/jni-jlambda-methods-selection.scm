@@ -69,8 +69,8 @@
 
 (module jni-jlambda-methods-selection
 (find-method-match match-arg-types)
-(import chicken scheme srfi-1 moremacros matchable lolevel
-	jni-lolevel jni-jlambda-field jni-types)
+
+(import chicken scheme srfi-1 moremacros matchable lolevel)
 
 
 (use jni-lolevel jni-types jni-types jni-jlambda-field)

@@ -1,9 +1,10 @@
 (module jni-jimport
 (jimport %jimport)
 (import chicken scheme)
+(begin-for-syntax
+ (require-library matchable chicken extras jni-lolevel jni-types jni-array jni-reflection jni-jlambda-methods))
 (import-for-syntax chicken extras matchable jni-lolevel jni-types jni-array jni-reflection jni-jlambda-methods)
 (begin-for-syntax
- (require-library matchable chicken extras jni-lolevel jni-types jni-array jni-reflection jni-jlambda-methods)
  (attach-thread))
 
 
