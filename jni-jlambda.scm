@@ -1,10 +1,10 @@
 (module jni-jlambda
 (jlambda)
-(import chicken scheme  matchable)
+(import chicken scheme)
 (use extras data-structures jni-lolevel jni-signatures jni-types jni-array jni-jlambda-methods jni-reflection)
 (begin-for-syntax
  (require-library jni-lolevel jni-signatures jni-types jni-array jni-jlambda-methods jni-reflection))
-(import-for-syntax jni-lolevel jni-signatures jni-types jni-array jni-jlambda-methods jni-reflection)
+(import-for-syntax matchable jni-lolevel jni-signatures jni-types jni-array jni-jlambda-methods jni-reflection)
 (begin-for-syntax
  (attach-thread))
 
