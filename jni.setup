@@ -137,14 +137,14 @@
                           "jni-jimport.scm")
         (compile-jni-module "jni-jimport"))
        
-       ("jni-jlambda.so" ("jni-lolevel.so"
-                          "jni-signatures.so"
-                          "jni-types.so"
-                          "jni-array.so"
-                          "jni-jlambda-methods.so"
-                          "jni-reflection.so"
-                          "jni-jlambda.scm")
-        (compile-jni-module "jni-jlambda"))
+       ;; ("jni-jlambda.so" ("jni-lolevel.so"
+       ;;                    "jni-signatures.so"
+       ;;                    "jni-types.so"
+       ;;                    "jni-array.so"
+       ;;                    "jni-jlambda-methods.so"
+       ;;                    "jni-reflection.so"
+       ;;                    "jni-jlambda.scm")
+       ;;  (compile-jni-module "jni-jlambda"))
        
        ("jni.so" ("jni-lolevel.so"
                   "jni-types.so"
@@ -166,7 +166,7 @@
     "jni-jlambda-methods.so"
     "jni-reflection.so"
     "jni-jimport.so"
-    "jni-jlambda.so"
+    ;; "jni-jlambda.so"
     "jni.so"))
 
 (install-extension
@@ -189,7 +189,7 @@
 
    "jni-reflection.so" "jni-reflection.import.so"
    "jni-jimport.so" "jni-jimport.import.so"
-   "jni-jlambda.so" "jni-jlambda.import.so"
+   ;; "jni-jlambda.so" "jni-jlambda.import.so"
 
    "jni.so" "jni.import.so")
  '((version "0.3.0")))
