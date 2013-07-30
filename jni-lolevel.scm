@@ -13,14 +13,9 @@
 (define-foreign-type java-vm    (c-pointer "JavaVM"))
 (define-foreign-type jni-env    (c-pointer "JNIEnv"))
 
-(define (testo foo)
-  (new-global-ref foo))
-(define (festo foo) foo)
-
 (define-foreign-type        jobject (c-pointer "struct _jobject"))
 (define-foreign-type global-jobject (c-pointer "struct _jobject"))
-(define-foreign-type  local-jobject (c-pointer "struct _jobject") 
-)
+(define-foreign-type  local-jobject (c-pointer "struct _jobject"))
 
 
 (define-foreign-type jmethod-id (c-pointer "struct _jmethodID"))
