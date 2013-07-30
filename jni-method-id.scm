@@ -35,10 +35,10 @@
 (define-for-syntax (%method-id* spec safe?)
   (print "method-id: generate binding for" (cdr (strip-syntax spec)))
   (match (strip-syntax spec)
-    ((_ modifier class-object return-type method-name arg-types ...)
-     `(,(%method-id-variant modifier safe?) ,class-object ,(->string method-name) ,(expand-type arg-types return-type)))
     ((_ 'constructor class-object arg-types ...)
-     `(,(%method-id-variant 'constructor safe?) ,class-object "<init>" ,(expand-type arg-types 'void)))))
+     `(,(%method-id-variant 'constructor safe?) ,class-object "<init>" ,(expand-type (remove not arg-types) 'void)))
+    ((_ modifier class-object return-type method-name arg-types ...)
+     `(,(%method-id-variant modifier safe?) ,class-object ,(->string method-name) ,(expand-type arg-types return-type)))))
 
 (define-syntax %method-id
   (ir-macro-transformer

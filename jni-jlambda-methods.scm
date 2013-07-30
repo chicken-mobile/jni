@@ -62,7 +62,10 @@
      (jlambda-overloaded-method class-object return-type method-name ((modifier arg-types ...) ...)))
 
     ((_ class-object modifier return-type method-name arg-types ...)
-     (jlambda-non-overloaded-method class-object modifier return-type method-name arg-types ...))))
+     (jlambda-non-overloaded-method class-object modifier return-type method-name arg-types ...))
+
+    ((_ class-object modifier arg-type)
+     (jlambda-non-overloaded-method class-object modifier #f arg-type))))
 
 (define-syntax define-jlambda-methods
   (syntax-rules ()
