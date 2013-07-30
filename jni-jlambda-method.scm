@@ -11,54 +11,6 @@
 
 (attach-thread)
 
-
-(define (call-proc-variant modifier return-type)
-  (case modifier
-    ((static)
-     (case return-type
-       ((void)    call-static-void-method)    
-       ((boolean) call-static-boolean-method) 
-       ((byte)    call-static-byte-method)    
-       ((char)    call-static-char-method)    
-       ((short)   call-static-short-method)   
-       ((int)     call-static-int-method)     
-       ((long)    call-static-long-method)    
-       ((float)   call-static-float-method)   
-       ((double)  call-static-double-method)
-       (else      call-static-object-method)))
-    ((nonstatic)
-     (case return-type
-        ((void)    call-void-method)    
-        ((boolean) call-boolean-method) 
-        ((byte)    call-byte-method)    
-        ((char)    call-char-method)    
-        ((short)   call-short-method)   
-        ((int)     call-int-method)
-        ((long)    call-long-method)   
-        ((float)   call-float-method)  
-        ((double)  call-double-method)
-        (else      call-object-method)))
-    ((constructor) new-object)))
-
-(define (jlambda-non-overloaded-method* #!rest args)
-  (match args
-    (( modifier class-object return-type method-name arg-types ...)
-     (let ((jvalue-array     (make-jvalue-array (length arg-types))))
-       (let ((jvalue-builder (make-jvalue-builder jvalue-array arg-types))
-	     (call-variant   (call-proc-variant modifier return-type))
-	     (method         (method-id* modifier class-object return-type method-name arg-types)))
-	 
-	 (if (eq? modifier 'nonstatic)
-	     (lambda (target . args)
-	       (jvalue-builder args)
-	       (call-variant target method jvalue-array))
-	     (lambda args
-	       (jvalue-builder args)
-	       (call-variant class-object method jvalue-array))))))
-    (('constructor class-object arg-types ...)
-     (apply jlambda-non-overloaded-method* (append (list 'constructor class-object 'void "<init>") arg-types)))))
-
-
 (define-for-syntax (%call-proc-variant modifier return-type)
   (let ((type (type->native-type return-type)))
     (case modifier
