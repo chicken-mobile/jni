@@ -1,6 +1,9 @@
 #>
-#include <jni.h>
+#ifndef __ANDROID__
 #include "jni-adapter.h"
+#else
+#include <jni.h>
+#endif
 #include "jvalue-tools.c"
 <#
 
@@ -143,7 +146,12 @@
 
 
 (define jvm-create
-  (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))
+  (cond-expand
+   (android
+    (lambda _
+      (error 'jvm-create "not supported on this platform")))
+   (else
+    (foreign-lambda int jvm_create (c-pointer java-vm) (c-pointer (c-pointer void)) c-string c-string))))
 
 (define (jvm-init #!optional (class-path ".") (stack-size "5m"))
   (let ((class-path-option (string-append "-Djava.class.path=" class-path))
