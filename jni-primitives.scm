@@ -5,7 +5,7 @@
 ;; types:
 (define-foreign-type java-vm (c-pointer "JavaVM"))
 (define-foreign-type jni-env (c-pointer "JNIEnv"))
-(define-foreign-type jint integer)
+(define-foreign-type jint integer32)
 (define-foreign-type jobject (c-pointer "struct _jobject"))
 (define-foreign-type jclass jobject)
 (define-foreign-type jstring jobject)
@@ -116,6 +116,11 @@
     (let ((global (new-global-ref jobject)))
       (delete-local-ref jobject)
       (set-finalizer! (tag-pointer global (make-jobject-meta)) delete-global-ref))
+    jobject))
+
+(define (prepare-global-jobject jobject)
+  (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
+    (set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-global-ref)
     jobject))
 
 ;; jni jvm bindings

@@ -215,6 +215,15 @@
           (array-set! arr i (car lst))
           (loop (+ i 1) (cdr lst)))))))
 
+(define-syntax list->array/map 
+  (ir-macro-transformer
+    (lambda (x i c)
+      (let* ((class-name (cadr x))
+             (mapper     (caddr x))
+             (list       (cadddr x)))
+        `(list->array (class ,class-name)
+                      (map ,mapper ,list))))))
+
 (define (get-type-symbol type-name)
   (if (string-prefix? "L" type-name)
     (string->symbol (string-drop (string-drop-right type-name 1) 1)) ; Lclass;
