@@ -369,6 +369,11 @@
             (test 1 (N2-h)) ;;defined in superclass
             (test 2 (N2-j))
 
+            (jimport com.chicken_mobile.jni.test.Foo (prefix <> Foo-))
+
+            (test #f (Foo-returnNull))
+            (test #f (Foo-same #f))
+
             (jimport java.util.concurrent.ConcurrentLinkedQueue (prefix <> Queue-))
             (jimport java.lang.Integer (prefix <> Integer-))
             (jimport java.lang.Character (prefix <> Integer-))

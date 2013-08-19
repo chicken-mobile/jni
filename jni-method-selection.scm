@@ -120,7 +120,10 @@
                   (if (pair? arg)
                     (eq? (car arg) type)
                     (type-case arg
-                               (boolean (eq? 'boolean type))
+                               (boolean 
+                                 (or (and (eq? arg #f)          ; #f is also used for null
+                                          (not (primitive? type)))
+                                     (eq? 'boolean type)))
                                (number  
                                  (if (fixnum? arg)
                                    (or (and (member type '(java.lang.Integer int))
