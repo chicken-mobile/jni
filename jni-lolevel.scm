@@ -8,7 +8,7 @@
 
 (module jni-lolevel
         *
-        (import chicken scheme foreign srfi-1 data-structures extras moremacros)
+        (import chicken scheme foreign srfi-1 data-structures extras moremacros srfi-18)
         (import-for-syntax chicken numbers scheme)
         (use lolevel foreigners srfi-13 srfi-1 data-structures numbers)
 

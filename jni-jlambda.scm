@@ -236,7 +236,8 @@
 (define jexception-message 
   (let ((m (jlambda-method #f java.lang.String java.lang.Exception getMessage)))
     (lambda (exception)
-      (jstring->string (m exception)))))
+      (let ((message (m exception)))
+        (and message (jstring->string message))))))
 
 (define jexception-type
   (let ((m (jlambda-method (static) java.lang.String com.chicken_mobile.jni.ExceptionHelper type java.lang.Exception)))
@@ -268,13 +269,19 @@
 (define java-condition-handler
   (let ((o (current-exception-handler)))
     (lambda (exception)
-      (if (java-exception? exception)
-        (let ((trace   (java-exception-trace exception))
-              (message (java-exception-message exception)))
+      (let ((jexception (cond ((java-exception? exception) exception)
+                              ((and (uncaught-exception? exception) 
+                                    (java-exception? (uncaught-exception-reason exception)))
+                                    (uncaught-exception-reason exception))
+                              (else
+                                #f))))
+      (if jexception
+        (let ((trace   (java-exception-trace jexception))
+              (message (java-exception-message jexception)))
           (newline)
           (print trace)
           (abort (make-property-condition 'exn 'message "java-exception-handler returned")))
-        (o exception)))))
+        (o exception))))))
 
 (current-exception-handler java-condition-handler)
 
