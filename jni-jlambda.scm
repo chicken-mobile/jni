@@ -278,8 +278,7 @@
       (if jexception
         (let ((trace   (java-exception-trace jexception))
               (message (java-exception-message jexception)))
-          (newline)
-          (print trace)
+          (display (format "\n~a\n" trace) (current-error-port))
           (abort (make-property-condition 'exn 'message "java-exception-handler returned")))
         (o exception))))))
 
