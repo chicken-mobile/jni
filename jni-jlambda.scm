@@ -287,5 +287,5 @@
 (define (check-jexception v)
   (let ((e (exception-occurred)))
     (if e
-      (abort (make-condition e))
+      (java-condition-handler (make-condition e))
       v)))
