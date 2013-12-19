@@ -1,8 +1,3 @@
-#>
-#include "ConvertUTF.c"
-<#
-
-(use srfi-4)
 ;; generate type variant procedures
 (include "jni-def-macros.scm")
 (define-call-procs Void void)
@@ -160,27 +155,9 @@
   (jni-env-lambda jint MonitorExit jobject))
 
 (define jstring/jni
-  (jni-env-lambda jstring NewString scheme-pointer jsize))
-
+  (jni-env-lambda jstring NewStringUTF c-string))
 (define (jstring str)
-  (and str
-       (let ((len (string-length str)))
-         (if (zero? len)
-             (prepare-local-jobject (jstring/jni (u16vector) 0))
-             (let* ((max-out-len (* 2 len))
-                    (out (make-u16vector max-out-len))
-                    (out-len ((foreign-lambda* int ((scheme-pointer in) (int lin) (scheme-pointer out) (int lout))
-                                "void *orig_out = out;\n"
-                                "ConversionResult result = ConvertUTF8toUTF16((const UTF8 **)&in, in+lin, (UTF16 **)&out, out+lout*2, strictConversion);\n"
-                                "if (result!=conversionOK) C_return(-1);\n"
-                                "C_return(out-orig_out);\n")
-                              str
-                              len
-                              out
-                              max-out-len)))
-               (if (positive? out-len)
-                   (prepare-local-jobject (jstring/jni out (quotient out-len 2)))
-                   (error "Could not convert string to jstring" str out)))))))
+  (prepare-local-jobject (jstring/jni str)))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
@@ -213,29 +190,16 @@
              (error "Invalid Java type signature" ,type ,return))))))
 
 (define jstring->string
-  (let ((get-chars     (jni-env-lambda (c-pointer (const jchar)) GetStringChars jstring c-pointer))
-        (release-chars (jni-env-lambda void ReleaseStringChars jstring (c-pointer (const jchar))))
-        (get-length    (jni-env-lambda jsize GetStringLength jstring)))
+  (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
+        (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
+        (get-length    (jni-env-lambda jsize GetStringUTFLength jstring)))
     (lambda (jstring)
-      (let* ((len   (get-length jstring)))
-        (if (zero? len)
-            ""
-            (let* ((chars (get-chars jstring #f))
-                   (max-out-len (* 4 len))
-                   (out (make-string max-out-len))
-                   (out-len ((foreign-lambda* int ((c-pointer in) (int lin) (scheme-pointer out) (int lout))
-                               "void *orig_out = out;\n"
-                               "ConversionResult result = ConvertUTF16toUTF8((const UTF16 **)&in, in+lin*2, (UTF8 **)&out, out+lout, strictConversion);\n"
-                               "if (result!=conversionOK) C_return(-1);\n"
-                               "C_return(out-orig_out);\n")
-                             chars
-                             len
-                             out
-                             max-out-len)))
-              (release-chars jstring chars)
-              (if (positive? out-len)
-                  (substring out 0 out-len)
-                  (error "Could not convert jstring to string" jstring out))))))))
+      (let* ((chars (get-chars jstring #f))
+             (len   (get-length jstring))
+             (str   (make-string len)))
+        (move-memory! chars str len)
+        (release-chars jstring chars)
+        str))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
