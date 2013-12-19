@@ -163,23 +163,24 @@
   (jni-env-lambda jstring NewString scheme-pointer jsize))
 
 (define (jstring str)
-  (let ((len (string-length str)))
-    (if (zero? len)
-        (prepare-local-jobject (jstring/jni (u16vector) 0))
-        (let* ((max-out-len (* 2 len)) ;; 2 enough?
-               (out (make-u16vector max-out-len))
-               (out-len ((foreign-lambda* int ((scheme-pointer in) (int lin) (scheme-pointer out) (int lout))
-                           "void *orig_out = out;\n"
-                           "ConversionResult result = ConvertUTF8toUTF16((const UTF8 **)&in, in+lin, (UTF16 **)&out, out+lout*2, strictConversion);\n"
-                           "if (result!=conversionOK) C_return(-1);\n"
-                           "C_return(out-orig_out);\n")
-                         str
-                         len
-                         out
-                         max-out-len)))
-          (if (positive? out-len)
-              (prepare-local-jobject (jstring/jni out (quotient out-len 2)))
-              (error "Could not convert string to jstring" str out))))))
+  (and str
+       (let ((len (string-length str)))
+         (if (zero? len)
+             (prepare-local-jobject (jstring/jni (u16vector) 0))
+             (let* ((max-out-len (* 2 len)) ;; 2 enough?
+                    (out (make-u16vector max-out-len))
+                    (out-len ((foreign-lambda* int ((scheme-pointer in) (int lin) (scheme-pointer out) (int lout))
+                                "void *orig_out = out;\n"
+                                "ConversionResult result = ConvertUTF8toUTF16((const UTF8 **)&in, in+lin, (UTF16 **)&out, out+lout*2, strictConversion);\n"
+                                "if (result!=conversionOK) C_return(-1);\n"
+                                "C_return(out-orig_out);\n")
+                              str
+                              len
+                              out
+                              max-out-len)))
+               (if (positive? out-len)
+                   (prepare-local-jobject (jstring/jni out (quotient out-len 2)))
+                   (error "Could not convert string to jstring" str out)))))))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
