@@ -167,7 +167,7 @@
        (let ((len (string-length str)))
          (if (zero? len)
              (prepare-local-jobject (jstring/jni (u16vector) 0))
-             (let* ((max-out-len (* 2 len)) ;; 2 enough?
+             (let* ((max-out-len (* 2 len))
                     (out (make-u16vector max-out-len))
                     (out-len ((foreign-lambda* int ((scheme-pointer in) (int lin) (scheme-pointer out) (int lout))
                                 "void *orig_out = out;\n"
