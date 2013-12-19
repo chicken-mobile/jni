@@ -177,8 +177,9 @@
                          len
                          out
                          max-out-len)))
-          (and (positive? out-len)
-               (prepare-local-jobject (jstring/jni out (quotient out-len 2))))))))
+          (if (positive? out-len)
+              (prepare-local-jobject (jstring/jni out (quotient out-len 2)))
+              (error "Could not convert string to jstring" str out))))))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
@@ -231,8 +232,9 @@
                              out
                              max-out-len)))
               (release-chars jstring chars)
-              (and (positive? out-len)
-                   (substring out 0 out-len))))))))
+              (if (positive? out-len)
+                  (substring out 0 out-len)
+                  (error "Could not convert jstring to string" jstring out))))))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
