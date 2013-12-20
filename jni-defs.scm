@@ -6,6 +6,8 @@
 (define-jni-modifier-procs)
 ;;
 
+(use ports extras srfi-4)
+
 (define (invoke-jni/safe thunk)
   (let* ((r (thunk)))
     (if (exception-check) 
@@ -154,11 +156,6 @@
 (define monitor-exit
   (jni-env-lambda jint MonitorExit jobject))
 
-(define jstring/jni
-  (jni-env-lambda jstring NewStringUTF c-string))
-(define (jstring str)
-  (prepare-local-jobject (jstring/jni str)))
-
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
          (case type
@@ -189,17 +186,96 @@
         `(or (,%expand-type ,type ,return)
              (error "Invalid Java type signature" ,type ,return))))))
 
+
+
+;; As per http://www.unicode.org/faq/utf_bom.html#utf16-4
+(define +utf16-lead-offset+ (- #xD800 (arithmetic-shift #x10000 -10)))
+(define +utf16-surrogate-offset+ (- #x10000 (arithmetic-shift #xD800 10) #xDC00))
+
+(define (codepoint->utf16-lead cp)
+  (+ +utf16-lead-offset+ (arithmetic-shift cp -10)))
+
+(define (codepoint->utf16-trail cp)
+  (+ #xDC00 (bitwise-and cp #x3FF)))
+
+(define (utf16-pair->char lead trail)
+  (integer->char (+ (arithmetic-shift lead 10) trail +utf16-surrogate-offset+)))
+
+(define jstring/jni
+  (jni-env-lambda jstring NewString scheme-pointer jsize))
+
+(define (write-short s out)
+  (write-string (blob->string (u16vector->blob/shared (u16vector s))) 2 out))
+
+(define (jstring str)
+  (and str
+       (let ((len (string-length str))
+             (out '()))
+         (let loop ((pos 0))
+           (if (= pos len)
+               (let ((result (blob->string (u16vector->blob/shared (list->u16vector (reverse! out))))))
+                 (prepare-local-jobject (jstring/jni result (quotient (string-length result) 2))))
+               (let* ((head (char->integer (string-ref str pos)))
+                      (rlen (case (bitwise-and #xF0 head)
+                              ((#xF0) 4)
+                              ((#xE0) 3)
+                              ((#xC0) 2)
+                              (else   1))))
+                 (if (= 1 rlen)
+                     (set! out (cons head out))
+                     (let ((offset (* 6 (- rlen 1))))
+                       (let loop2 ((codepoint (arithmetic-shift head offset))
+                                   (pos (+ pos 1))
+                                   (offset offset))
+                         (if (zero? offset)
+                             (let ((codepoint (bitwise-and codepoint
+                                                           (case rlen
+                                                             ((2) #x7FF)
+                                                             ((3) #xFFFF)
+                                                             ((4) #x1FFFFF)))))
+                               (set! out
+                                     (if (> codepoint #xFFFF)
+                                         (cons (codepoint->utf16-trail codepoint)
+                                               (cons (codepoint->utf16-lead codepoint) out))
+                                         (cons codepoint out))))
+                             (let* ((offset (- offset 6))
+                                    (cont (char->integer (string-ref str pos)))
+                                    (cont (arithmetic-shift cont offset))
+                                    (cont (bitwise-and cont
+                                                       (case offset
+                                                         ((0) #x3F)
+                                                         ((6) #xFFF)
+                                                         ((12) #x3FFFF)))))
+                               (loop2 (bitwise-ior codepoint cont)
+                                      (+ pos 1)
+                                      offset))))))
+                 (loop (+ pos rlen))))))))
+
 (define jstring->string
-  (let ((get-chars     (jni-env-lambda (c-pointer (const char)) GetStringUTFChars jstring c-pointer))
-        (release-chars (jni-env-lambda void ReleaseStringUTFChars jstring (c-pointer (const char))))
-        (get-length    (jni-env-lambda jsize GetStringUTFLength jstring)))
+  (let ((get-chars     (jni-env-lambda (c-pointer (const jchar)) GetStringChars jstring c-pointer))
+        (release-chars (jni-env-lambda void ReleaseStringChars jstring (c-pointer (const jchar))))
+        (get-length    (jni-env-lambda jsize GetStringLength jstring)))
     (lambda (jstring)
-      (let* ((chars (get-chars jstring #f))
+      (let* ((chars (get-chars jstring #f)) 
              (len   (get-length jstring))
-             (str   (make-string len)))
-        (move-memory! chars str len)
-        (release-chars jstring chars)
-        str))))
+             (end   (pointer+ chars (* 2 len))))
+        (call-with-output-string
+            (lambda (out)
+              (let loop ((ptr chars))
+                (if (pointer=? ptr end)
+                    (release-chars jstring chars)
+                    (let* ((lead (pointer-u16-ref ptr))
+                           (result (cond ((< lead 0)
+                                          (error "Invalid UTF-16" jstring))
+                                         ((or (< 0 lead #xD7FF)
+                                              (< #xE000 lead #xFFFF))
+                                          (cons (integer->char lead) ptr))
+                                         (else
+                                          (let* ((ptr (pointer+ ptr 2))
+                                                 (trail (pointer-u16-ref ptr)))
+                                            (cons (utf16-pair->char lead trail) ptr))))))
+                      (display (##sys#char->utf8-string (car result)) out)
+                      (loop (pointer+ (cdr result) 2)))))))))))
 
 (define (array->list array-object)
   (do ((idx 0 (+ idx 1))
