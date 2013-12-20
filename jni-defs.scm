@@ -204,9 +204,6 @@
 (define jstring/jni
   (jni-env-lambda jstring NewString scheme-pointer jsize))
 
-(define (write-short s out)
-  (write-string (blob->string (u16vector->blob/shared (u16vector s))) 2 out))
-
 (define (jstring str)
   (and str
        (let ((len (string-length str))
