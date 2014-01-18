@@ -15,11 +15,31 @@
 (define version
   (jni-env-lambda jint GetVersion))
 
+(define class-cache '())
+
 (define find-class/jni
-  (jni-env-lambda jclass FindClass (const c-string)))
+  (let ((f (jni-env-lambda jclass FindClass (const c-string))))
+    (lambda (name)
+      (let* ((s      (string->symbol name))
+             (class  (assq s class-cache)))
+        (if class
+          (cdr class)
+          (let ((class (f name)))
+            (set! class-cache (cons (cons s (if class (prepare-jobject (new-global-ref class)) class)) class-cache))
+            class))))))
 
 (define (join-class-pkg pkg class)
   (symbol-append (string->symbol pkg) '|.| class))
+
+(define push-local-frame
+  (let ((push (jni-env-lambda jint PushLocalFrame jint)))
+    (lambda (size)
+      (invoke-jni/safe (cut push size)))))
+
+(define pop-local-frame
+  (let ((pop (jni-env-lambda jobject PopLocalFrame jobject)))
+    (lambda (jobject)
+      (invoke-jni/safe (cut pop jobject)))))
 
 (define (make-import-table imports)
   (let loop ((imports imports)
@@ -50,7 +70,7 @@
 (define import-table (make-parameter #f))
 
 (define (find-class class)
-  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (prepare-local-jobject (find-class/jni c)))))))
+  (let ((find-class/safe (lambda (c) (invoke-jni/safe (lambda () (find-class/jni c))))))
     (if (import-table)
       (let ((s-class (string->symbol class)))
         (or (find-class/safe class)
@@ -68,15 +88,15 @@
       class
       (error 'find-class/or-error "class not found" name))))
 
-(define super-class/jni
-  (jni-env-lambda jclass GetSuperclass jclass))
-(define (super-class jclass)
-  (prepare-local-jobject (super-class/jni jclass)))
+(define super-class 
+  (let ((super-class/jni (jni-env-lambda jclass GetSuperclass jclass)))
+    (lambda (jclass)
+      (prepare-jobject (super-class/jni jclass)))))
 
-(define get-object-class/jni
-  (jni-env-lambda jclass GetObjectClass jobject))
-(define (get-object-class jobject)
-  (prepare-local-jobject (get-object-class/jni jobject)))
+(define get-object-class 
+  (let ((get-object-class/jni (jni-env-lambda jclass GetObjectClass jobject)))
+    (lambda (jobject)
+      (prepare-jobject (get-object-class/jni jobject)))))
 
 (define instance-of?
   (jni-env-lambda jboolean IsInstanceOf jobject jclass))
@@ -87,33 +107,37 @@
 (define new-object
   (jni-env-lambda jobject NewObjectA jclass jmethod-id jvalue))
 
-(define get-field/jni
-  (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string)))
-(define get-static-field/jni
-  (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string)))
-(define get-method-id/jni
-  (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string)))
-(define get-static-method-id/jni
-  (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string)))
+(define get-field 
+  (let ((get-field/jni (jni-env-lambda jfield-id GetFieldID jclass (const c-string) (const c-string))))
+    (lambda (jclass name type)
+      (invoke-jni/safe 
+        (cut get-field/jni jclass name type)))))
 
-(define (get-field jclass name type)
-  (invoke-jni/safe (lambda () (get-field/jni jclass name type))))
-(define (get-static-field jclass name type)
-  (invoke-jni/safe (lambda () (get-static-field/jni jclass name type))))
-(define (get-method-id jclass name signature)
-  (invoke-jni/safe (lambda () (get-method-id/jni jclass name signature))))
-(define (get-static-method-id jclass name signature)
-  (invoke-jni/safe (lambda () (get-static-method-id/jni jclass name signature))))
+(define get-static-field 
+  (let ((get-static-field/jni (jni-env-lambda jfield-id GetStaticFieldID jclass (const c-string) (const c-string))))
+    (lambda (jclass name type)
+      (invoke-jni/safe 
+        (cut get-static-field/jni jclass name type)))))
+
+(define get-method-id 
+  (let ((get-method-id/jni (jni-env-lambda jmethod-id GetMethodID jclass (const c-string) (const c-string))))
+    (lambda (jclass name signature)
+      (invoke-jni/safe (cut get-method-id/jni jclass name signature)))))
+
+(define get-static-method-id 
+  (let ((get-static-method-id/jni (jni-env-lambda jmethod-id GetStaticMethodID jclass (const c-string) (const c-string))))
+    (lambda (jclass name signature)
+      (invoke-jni/safe (cut get-static-method-id/jni jclass name signature)))))
 
 (define make-jvalue-array
   (foreign-lambda jvalue make_jvalue_array int))
 (define free-jvalue-array
   (foreign-lambda void free_jvalue_array jvalue))
 
-(define make-array/jni
-  (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject))
-(define (make-array size jclass jobject)
-  (prepare-local-jobject (make-array/jni size jclass jobject)))
+(define make-array 
+  (let ((make-array/jni (jni-env-lambda jobject-array NewObjectArray jsize jclass jobject)))
+    (lambda (size jclass jobject)
+      (prepare-jobject (make-array/jni size jclass jobject)))))
 
 (define array-length
   (jni-env-lambda jsize GetArrayLength jarray))
@@ -154,10 +178,10 @@
 (define monitor-exit
   (jni-env-lambda jint MonitorExit jobject))
 
-(define jstring/jni
-  (jni-env-lambda jstring NewStringUTF c-string))
-(define (jstring str)
-  (prepare-local-jobject (jstring/jni str)))
+(define jstring
+  (let ((jstring/jni (jni-env-lambda jstring NewStringUTF c-string)))
+    (lambda (str)
+        (prepare-jobject (jstring/jni str)))))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
@@ -206,14 +230,27 @@
        (object-list '() (cons (array-ref array-object idx) object-list)))
     ((<= (array-length array-object) idx) object-list)))
 
+(define (array-map array-object f)
+  (do ((idx 0 (+ idx 1))
+       (object-list '() (cons (f (array-ref array-object idx)) object-list)))
+    ((<= (array-length array-object) idx) object-list)))
+
+(define (array->list array-object)
+  (do ((idx 0 (+ idx 1))
+       (object-list '() (cons (array-ref array-object idx) object-list)))
+    ((<= (array-length array-object) idx) object-list)))
+
 (define (list->array class lst)
-  (let ((arr (make-array (length lst) class #f)))
-    (let loop ((i 0) (lst lst))
-      (if (null? lst)
-        arr
-        (begin
-          (array-set! arr i (car lst))
-          (loop (+ i 1) (cdr lst)))))))
+  (let ((len (length lst)))
+    (push-local-frame len)
+    (pop-local-frame 
+      (let ((arr (make-array len class #f)))
+        (let loop ((i 0) (lst lst))
+          (if (null? lst)
+            arr
+            (begin
+              (array-set! arr i (car lst))
+              (loop (+ i 1) (cdr lst)))))))))
 
 (define-syntax list->array/map 
   (ir-macro-transformer
@@ -263,7 +300,7 @@
 
 (define (call-new jclass jmethod jvalues)
   (if jmethod 
-    (prepare-local-jobject (new-object jclass jmethod jvalues))
+    (prepare-jobject (new-object jclass jmethod jvalues))
     (error 'call-new "method not found")))
 
 (define-syntax define-method

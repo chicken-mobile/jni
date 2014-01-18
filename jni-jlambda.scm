@@ -27,7 +27,7 @@
         ((float)   call-static-float-method)   
         ((double)  call-static-double-method)  
         (else      (lambda (instance jmethod jvalues)
-                     (prepare-local-jobject (call-static-object-method instance jmethod jvalues)))))
+                     (prepare-jobject (call-static-object-method instance jmethod jvalues)))))
       (case return-type
         ((void)    call-void-method)    
         ((boolean) call-boolean-method) 
@@ -39,7 +39,7 @@
         ((float)   call-float-method)   
         ((double)  call-double-method)  
         (else      (lambda (instance jmethod jvalues)
-                     (prepare-local-jobject (call-object-method instance jmethod jvalues)))))))
+                     (prepare-jobject (call-object-method instance jmethod jvalues)))))))
 
 (define (make-jvalue-builder argument-types)
   (let* ((setters (map (lambda (type index)
@@ -115,8 +115,8 @@
       ((double)  (if static get-static-double-field  get-double-field))
       (else      
         (if static 
-          (lambda (jclass jfield) (prepare-local-jobject (get-static-object-field jclass jfield)))
-          (lambda (object jfield) (prepare-local-jobject (get-object-field object jfield))))))
+          (lambda (jclass jfield) (prepare-jobject (get-static-object-field jclass jfield)))
+          (lambda (object jfield) (prepare-jobject (get-object-field object jfield))))))
     (case type
       ((boolean) (if static set-static-boolean-field set-boolean-field))
       ((byte)    (if static set-static-byte-field    set-byte-field))

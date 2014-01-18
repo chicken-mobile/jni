@@ -150,7 +150,7 @@
                                           (instance-of? arg type-class)))
                                    #f))
                                (char (eq? type 'char))
-                               (else (assert #f)))))
+                               (else (assert #f method-name)))))
                 args types))))
 
 (define (integer-compare n1 n2)

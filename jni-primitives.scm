@@ -105,22 +105,20 @@
     (lambda args
       (let ((arg (car args)))
 	(if (jobject-meta? (pointer-tag arg))
-	    (let* ((object-class (get-object-class/jni arg))
+	    (let* ((object-class (get-object-class arg))
 		   (jobject-string (format "#<jref <~A> ~A>" (to-string object-class) (to-string arg))))
 	      (delete-local-ref object-class)
 	      jobject-string)
 	    (apply old args))))))
 
-(define (prepare-local-jobject jobject)
-  (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
-    (let ((global (new-global-ref jobject)))
-      (delete-local-ref jobject)
-      (set-finalizer! (tag-pointer global (make-jobject-meta)) delete-global-ref))
-    jobject))
+(define (local->global jobject) 
+  (let ((r (prepare-jobject (new-global-ref jobject))))
+    (delete-local-ref jobject)
+    r))
 
-(define (prepare-global-jobject jobject)
+(define (prepare-jobject jobject)
   (if (pointer? jobject) ; if an exception is raised in java code, the returned type is not a jobject
-    (set-finalizer! (tag-pointer jobject (make-jobject-meta)) delete-global-ref)
+    (tag-pointer jobject (make-jobject-meta))
     jobject))
 
 ;; jni jvm bindings
