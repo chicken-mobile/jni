@@ -58,9 +58,7 @@
     (lambda (args)
       (let ((jvalues (make-jvalue-array (length argument-types))))
         (for-each (lambda (type-setter! arg)
-                      (type-setter! jvalues (if (string? arg) 
-                                              (jstring arg) 
-                                              arg)))
+                      (type-setter! jvalues arg))
                   setters args)
         jvalues))))
 
@@ -137,7 +135,6 @@
 ;; getter for static constant: the result is cached, and doesn't requiere a jni-env until getter invokation
 (define (jlambda-constant-imple type class-name field-name)
   (let* ((field-name     (symbol->string field-name))
-         (field-fullname (string-append (symbol->string class-name) "." field-name))
          (value          'empty))
     (lambda () 
       (if (eq? value 'empty)

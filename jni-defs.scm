@@ -24,9 +24,11 @@
              (class  (assq s class-cache)))
         (if class
           (cdr class)
-          (let ((class (f name)))
-            (set! class-cache (cons (cons s (if class (prepare-jobject (new-global-ref class)) class)) class-cache))
-            class))))))
+          (let* ((class        (f name))
+                 (global-class (if class (local->global class) class)))
+            (if global-class
+              (set! class-cache (cons (cons s global-class) class-cache)))
+            global-class))))))
 
 (define (join-class-pkg pkg class)
   (symbol-append (string->symbol pkg) '|.| class))
@@ -181,7 +183,7 @@
 (define jstring
   (let ((jstring/jni (jni-env-lambda jstring NewStringUTF c-string)))
     (lambda (str)
-        (prepare-jobject (jstring/jni str)))))
+      (prepare-jobject (jstring/jni str)))))
 
 (define (expand-type type #!optional return)
   (cond ((symbol? type)
@@ -230,9 +232,14 @@
        (object-list '() (cons (array-ref array-object idx) object-list)))
     ((<= (array-length array-object) idx) object-list)))
 
-(define (array-map array-object f)
-  (do ((idx 0 (+ idx 1))
-       (object-list '() (cons (f (array-ref array-object idx)) object-list)))
+(define (array-map! array-object f #!key (disposal delete-local-ref))
+  (do ((idx 0 (+ idx 1)) (object-list '() 
+                                      (let* ((e (array-ref array-object idx))
+                                             (r (cons (f e) object-list)))
+                                        (if (and disposal
+                                                 (jobject? e))
+                                          (disposal e))
+                                        r)))
     ((<= (array-length array-object) idx) object-list)))
 
 (define (array->list array-object)
@@ -240,25 +247,27 @@
        (object-list '() (cons (array-ref array-object idx) object-list)))
     ((<= (array-length array-object) idx) object-list)))
 
-(define (list->array class lst)
+(define (list->array! class lst #!key (disposal delete-local-ref))
   (let ((len (length lst)))
-    (push-local-frame len)
-    (pop-local-frame 
-      (let ((arr (make-array len class #f)))
-        (let loop ((i 0) (lst lst))
-          (if (null? lst)
-            arr
-            (begin
-              (array-set! arr i (car lst))
+    (let ((arr (make-array len class #f)))
+      (let loop ((i 0) (lst lst))
+        (if (null? lst)
+          arr
+          (begin
+            (let ((e (car lst)))
+              (array-set! arr i e)
+              (if (and disposal
+                       (jobject? e))
+                (disposal e))
               (loop (+ i 1) (cdr lst)))))))))
 
-(define-syntax list->array/map 
+(define-syntax list->array/map!
   (ir-macro-transformer
     (lambda (x i c)
       (let* ((class-name (cadr x))
              (mapper     (caddr x))
              (list       (cadddr x)))
-        `(list->array (class ,class-name)
+        `(list->array! (class ,class-name)
                       (map ,mapper ,list))))))
 
 (define (get-type-symbol type-name)

@@ -111,6 +111,7 @@
 (test-group "jlambda-methods"
 
             (let* ((bar (new-Bar 1))
+                   (hola (jstring "hola"))
                    (ov1 (jlambda-methods 'com.chicken_mobile.jni.test.Bar 'ov1 
                                          '((#f int) 
                                            (#f int int) 
@@ -130,10 +131,10 @@
                                            (#f int java.lang.Integer)
                                            (#f int char)))))
                 (test 01 (ov1 bar))
-                (test 02 (ov1 bar "hola"))
+                (test 02 (ov1 bar hola))
                 (test 03 (ov1 bar 3))
                 (test 04 (ov1 bar bar))
-                (test 05 (ov1 bar 1 "hola"))
+                (test 05 (ov1 bar 1 hola))
                 (test 06 (ov1 bar 2 bar))
                 (test 07 (ov1 bar (expt 2 32)))
                 (test 08 (ov1 bar (type: short 1)))
@@ -147,7 +148,8 @@
                 (test 14 (ov1 bar (type: com.chicken_mobile.jni.test.N1 (new-N2))))
                 (test 15 (ov1 bar (new-N2)))
                 (test 16 (ov1 bar (new-Integer 1)))
-                (test 17 (ov1 bar #\c)))
+                (test 17 (ov1 bar #\c))
+                (delete-local-ref hola))
 
             (let* ((bar (new-Bar 1))
                    (ov1 (jlambda-methods 'com.chicken_mobile.jni.test.Bar 'ov1 
@@ -188,11 +190,13 @@
 
 
             (let* ((bar (new-Bar 1)) ; testing diff return-types
+                   (hi  (jstring "hi"))
                    (ov2 (jlambda-methods 'com.chicken_mobile.jni.test.Bar 'ov2 
                                          '((#f int int) 
                                            (#f java.lang.String java.lang.String)))))
                 (test 1 (ov2 bar 3)) 
-                (test-jstring "ov2" (ov2 bar "hi")))
+                (test-jstring "ov2" (ov2 bar hi))
+                (delete-local-ref hi))
             ); end jlambda-methods tests
 
 (test-group "jlambda-constructor"
@@ -264,47 +268,47 @@
                 (test 11 (Bar-id bar))))
             ); end import-java-ns test group
 
-(test-group "exceptions"
+;(test-group "exceptions"
 
-            (let ((foo-xxx2 (jlambda-method #f java.lang.String com.chicken_mobile.jni.test.Foo xxx2))
-                  (o (new-Foo)))
-              (test-error (foo-xxx2 o)))
+            ;(let ((foo-xxx2 (jlambda-method #f java.lang.String com.chicken_mobile.jni.test.Foo xxx2))
+                  ;(o (new-Foo)))
+              ;(test-error (foo-xxx2 o)))
 
-            (define (exception-thunk)
-              (let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
-                    (o (new-Foo)))
-                (foo-xxx o)))
+            ;(define (exception-thunk)
+              ;(let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
+                    ;(o (new-Foo)))
+                ;(foo-xxx o)))
 
-            (call/cc
-              (lambda (k)
-                (with-exception-handler (lambda (exception) 
-                                          (test #t (java-exception? exception))
-                                          (test "bad protocol" (java-exception-message exception))
-                                          (test 'java.lang.RuntimeException (java-exception-type exception))
-                                          (test #f (exception-check))
-                                          (k '()))
-                                        exception-thunk)))
+            ;(call/cc
+              ;(lambda (k)
+                ;(with-exception-handler (lambda (exception) 
+                                          ;(test #t (java-exception? exception))
+                                          ;(test "bad protocol" (java-exception-message exception))
+                                          ;(test 'java.lang.RuntimeException (java-exception-type exception))
+                                          ;(test #f (exception-check))
+                                          ;(k '()))
+                                        ;exception-thunk)))
 
-            (test "exception match" #t
-                  (condition-case (exception-thunk)
-                    ((java java.lang.RuntimeException) #t)
-                    (var () #f)))
+            ;(test "exception match" #t
+                  ;(condition-case (exception-thunk)
+                    ;((java java.lang.RuntimeException) #t)
+                    ;(var () #f)))
 
-            (test "exception match" #t
-                  (condition-case (exception-thunk)
-                    ((java.lang.RuntimeException) #t)
-                    (var () #f)))
+            ;(test "exception match" #t
+                  ;(condition-case (exception-thunk)
+                    ;((java.lang.RuntimeException) #t)
+                    ;(var () #f)))
 
-            (test "exception match" #t
-                  (condition-case (exception-thunk)
-                    ((java) #t)
-                    (var () #f)))
+            ;(test "exception match" #t
+                  ;(condition-case (exception-thunk)
+                    ;((java) #t)
+                    ;(var () #f)))
 
-            (test "exception match" #t
-                  (condition-case (exception-thunk)
-                    ((exn)  #t)
-                    (var () #f)))
-            ); end exceptions test group
+            ;(test "exception match" #t
+                  ;(condition-case (exception-thunk)
+                    ;((exn)  #t)
+                    ;(var () #f)))
+            ;); end exceptions test group
 
 (test-group "jlambda"
             ;jlambda class
@@ -322,13 +326,14 @@
               (require-library test)
               (test-error (jlambda com.chicken_mobile.jni.test.Foo sense2)))
 
-            (let* ((bar (new-Bar 1))
-                   (ov1 (jlambda com.chicken_mobile.jni.test.Bar ov1)))
+            (let* ((bar  (new-Bar 1))
+                   (ov1  (jlambda com.chicken_mobile.jni.test.Bar ov1))
+                   (hola (jstring "hola")))
               (test 01 (ov1 bar))
-              (test 02 (ov1 bar "hola"))
+              (test 02 (ov1 bar hola))
               (test 03 (ov1 bar 3))
               (test 04 (ov1 bar bar))
-              (test 05 (ov1 bar 1 "hola"))
+              (test 05 (ov1 bar 1 hola))
               (test 06 (ov1 bar 2 bar))
               (test 07 (ov1 bar (expt 2 32)))
               (test 10 (ov1 bar 1.3))
@@ -338,12 +343,17 @@
               (test 14 (ov1 bar (new-N1)))
               (test 15 (ov1 bar (new-N2)))
               (test 16 (ov1 bar (new-Integer 1)))
-              (test 17 (ov1 bar #\c)))
+              (test 17 (ov1 bar #\c))
+              (delete-local-ref hola))
 
             (let ((new-Bar (jlambda com.chicken_mobile.jni.test.Bar new)))
               (test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar 1)))
               (test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar)))
-              (test-class com.chicken_mobile.jni.test.Bar (get-object-class (new-Bar " "))))
+              (test-class com.chicken_mobile.jni.test.Bar (get-object-class 
+                                                            (let* ((a (jstring " "))
+                                                                   (bar (new-Bar a)))
+                                                              (delete-local-ref a)
+                                                              bar))))
 
             (begin-for-syntax
               (require-library test)

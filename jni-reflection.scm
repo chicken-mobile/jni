@@ -37,12 +37,22 @@
   (jlambda-method #f #(java.lang.Class) java.lang.reflect.Constructor getParameterTypes))
 
 (define find-field/helper
-  (jlambda-method (static) java.lang.reflect.Field 
-                  com.chicken_mobile.jni.ReflectionHelper findField java.lang.Class java.lang.String))
+  (let ((find (jlambda-method (static) java.lang.reflect.Field 
+                              com.chicken_mobile.jni.ReflectionHelper findField java.lang.Class java.lang.String)))
+    (lambda (class name) 
+      (let* ((name (jstring name))
+             (r    (find class name)))
+        (delete-local-ref name)
+        r))))
 
 (define find-methods-by-name/helper 
-  (jlambda-method (static) #(java.lang.reflect.Method)
-                  com.chicken_mobile.jni.ReflectionHelper findMethodsByName java.lang.Class java.lang.String))
+  (let ((find (jlambda-method (static) #(java.lang.reflect.Method)
+                  com.chicken_mobile.jni.ReflectionHelper findMethodsByName java.lang.Class java.lang.String)))
+    (lambda (class name) 
+      (let* ((name (jstring name))
+             (r    (find class name)))
+        (delete-local-ref name)
+        r))))
 
 (define find-methods/helper 
   (jlambda-method (static) #(java.lang.reflect.Method)
