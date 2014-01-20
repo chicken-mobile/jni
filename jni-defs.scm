@@ -24,9 +24,9 @@
   (let ((f (jni-env-lambda jclass FindClass (const c-string))))
     (lambda (name)
       (let* ((s      (string->symbol name))
-             (class  (assq s class-cache)))
+             (class  (lru-cache-ref class-cache s)))
         (if class
-          (cdr class)
+          class
           (let* ((class        (f name))
                  (global-class (if class (local->global class) class)))
             (if global-class
