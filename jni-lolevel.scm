@@ -10,7 +10,7 @@
         *
         (import chicken scheme foreign srfi-1 data-structures extras moremacros srfi-18)
         (import-for-syntax chicken numbers scheme)
-        (use lolevel foreigners srfi-13 srfi-1 data-structures numbers)
+        (use lolevel foreigners srfi-13 srfi-1 data-structures numbers lru-cache)
 
         (include "jni-primitives.scm")
         (include "jni-defs.scm")

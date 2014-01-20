@@ -6,3 +6,5 @@ java/jni-test/bin/
 Makefile
 ex.scm
 *.import.scm
+tests/test1
+tests/test2

@@ -17,7 +17,8 @@
 (define version
   (jni-env-lambda jint GetVersion))
 
-(define class-cache '())
+(define class-cache (make-lru-cache 100 eq? (lambda (name jclass)
+                                              (delete-global-ref jclass))))
 
 (define find-class/jni
   (let ((f (jni-env-lambda jclass FindClass (const c-string))))
@@ -29,7 +30,7 @@
           (let* ((class        (f name))
                  (global-class (if class (local->global class) class)))
             (if global-class
-              (set! class-cache (cons (cons s global-class) class-cache)))
+              (lru-cache-set! class-cache s global-class))
             global-class))))))
 
 (define (join-class-pkg pkg class)
@@ -340,8 +341,7 @@
       (let* ((class-name (cadr x))
              (mapper     (caddr x))
              (list       (cadddr x)))
-        `(list->array! (class ,class-name)
-                      (map ,mapper ,list))))))
+        `(list->array! (class ,class-name) (map ,mapper ,list))))))
 
 (define (get-type-symbol type-name)
   (if (string-prefix? "L" type-name)

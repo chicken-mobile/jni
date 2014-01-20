@@ -263,6 +263,9 @@
 (define java-exception-type
   (condition-property-accessor 'java 'type #f))
 
+(define exception-cause
+  (condition-property-accessor 'exn 'cause #f))
+
 (define java-condition-handler
   (let ((o (current-exception-handler)))
     (lambda (exception)
@@ -276,7 +279,7 @@
         (let ((trace   (java-exception-trace jexception))
               (message (java-exception-message jexception)))
           (display (format "\n~a\n" trace) (current-error-port))
-          (abort (make-property-condition 'exn 'message "java-exception-handler returned")))
+          (abort (make-property-condition 'exn 'message "java-exception-handler returned" 'cause jexception)))
         (o exception))))))
 
 (current-exception-handler java-condition-handler)

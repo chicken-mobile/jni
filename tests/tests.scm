@@ -268,47 +268,29 @@
                 (test 11 (Bar-id bar))))
             ); end import-java-ns test group
 
-;(test-group "exceptions"
+(test-group "exceptions"
 
-            ;(let ((foo-xxx2 (jlambda-method #f java.lang.String com.chicken_mobile.jni.test.Foo xxx2))
-                  ;(o (new-Foo)))
-              ;(test-error (foo-xxx2 o)))
+            (let ((foo-xxx2 (jlambda-method #f java.lang.String com.chicken_mobile.jni.test.Foo xxx2))
+                  (o (new-Foo)))
+              (test-error (foo-xxx2 o)))
 
-            ;(define (exception-thunk)
-              ;(let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
-                    ;(o (new-Foo)))
-                ;(foo-xxx o)))
+            (define (exception-thunk)
+              (let ((foo-xxx (jlambda-method #f void com.chicken_mobile.jni.test.Foo xxx))
+                    (o (new-Foo)))
+                (foo-xxx o)))
 
-            ;(call/cc
-              ;(lambda (k)
-                ;(with-exception-handler (lambda (exception) 
-                                          ;(test #t (java-exception? exception))
-                                          ;(test "bad protocol" (java-exception-message exception))
-                                          ;(test 'java.lang.RuntimeException (java-exception-type exception))
-                                          ;(test #f (exception-check))
-                                          ;(k '()))
-                                        ;exception-thunk)))
+            (call/cc
+              (lambda (k)
+                (with-exception-handler (lambda (exception) 
+                                          (let ((e (exception-cause exception)))
+                                            (test #t (java-exception? e))
+                                            (test "bad protocol" (java-exception-message e))
+                                            (test 'java.lang.RuntimeException (java-exception-type e))
+                                            (test #f (exception-check))
+                                            (k '())))
+                                          exception-thunk)))
 
-            ;(test "exception match" #t
-                  ;(condition-case (exception-thunk)
-                    ;((java java.lang.RuntimeException) #t)
-                    ;(var () #f)))
-
-            ;(test "exception match" #t
-                  ;(condition-case (exception-thunk)
-                    ;((java.lang.RuntimeException) #t)
-                    ;(var () #f)))
-
-            ;(test "exception match" #t
-                  ;(condition-case (exception-thunk)
-                    ;((java) #t)
-                    ;(var () #f)))
-
-            ;(test "exception match" #t
-                  ;(condition-case (exception-thunk)
-                    ;((exn)  #t)
-                    ;(var () #f)))
-            ;); end exceptions test group
+            ); end exceptions test group
 
 (test-group "jlambda"
             ;jlambda class
