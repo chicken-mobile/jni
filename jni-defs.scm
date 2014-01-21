@@ -335,13 +335,16 @@
                 (disposal e))
               (loop (+ i 1) (cdr lst)))))))))
 
-(define-syntax list->array/map!
-  (ir-macro-transformer
-    (lambda (x i c)
-      (let* ((class-name (cadr x))
-             (mapper     (caddr x))
-             (list       (cadddr x)))
-        `(list->array! (class ,class-name) (map ,mapper ,list))))))
+(define (list->array/map class proc lst #!optional (dispose delete-local-ref))
+  (let ((arr (make-array (length lst) class #f)))
+    (let loop ((i 0) (lst lst))
+      (if (null? lst)
+          arr
+          (let ((e (proc (car lst))))
+            (array-set! arr i e)
+            (when (and dispose (jobject? e))
+              (dispose e))
+            (loop (+ i 1) (cdr lst)))))))
 
 (define (get-type-symbol type-name)
   (if (string-prefix? "L" type-name)
