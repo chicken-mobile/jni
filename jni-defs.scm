@@ -164,7 +164,7 @@
   (if (jobject? jobject)
     (delete-local-ref jobject)))
 
-(define-syntax let-local-refs
+(define-syntax let-local-refs*
   (syntax-rules ()
     ((_ ((name value) ...) body ...)
      (let* ((name value) ...
