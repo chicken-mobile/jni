@@ -166,11 +166,11 @@
 
 (define-syntax let-local-refs*
   (syntax-rules ()
-    ((_ ((name value) ...) body ...)
-     (let* ((name value) ...
-            (result (begin
-                       body ...)))
-       (delete-local-ref/if-jobject name) ...
+    ((_ () body ...) (begin body ...))
+    ((_ ((name value) rest ...) body ...)
+     (let* ((name value)
+            (result (let-local-refs* (rest ...) body ...)))
+       (delete-local-ref/if-jobject name)
        result))))
 
 (define exception-check
