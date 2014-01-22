@@ -160,6 +160,19 @@
 (define delete-global-ref
   (jni-env-lambda void DeleteGlobalRef jobject))
 
+(define (delete-local-ref/if-jobject jobject)
+  (if (jobject? jobject)
+    (delete-local-ref jobject)))
+
+(define-syntax let-local-refs
+  (syntax-rules ()
+    ((_ ((name value) ...) body ...)
+     (let* ((name value) ...
+            (result (begin
+                       body ...)))
+       (delete-local-ref/if-jobject name) ...
+       result))))
+
 (define exception-check
   (jni-env-lambda jboolean ExceptionCheck))
 (define exception-clear
@@ -212,8 +225,6 @@
             (return         (and (pair? (cddr x)) (caddr x))))
         `(or (,%expand-type ,type ,return)
              (error "Invalid Java type signature" ,type ,return))))))
-
-
 
 ;; As per http://www.unicode.org/faq/utf_bom.html#utf16-4
 (define +utf16-lead-offset+ (- #xD800 (arithmetic-shift #x10000 -10)))
