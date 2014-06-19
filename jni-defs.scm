@@ -306,9 +306,11 @@
                                               (< #xE000 lead #xFFFF))
                                           (cons (integer->char lead) ptr))
                                          (else
-                                          (let* ((ptr (pointer+ ptr 2))
-                                                 (trail (pointer-u16-ref ptr)))
-                                            (cons (utf16-pair->char lead trail) ptr))))))
+                                          (let ((ptr (pointer+ ptr 2)))
+                                            (if (pointer=? ptr end)
+                                                (error "Incomplete UTF-16 surrogate pair" jstring (get-output-string out))
+                                                (let ((trail (pointer-u16-ref ptr)))
+                                                  (cons (utf16-pair->char lead trail) ptr))))))))
                       (display (##sys#char->utf8-string (car result)) out)
                       (loop (pointer+ (cdr result) 2)))))))))))
 
