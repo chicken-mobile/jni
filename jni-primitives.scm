@@ -145,7 +145,7 @@
 
 (define-syntax jni-init
   (syntax-rules ()
-    ((_)
+    ((_ body ...)
      (foreign-declare "
 #include <jni.h>
 
@@ -154,8 +154,9 @@ static JavaVM* jvm;
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 {
   jvm = vm;
-
- CHICKEN_run(C_toplevel);
+      "
+body ...
+"
  return JNI_VERSION_1_6;
 }"))))
 
