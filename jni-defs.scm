@@ -329,11 +329,6 @@
                                         r)))
     ((<= (array-length array-object) idx) object-list)))
 
-(define (array->list array-object)
-  (do ((idx 0 (+ idx 1))
-       (object-list '() (cons (array-ref array-object idx) object-list)))
-    ((<= (array-length array-object) idx) object-list)))
-
 (define (list->array! class lst #!key (disposal delete-local-ref))
   (let ((len (length lst)))
     (let ((arr (make-array len class #f)))
