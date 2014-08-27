@@ -151,6 +151,17 @@
 (define array-set!
   (jni-env-lambda void SetObjectArrayElement jobject-array jsize jobject))
 
+(define make-int-array
+  (let ((make-int-array/jni (jni-env-lambda jobject NewIntArray jsize)))
+    (lambda (size)
+      (prepare-jobject (make-int-array/jni size)))))
+
+(define get-int-array-elements
+  (jni-env-lambda c-pointer GetIntArrayElements jobject c-pointer))
+
+(define release-int-array-elements
+  (jni-env-lambda void ReleaseIntArrayElements jobject c-pointer jint))
+
 (define new-local-ref
   (jni-env-lambda jobject NewLocalRef jobject))
 (define delete-local-ref
@@ -352,6 +363,30 @@
             (when (and dispose (jobject? e))
               (dispose e))
             (loop (+ i 1) (cdr lst)))))))
+
+(define (list->int-array lst)
+  (let* ((jarr (make-int-array (length lst)))
+         (arr (get-int-array-elements jarr #f)))
+    (let loop ((i 0) (lst lst))
+      (if (null? lst)
+          (begin
+            (release-int-array-elements jarr arr 0)
+            jarr)
+          (begin
+            (pointer-s32-set! (pointer+ arr i) (car lst))
+            (loop (+ i 1) (cdr lst)))))))
+
+(define (int-array->list jarr)
+  (let ((arr (get-int-array-elements jarr #f)))
+    (let loop ((ptr (pointer+ arr (array-length jarr)))
+               (lst '()))
+      (if (pointer=? ptr arr)
+          (begin
+            (release-int-array-elements jarr arr 0)
+            lst)
+          (let ((ptr (pointer+ ptr -1)))
+            (loop ptr
+                  (cons (pointer-s32-ref ptr) lst)))))))
 
 (define (get-type-symbol type-name)
   (if (string-prefix? "L" type-name)
