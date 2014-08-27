@@ -378,13 +378,13 @@
 
 (define (int-array->list jarr)
   (let ((arr (get-int-array-elements jarr #f)))
-    (let loop ((ptr (pointer+ arr (array-length jarr)))
+    (let loop ((ptr (pointer+ arr (* 4 (array-length jarr))))
                (lst '()))
       (if (pointer=? ptr arr)
           (begin
             (release-int-array-elements jarr arr 0)
             lst)
-          (let ((ptr (pointer+ ptr -1)))
+          (let ((ptr (pointer+ ptr -4)))
             (loop ptr
                   (cons (pointer-s32-ref ptr) lst)))))))
 
