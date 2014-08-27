@@ -374,7 +374,7 @@
             jarr)
           (begin
             (pointer-s32-set! (pointer+ arr i) (car lst))
-            (loop (+ i 1) (cdr lst)))))))
+            (loop (+ i 4) (cdr lst)))))))
 
 (define (int-array->list jarr)
   (let ((arr (get-int-array-elements jarr #f)))
