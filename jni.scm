@@ -3,7 +3,7 @@
 <#
 
 (module jni
-        (jlambda jimport)
+        (jlambda jimport jmodule)
         (import scheme chicken srfi-1)
         (reexport jni-lolevel)
 
@@ -104,6 +104,31 @@
                         value)
                        (else
                          e))) ls))
+
+        (define-syntax jmodule
+          (er-macro-transformer
+           (lambda (x r c)
+             (let* ((%module      (r 'module))
+                    (%import      (r 'import))
+                    (%use         (r 'use))
+                    (%require     (r 'require))
+                    (%begin       (r 'begin))
+                    (%define      (r 'define))
+                    (%jlambda     (r 'jlambda))
+                    (class-name   (cadr x))
+                    (module-name  (caddr x))
+                    (class-object (find-class/or-error class-name))
+                    (Methods      (find-unique-names (find-methods/helper class-object) Method.getName))
+                    (Fields       (find-unique-names (find-fields/helper  class-object) Field.getName)))
+               `(,%module ,module-name
+                           *
+                           (,%import (prefix scheme %)
+                                     (prefix chicken %))
+                           (,%require (##core#quote jni))
+                           (,%import (prefix jni %))
+                           (,%define new (,%jlambda ,class-name new))
+                           ,@(make-jlambda-definitions r class-name Methods)
+                           ,@(make-jlambda-definitions r class-name Fields))))))
 
         (define-syntax jimport 
           (er-macro-transformer
