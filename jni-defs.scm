@@ -382,7 +382,7 @@
                (lst '()))
       (if (pointer=? ptr arr)
           (begin
-            (release-int-array-elements jarr arr 0)
+            (release-int-array-elements jarr arr (foreign-value JNI_ABORT jint))
             lst)
           (let ((ptr (pointer+ ptr -4)))
             (loop ptr
