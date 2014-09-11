@@ -364,6 +364,7 @@
               (dispose e))
             (loop (+ i 1) (cdr lst)))))))
 
+;; TODO: Generate corresponding procedures for the other primitive array types too
 (define (list->int-array lst)
   (let* ((jarr (make-int-array (length lst)))
          (arr (get-int-array-elements jarr #f)))
